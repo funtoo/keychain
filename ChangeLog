@@ -1,11 +1,13 @@
 # ChangeLog for Keychain; http://www.gentoo.org/projects/keychain
 # Copyright 2002 Gentoo Technologies, Inc.; Distributed under the GPL version 2
-# Written by Daniel Robbins (drobbins@gentoo.org)
+# Written by Daniel Robbins <drobbins@gentoo.org>
+# Maintained by Seth Chandler <sethbc@gentoo.org>
 
 * keychain 2.0.3 (06 Apr 2003)
   06 Apr 2003; Seth Chandler <sethbc@gentoo.org>; 
   Added keychain man page, fixed bugs with displaying colors for keychain 
   --help.  Also added a $grepopts to fix the grepping for a pid on cygwin
+  Also added a TODO document
 
 * keychain 2.0.2 (26 Aug 2002)
 
