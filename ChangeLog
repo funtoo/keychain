@@ -3,6 +3,12 @@
 # Written by Daniel Robbins <drobbins@gentoo.org>
 # Maintained by Aron Griffis <agriffis@gentoo.org>
 
+* keychain 2.5.3.1 (10 Mar 2005)
+
+  10 Mar 2005; Aron Griffis <agriffis@gentoo.org>;
+  Fix problem introduced in 2.5.3 wrt adding gpg keys to the agent.  Thanks
+  to Azarah for spotting it.
+
 * keychain 2.5.3 (09 Mar 2005)
 
   09 Mar 2005; Aron Griffis <agriffis@gentoo.org>;

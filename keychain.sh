@@ -6,7 +6,7 @@
 # Current Maintainer: Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.5.3
+version=2.5.3.1
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -1226,6 +1226,7 @@ if wantagent ssh; then
     sshavail=`ssh_l`                # update sshavail now that we're locked
     sshkeys="`ssh_listmissing`"     # cache list of missing keys, newline-separated
     sshattempts=$attempts
+    savedisplay="$DISPLAY"
 
     # Attempt to add the keys
     while [ -n "$sshkeys" ]; do
@@ -1244,11 +1245,9 @@ if wantagent ssh; then
         set +f             # re-enable globbing
 
         if $noguiopt || [ -z "$SSH_ASKPASS" -o -z "$DISPLAY" ]; then
-            savedisplay="$DISPLAY"
             unset DISPLAY       # DISPLAY="" can cause problems
             unset SSH_ASKPASS   # make sure ssh-add doesn't try SSH_ASKPASS
             sshout=`ssh-add ${ssh_timeout} "$@"`
-            [ -n "$savedisplay" ] && DISPLAY="$savedisplay"
         else
             sshout=`ssh-add ${ssh_timeout} "$@" </dev/null`
         fi
@@ -1268,6 +1267,8 @@ if wantagent ssh; then
         # Decrement the countdown
         sshattempts=`expr $sshattempts - 1`
     done
+
+    [ -n "$savedisplay" ] && DISPLAY="$savedisplay"
 fi
 
 # Load gpg keys

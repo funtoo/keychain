@@ -3,6 +3,9 @@ Copyright 2001-2004 Gentoo Foundation; Distributed under the GPL
 
 RELEASE NOTES (See "ChangeLog" for more info):
 
+Keychain 2.5.3.1 fixes addition of gpg keys, which I managed to break in
+2.5.3.
+
 Keychain 2.5.3 improves handling of DISPLAY by unsetting if blank.
 Additionally gpg is called with --use-agent in case the gpg configuration
 file excludes use-agent.
