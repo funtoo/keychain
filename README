@@ -121,14 +121,9 @@ To install keychain, simply use the "install" command as follows:
 
 install -m0755 keychain /usr/bin/keychain
 
-Keychain is now installed.  Now, type "keychain --help | less -r" for
-instructions on how to use keychain.  You'll find intructions for modifying
-your ~/.bash_profile under the "Description" section.  For more detailed
-information on keychain, be sure to visit the Gentoo Linux keychain project
-page at:
+Keychain is now installed.  Now, look at keychain.txt or the manual
+page (they are the same) for instructions on how to use keychain.  For
+additional information on keychain, be sure to visit the Gentoo Linux
+keychain project page at:
 
-http://www.gentoo.org/projects/keychain
-
-Best Regards,
-
-Daniel Robbins                                  <drobbins@gentoo.org>
+http://www.gentoo.org/proj/en/keychain/
