@@ -3,6 +3,10 @@ Copyright 2001-2004 Gentoo Foundation; Distributed under the GPL
 
 RELEASE NOTES (See "ChangeLog" for more info):
 
+Keychain 2.4.2 has complete support for gpg-agent, including adding
+keys, clearing the agent, etc.  The default for --attempts was changed
+from 3 to 1.
+
 Keychain 2.4.1 enables Sun SSH compatibility and fixes some more
 Solaris awk problems.
 

@@ -28,9 +28,11 @@ verifies that the key files specified on the command-line are known to
 ssh-agent, otherwise it loads them, prompting you for a password if
 necessary.
 
-Keychain also supports gpg-agent.  It does not track keys since that
-ability is not available in current versions of gpg-agent.  It simply
-will start gpg-agent and make it available to following logins.
+Keychain also supports gpg-agent in the same ways that ssh-agent is
+supported.  By default keychain attempts to start all available agents
+but will fall back to only gpg-agent or only ssh-agent if either is
+unavailable.  You can specifically limit keychain using the --agents
+option.
 
 keychain supports most UNIX-like operating systems, including Cygwin.
 It works with both Bourne-compatible and csh-compatible shells.
@@ -47,7 +49,7 @@ the system.  The list should be comma-separated, for example "gpg,ssh"
 
 =item B<--attempts> I<num>
 
-Try num times to add keys before giving up.  The default is 3.
+Try num times to add keys before giving up.  The default is 1.
 
 =item B<--clear>
 
@@ -131,9 +133,10 @@ Show version information.
 
 =head1 EXAMPLES
 
-This snippet would work in .bash_profile (for bash) or .zlogin (for zsh):
+This snippet would work in .bash_profile (for bash) or .zlogin (for
+zsh) to load two ssh keys and one gpg key:
 
-    keychain id_rsa id_dsa
+    keychain id_rsa id_dsa 0123ABCD
 	[[ -f $HOME/.keychain/$HOSTNAME-sh ]] && \
 		source $HOME/.keychain/$HOSTNAME-sh
 	[[ -f $HOME/.keychain/$HOSTNAME-sh-gpg ]] && \
@@ -142,7 +145,7 @@ This snippet would work in .bash_profile (for bash) or .zlogin (for zsh):
 For other Bourne-compatible shells such as sh, you can use this in
 .profile:
 
-    keychain id_rsa id_dsa
+    keychain id_rsa id_dsa 0123ABCD
 	host=`uname -n`
 	[ -f $HOME/.keychain/$host-sh ] && \
 		. $HOME/.keychain/$host-sh
@@ -151,7 +154,7 @@ For other Bourne-compatible shells such as sh, you can use this in
 
 This snippet would work in .login for tcsh:
 
-    keychain id_rsa id_dsa
+    keychain id_rsa id_dsa 0123ABCD
 	if (-f $HOME/.keychain/$HOST-csh) then
 		source $HOME/.keychain/$HOST-csh
 	endif
@@ -161,7 +164,7 @@ This snippet would work in .login for tcsh:
 
 This snippet would work in .login for csh:
 
-    keychain id_rsa id_dsa
+    keychain id_rsa id_dsa 0123ABCD
 	host=`uname -n`
 	if (-f $HOME/.keychain/$host-csh) then
 		source $HOME/.keychain/$host-csh

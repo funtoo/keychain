@@ -6,7 +6,7 @@
 # Current Maintainer: Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.4.1
+version=2.4.2
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -27,8 +27,10 @@ quickopt=false
 quietopt=false
 clearopt=false
 timeout=''
-attempts=3
-myavail=''
+attempts=1
+sshavail=''
+sshkeys=''
+gpgkeys=''
 mykeys=''
 keydir="${HOME}/.keychain"
 
@@ -383,7 +385,7 @@ startagent() {
     # Check for an existing agent
     case " $start_mypids " in
         *" $start_pid "*)
-            mesg "Found existing ${start_prog}-agent at PID $start_pid"
+            mesg "Found existing ${start_prog}-agent ($start_pid)"
             return 0
             ;;
     esac
@@ -396,16 +398,16 @@ startagent() {
     :> "$start_pidf" && chmod 0600 "$start_pidf"
     if [ $? != 0 ]; then
         rm -f "$start_pidf" "$start_cshpidf" 2>/dev/null
-        error "can't create ${start_pidf}"
+        error "can't create $start_pidf"
         return 1
     fi
 
     # Init the csh-formatted pidfile
-    mesg "Initializing ${start_cshpidf} file..."
+    mesg "Initializing $start_cshpidf file..."
     :> "$start_cshpidf" && chmod 0600 "$start_cshpidf"
     if [ $? != 0 ]; then
         rm -f "$start_pidf" "$start_cshpidf" 2>/dev/null
-        error "can't create ${start_cshpidf}"
+        error "can't create $start_cshpidf"
         return 1
     fi
 
@@ -546,56 +548,135 @@ ssh_f() {
     return 0
 }
 
-# synopsis: listmissing
-# Uses $mykeys and $myavail
+# synopsis: gpg_listmissing
+# Uses $gpgkeys
 # Returns a newline-separated list of keys found to be missing.
-listmissing() {
-    lm_missing=''
+gpg_listmissing() {
+    glm_missing=''
 
-    # Parse $mykeys into positional params to preserve spaces in filenames
+    # Parse $gpgkeys into positional params to preserve spaces in filenames
     set -f;        # disable globbing
-    lm_IFS="$IFS"  # save current IFS
+    glm_IFS="$IFS"  # save current IFS
     IFS="
 "                  # set IFS to newline
-    set -- $mykeys
-    IFS="$lm_IFS"  # restore IFS
+    set -- $gpgkeys
+    IFS="$glm_IFS"  # restore IFS
     set +f         # re-enable globbing
 
-    for lm_k in "$@"; do
-        # Search for the keyfile
-        if [ -f "$lm_k" ]; then
-            lm_kfile="$lm_k"
-        elif [ -f "$HOME/.ssh/$lm_k" ]; then
-            lm_kfile="$HOME/.ssh/$lm_k"
-        elif [ -f "$HOME/.ssh2/$lm_k" ]; then
-            lm_kfile="$HOME/.ssh2/$lm_k"
-        else
-            $ignoreopt || warn "can't find $lm_k; skipping"
+    for glm_k in "$@"; do
+        # Check if this key is known to the agent.  Don't know another way...
+        if echo | DISPLAY= gpg --no-tty --sign --local-user "$glm_k" -o - >/dev/null 2>&1; then
+            # already know about this key
+            mesg "Known gpg key: ${BLUE}${glm_k}${OFF}"
             continue
+        else
+            # need to add this key
+            if [ -z "$glm_missing" ]; then
+                glm_missing="$glm_k"
+            else
+                glm_missing="$glm_missing
+$glm_k"
+            fi
         fi
+    done
 
+    echo "$glm_missing"
+}
+
+# synopsis: ssh_listmissing
+# Uses $sshkeys and $sshavail
+# Returns a newline-separated list of keys found to be missing.
+ssh_listmissing() {
+    slm_missing=''
+
+    # Parse $sshkeys into positional params to preserve spaces in filenames
+    set -f;        # disable globbing
+    slm_IFS="$IFS"  # save current IFS
+    IFS="
+"                  # set IFS to newline
+    set -- $sshkeys
+    IFS="$slm_IFS"  # restore IFS
+    set +f         # re-enable globbing
+
+    for slm_k in "$@"; do
         # Fingerprint current user-specified key
-        lm_finger=`ssh_f "$lm_kfile"` || continue
+        slm_finger=`ssh_f "$slm_k"` || continue
 
         # Check if it needs to be added
-        case " $myavail " in
-            *" $lm_finger "*)
+        case " $sshavail " in
+            *" $slm_finger "*)
                 # already know about this key
-                mesg "Known key: ${BLUE}${lm_k}${OFF}"
+                mesg "Known ssh key: ${BLUE}${slm_k}${OFF}"
                 ;;
             *)
                 # need to add this key
-                if [ -z "$lm_missing" ]; then
-                    lm_missing="$lm_kfile"
+                if [ -z "$slm_missing" ]; then
+                    slm_missing="$slm_k"
                 else
-                    lm_missing="$lm_missing
-$lm_kfile"
+                    slm_missing="$slm_missing
+$slm_k"
                 fi
                 ;;
         esac
     done
 
-    echo "$lm_missing"
+    echo "$slm_missing"
+}
+
+# synopsis: add_gpgkey
+# Adds a key to $gpgkeys
+add_gpgkey() {
+    gpgkeys=${gpgkeys+"$gpgkeys
+"}"$1"
+}
+
+# synopsis: add_sshkey
+# Adds a key to $sshkeys
+add_sshkey() {
+    sshkeys=${sshkeys+"$sshkeys
+"}"$1"
+}
+
+# synopsis: parse_mykeys
+# Sets $sshkeys and $gpgkeys based on $mykeys
+parse_mykeys() {
+    # Parse $mykeys into positional params to preserve spaces in filenames
+    set -f;        # disable globbing
+    pm_IFS="$IFS"  # save current IFS
+    IFS="
+"                  # set IFS to newline
+    set -- $mykeys
+    IFS="$pm_IFS"  # restore IFS
+    set +f         # re-enable globbing
+
+    for pm_k in "$@"; do
+        # Check for ssh
+        if wantagent ssh; then
+            if [ -f "$pm_k" ]; then
+                add_sshkey "$pm_k" ; continue
+            elif [ -f "$HOME/.ssh/$pm_k" ]; then
+                add_sshkey "$HOME/.ssh/$pm_k" ; continue
+            elif [ -f "$HOME/.ssh2/$pm_k" ]; then
+                add_sshkey "$HOME/.ssh2/$pm_k" ; continue
+            fi
+        fi
+
+        # Check for gpg
+        if wantagent gpg; then
+            if [ -z "$pm_gpgsecrets" ]; then
+                pm_gpgsecrets="`gpg --list-secret-keys 2>/dev/null | cut -d/ -f2 | cut -d' ' -f1 | xargs`"
+                [ -z "$pm_gpgsecrets" ] && pm_gpgsecrets='/'    # arbitrary
+            fi
+            case " $pm_gpgsecrets " in *" $pm_k "*)
+                add_gpgkey "$pm_k" ; continue ;;
+            esac
+        fi
+
+        $ignoreopt || warn "can't find $pm_k; skipping"
+        continue
+    done
+    
+    return 0
 }
 
 # synopsis: setaction
@@ -704,6 +785,7 @@ while [ -n "$1" ]; do
             ;;
         --clear)
             clearopt=true
+            $quickopt && die "--quick and --clear are not compatible"
             ;;
         --host)
             shift
@@ -731,6 +813,7 @@ while [ -n "$1" ]; do
             ;;
         --quick|-Q)
             quickopt=true
+            $clearopt && die "--quick and --clear are not compatible"
             ;;
         --quiet|-q)
             quietopt=true
@@ -817,34 +900,41 @@ fi
 $quickopt || takelock || die    # take lock to manipulate keys/pids/files
 loadagents                      # sets ssh_auth_sock, ssh_agent_pid, etc
 for a in $agentsopt; do
-    retval=1
-    if [ $a = ssh ]; then
-        myavail=`ssh_l`         # try to use existing agent
-                                # 0 = found keys, 1 = no keys, 2 = no agent
-        if [ $? = 0 -o \( $? = 1 -a -z "$mykeys" \) ]; then
-            mesg "Found existing ssh-agent ($ssh_agent_pid)"
-            retval=0
+    needstart=true
+
+    # Trying to be quick has a price... If we discover the agent isn't running,
+    # then we'll have to check things again (in startagent) after taking the
+    # lock.  So don't do the initial check unless --quick was specified.
+    if $quickopt; then
+        if [ $a = ssh ]; then
+            sshavail=`ssh_l`        # try to use existing agent
+                                    # 0 = found keys, 1 = no keys, 2 = no agent
+            if [ $? = 0 -o \( $? = 1 -a -z "$mykeys" \) ]; then
+                mesg "Found existing ssh-agent ($ssh_agent_pid)"
+                needstart=false
+            fi
+        elif [ $a = gpg ]; then
+            # not much way to be quick on this
+            if [ -n "$gpg_agent_pid" ]; then
+                case " `findpids gpg` " in
+                    *" $gpg_agent_pid "*) 
+                        mesg "Found existing gpg-agent ($gpg_agent_pid)"
+                        needstart=false ;;
+                esac
+            fi
         fi
-    elif [ $a = gpg ]; then
-        if [ -n "$gpg_agent_pid" ]; then
-            mesg "Found existing gpg-agent ($gpg_agent_pid)"
-            retval=0
-        fi
-    else
-        die "I don't know how to start ${a}-agent (3)"
     fi
 
-    if [ $retval = 0 ]; then
-        running="${agentsopt}${agentsopt+ }${a}"
-    else
+    if $needstart; then
         $quickopt && { takelock || die; }
-        startagent $a || die
+        startagent $a || die    # XXX switch to warn now that we have agents
         quickopt=false
     fi
 done
-if $quickopt && [ "$running" = "$agentsopt" ]; then
-    exit 0
-fi
+
+# If $quickopt is still set at this point, then we're ok to quit
+# (and need to, because we haven't taken the lock)
+$quickopt && exit 0
 
 # --timeout translates almost directly to ssh-add -t, but ssh.com uses
 # minutes and OpenSSH uses seconds
@@ -866,6 +956,9 @@ if $clearopt; then
             else
                 warn "ssh-agent: $sshout"
             fi
+        elif [ $a = gpg ]; then
+            kill -1 $gpg_agent_pid 2>/dev/null
+            mesg "gpg-agent: All identities removed."
         else
             warn "--clear not supported for ${a}-agent"
         fi
@@ -876,24 +969,30 @@ trap 'droplock' 2               # done clearing, safe to ctrl-c
 # --noask: "don't ask for keys", so we're all done
 $noaskopt && { qprint; exit 0; }
 
+# Parse $mykeys into ssh vs. gpg keys; it may be necessary in the future to
+# differentiate on the cmdline
+parse_mykeys || die
+
+# Load ssh keys
 if wantagent ssh; then
-    myavail=`ssh_l`                 # update myavail now that we're locked
-    mykeys="`listmissing`"          # cache list of missing keys, newline-separated
+    sshavail=`ssh_l`                # update sshavail now that we're locked
+    sshkeys="`ssh_listmissing`"     # cache list of missing keys, newline-separated
+    sshattempts=$attempts
 
     # Attempt to add the keys
-    while [ -n "$mykeys" ]; do
+    while [ -n "$sshkeys" ]; do
 
-        mesg "Adding ${BLUE}"`echo "$mykeys" | wc -l`"${OFF} key(s)..."
+        mesg "Adding ${BLUE}"`echo "$sshkeys" | wc -l`"${OFF} ssh key(s)..."
 
-        # Parse $mykeys into positional params to preserve spaces in filenames.
+        # Parse $sshkeys into positional params to preserve spaces in filenames.
         # This *must* happen after any calls to subroutines because pure Bourne
         # shell doesn't restore "$@" following a call.  Eeeeek!
         set -f;            # disable globbing
         old_IFS="$IFS"     # save current IFS
         IFS="
 "                          # set IFS to newline
-        set -- $mykeys
-        old_IFS="$lm_IFS"  # restore IFS
+        set -- $sshkeys
+        IFS="$old_IFS"     # restore IFS
         set +f             # re-enable globbing
 
         if $noguiopt || [ -z "$SSH_ASKPASS" -o -z "$DISPLAY" ]; then
@@ -904,19 +1003,64 @@ if wantagent ssh; then
         fi
         [ $? = 0 ] && break
 
-        if [ $attempts = 1 ]; then
+        if [ $sshattempts = 1 ]; then
             die "Problem adding; giving up"
         else
             warn "Problem adding; trying again"
         fi
 
         # Update the list of missing keys
-        myavail=`ssh_l`
+        sshavail=`ssh_l`
         [ $? = 0 ] || die "problem running ssh-add -l"
-        mykeys="`listmissing`"  # remember, newline-separated
+        sshkeys="`ssh_listmissing`"  # remember, newline-separated
 
         # Decrement the countdown
-        attempts=`expr $attempts - 1`
+        sshattempts=`expr $sshattempts - 1`
+    done
+fi
+
+# Load gpg keys
+if wantagent gpg; then
+    gpgkeys="`gpg_listmissing`"     # cache list of missing keys, newline-separated
+    gpgattempts=$attempts
+
+    $noguiopt && unset DISPLAY
+    GPG_TTY=`tty` ; export GPG_TTY  # fall back to ncurses pinentry
+
+    # Attempt to add the keys
+    while [ -n "$gpgkeys" ]; do
+        tryagain=false
+
+        mesg "Adding ${BLUE}"`echo "$gpgkeys" | wc -l`"${OFF} gpg key(s)..."
+
+        # Parse $gpgkeys into positional params to preserve spaces in filenames.
+        # This *must* happen after any calls to subroutines because pure Bourne
+        # shell doesn't restore "$@" following a call.  Eeeeek!
+        set -f;            # disable globbing
+        old_IFS="$IFS"     # save current IFS
+        IFS="
+"                          # set IFS to newline
+        set -- $gpgkeys
+        IFS="$old_IFS"     # restore IFS
+        set +f             # re-enable globbing
+
+        for k in "$@"; do
+            echo | gpg --no-tty --sign --local-user "$k" -o - >/dev/null 2>&1
+            [ $? != 0 ] && tryagain=true
+        done
+        $tryagain || break
+
+        if [ $gpgattempts = 1 ]; then
+            die "Problem adding; giving up"
+        else
+            warn "Problem adding; trying again"
+        fi
+
+        # Update the list of missing keys
+        gpgkeys="`gpg_listmissing`"  # remember, newline-separated
+
+        # Decrement the countdown
+        gpgattempts=`expr $gpgattempts - 1`
     done
 fi
 

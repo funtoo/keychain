@@ -6,10 +6,10 @@ TARBALL_CONTENTS=keychain README ChangeLog COPYING keychain.pod keychain.1 \
 
 all: keychain.1 keychain keychain.spec
 
-keychain.spec: keychain.spec.in
+keychain.spec: keychain.spec.in keychain.sh
 	sed 's/KEYCHAIN_VERSION/$V/' keychain.spec.in > keychain.spec
 
-keychain.1: keychain.pod
+keychain.1: keychain.pod keychain.sh
 	pod2man --name=keychain --release=$V \
 		--center='http://gentoo.org/proj/en/keychain.xml' \
 		keychain.pod keychain.1
@@ -36,6 +36,10 @@ keychain.txt: keychain.pod
 	pod2text keychain.pod keychain.txt
 
 keychain-$V.tar.gz: $(TARBALL_CONTENTS)
+	@case $V in *-test) \
+		echo "**** Version is $V, please remove -test"; \
+		exit 1 ;; \
+	esac
 	@if ! grep -qF '* keychain $V ' ChangeLog; then \
 		echo "**** Need to update the ChangeLog for version $V"; \
 		exit 1; \
