@@ -2,7 +2,7 @@ V=$(shell /bin/sh keychain.sh --version 2>&1 | \
 	awk -F'[ ;]' '/^K/{print $$2; exit}')
 D=$(shell date +'%d %b %Y')
 TARBALL_CONTENTS=keychain README ChangeLog COPYING keychain.pod keychain.1 \
-				 keychain.spec keychain-$V
+				 keychain.spec
 
 all: keychain.1 keychain keychain.spec
 
@@ -44,7 +44,7 @@ keychain-$V.tar.gz: $(TARBALL_CONTENTS)
 		exit 1; \
 	fi
 	mkdir keychain-$V
-	cp $(TARBALL_CONTENTS)
+	cp $(TARBALL_CONTENTS) keychain-$V
 	sudo chown -R root:root keychain-$V
 	/bin/tar cjvf keychain-$V.tar.bz2 keychain-$V
 	sudo rm -rf keychain-$V
