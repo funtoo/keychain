@@ -1,6 +1,6 @@
-V=$(shell /bin/sh keychain.sh --version 2>&1 | \
+V:=$(shell /bin/sh keychain.sh --version 2>&1 | \
 	awk -F'[ ;]' '/^K/{print $$2; exit}')
-D=$(shell date +'%d %b %Y')
+D:=$(shell date +'%d %b %Y')
 TARBALL_CONTENTS=keychain README ChangeLog COPYING keychain.pod keychain.1 \
 				 keychain.spec
 
@@ -17,16 +17,20 @@ keychain.1: keychain.pod keychain.sh
 
 keychain: keychain.sh keychain.txt
 	perl -e '\
-		$$/ = undef; \
 		open P, "keychain.txt" or die "cant open keychain.txt"; \
-			$$_ = <P>; \
-			s/^(NAME|SEE ALSO).*?\n\n//msg; \
-			s/\$$/\\\$$/g; \
-			s/\`/\\\`/g; \
-			s/\*(\w+)\*/\$${CYAN}$$1\$${OFF}/g; \
-			s/(^|\s)(-+[-\w]+)/$$1\$${GREEN}$$2\$${OFF}/mg; \
-			$$pod = $$_; \
+			while (<P>) { \
+				$$printing = 0 if /^\w/; \
+				$$printing = 1 if /^(SYNOPSIS|OPTIONS)/; \
+				$$printing || next; \
+				s/\$$/\\\$$/g; \
+				s/\`/\\\`/g; \
+				s/\\$$/\\\\/g; \
+				s/\*(\w+)\*/\$${CYAN}$$1\$${OFF}/g; \
+				s/(^|\s)(-+[-\w]+)/$$1\$${GREEN}$$2\$${OFF}/g; \
+				$$pod .= $$_; \
+			}; \
 		open B, "keychain.sh" or die "cant open keychain.sh"; \
+			$$/ = undef; \
 			$$_ = <B>; \
 			s/INSERT_POD_OUTPUT_HERE\n/$$pod/ || die; \
 		print' >keychain

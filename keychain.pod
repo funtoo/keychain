@@ -5,10 +5,10 @@ keychain - re-use ssh-agent and/or gpg-agent between logins
 =head1 SYNOPSIS
 
 S<keychain [ -hkQqV ] [ --clear --help --ignore-missing --noask>
-S<--nocolor --nogui --nolock --stop --quick --quiet --version ]>
+S<--nocolor --nogui --nolock --quick --quiet --version ]>
 S<[ --agents I<list> ] [ --attempts I<num> ] [ --dir I<dirname> ]>
 S<[ --host I<name> ] [ --lockwait I<seconds> ]>
-S<[ --timeout I<minutes> ] [ keys... ]>
+S<[ --stop I<which> ] [ --timeout I<minutes> ] [ keys... ]>
 
 =head1 DESCRIPTION
 
@@ -77,6 +77,40 @@ Don't warn if some keys on the command-line can't be found.  This is
 useful for situations where you have a shared .bash_profile, but your
 keys might not be available on every machine where keychain is run.
 
+=item B<--inherit> I<which>
+
+Attempt to inherit agent variables from the environment.  This can be
+useful in a variety of circumstances, for example when ssh-agent is
+started by gdm.  The following values are valid for "which":
+
+=over 12
+
+=item B<local>
+
+Inherit when a pid (e.g. SSH_AGENT_PID) is set in the environment.
+This disallows inheriting a forwarded agent.
+
+=item B<any>
+
+Inherit when a sock (e.g. SSH_AUTH_SOCK) is set in the environment.
+This allows inheriting a forwarded agent.
+
+=item B<local-once>
+
+Same as "local", but only inherit if keychain isn't already providing
+an agent.
+
+=item B<any-once>
+
+Same as "any", but only inherit if keychain isn't already providing an
+agent.
+
+=back
+
+By default, keychain-2.5.0 and later will behave as if "--inherit
+local-once" is specified.  You should specify "--noinherit" if you
+want the older behavior.
+
 =item B<--lockwait> I<seconds>
 
 How long to wait for the lock to become available.  Defaults to 30
@@ -98,14 +132,39 @@ Disable color hilighting for non ANSI-compatible terms.
 Don't honor SSH_ASKPASS, if it is set.  This will cause ssh-add to
 prompt on the terminal instead of using a graphical program.
 
+=item B<--noinherit>
+
+Don't inherit any agent processes, overriding the default 
+"--inherit local-once"
+
 =item B<--nolock>
 
 Don't attempt to use a lockfile while manipulating files, pids and
 keys.
 
-=item B<-k --stop>
+=item B<-k --stop> I<which>
 
-Stop all running ssh-agent processes.
+Kill currently running agent processes.  The following values are
+valid for "which":
+
+=over 9
+
+=item all
+
+Kill all agent processes and quit keychain immediately.  Prior to
+keychain-2.5.0, this was the behavior of the bare "--stop" option.
+
+=item others
+
+Kill agent processes other than the one keychain is providing.  Prior
+to keychain-2.5.0, keychain would do this automatically.  The new
+behavior requires that you specify it explicitly if you want it.
+
+=item mine
+
+Kill keychain's agent processes, leaving other agents alone.
+
+=back
 
 =item B<-Q --quick>
 

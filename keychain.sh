@@ -6,16 +6,17 @@
 # Current Maintainer: Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.4.3
+version=2.5.0
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
 maintainer="agriffis@gentoo.org"
 zero=`basename "$0"`
-mesglog=''
-myaction=''
-agentsopt=''
-hostopt=''
+unset mesglog
+unset myaction
+unset agentsopt
+havelock=false
+unset hostopt
 ignoreopt=false
 noaskopt=false
 noguiopt=false
@@ -26,12 +27,14 @@ sunssh=unknown
 quickopt=false
 quietopt=false
 clearopt=false
-timeout=''
+inheritwhich=local-once
+unset stopwhich
+unset timeout
 attempts=1
-sshavail=''
-sshkeys=''
-gpgkeys=''
-mykeys=''
+unset sshavail
+unset sshkeys
+unset gpgkeys
+unset mykeys
 keydir="${HOME}/.keychain"
 
 BLUE="[34;01m"
@@ -176,14 +179,18 @@ now() {
 # Attempts to get the lockfile $lockf.  If locking isn't available, just returns.
 # If locking is available but can't get the lock, exits with error.
 takelock() {
+    # Check if we already have the lock.  Since this is not a threaded prog,
+    # using this global is safe
+    $havelock && return 0
+
     # Honor --nolock
     if $nolockopt; then
-        lockf=''
+        unset lockf
         return 0
     fi
 
     tl_faking=false
-    tl_oldpid=''
+    unset tl_oldpid
 
     # Setup timer
     if [ $lockwait -eq 0 ]; then
@@ -201,7 +208,10 @@ takelock() {
 
     # Try to lock for $lockwait seconds
     while [ $lockwait -eq 0 -o $tl_current -lt $tl_end ]; do
-        tl_error=`ln -s $$ "$lockf" 2>&1` && return 0
+        if tl_error=`ln -s $$ "$lockf" 2>&1`; then
+            havelock=true
+            return 0
+        fi
 
         # advance our timer
         if [ $lockwait -gt 0 ]; then
@@ -255,6 +265,7 @@ takelock() {
     done
 
     # no luck
+    [ -n "$tl_pid" ] || unset tl_pid    # ${var+...} relies on set vs. unset
     error "failed to get the lock${tl_pid+, held by pid $tl_pid}: $tl_error"
     return 1
 }
@@ -321,21 +332,115 @@ findpids() {
 # prog can be ssh or gpg, defaults to ssh.
 stopagent() {
     stop_prog=${1-ssh}
+    eval stop_except=\$\{${stop_prog}_agent_pid\}
     stop_mypids=`findpids "$stop_prog"`
     [ $? = 0 ] || die
 
-    kill $stop_mypids >/dev/null 2>&1
-
-    if [ -n "$stop_mypids" ]; then
-        mesg "All $me's $stop_prog-agent(s) ($stop_mypids) are now stopped."
-    else
-        mesg "No $stop_prog-agent(s) found running."
+    if [ -z "$stop_mypids" ]; then
+        mesg "No $stop_prog-agent(s) found running"
+        return 0
     fi
 
-    if [ "$stop_prog" != ssh ]; then
-        rm -f "${pidf}-$stop_prog" "${cshpidf}-$stop_prog" 2>/dev/null
-    else
-        rm -f "${pidf}" "${cshpidf}" 2>/dev/null
+    case "$stopwhich" in
+        all)
+            kill $stop_mypids >/dev/null 2>&1
+            mesg "All $me's $stop_prog-agent(s) ($stop_mypids) are now stopped"
+            ;;
+
+        others)
+            # Try to handle the case where we *will* inherit a pid
+            if [ -z "$stop_except" ] || ! kill -0 $stop_except >/dev/null 2>&1 || \
+                    [ "$inheritwhich" = local -o "$inheritwhich" = any ]; then
+                if [ "$inheritwhich" != none ]; then
+                    eval stop_except=\$\{inherit_${stop_prog}_agent_pid\}
+                    if [ -z "$stop_except" ] || ! kill -0 $stop_except >/dev/null 2>&1; then
+                        # Handle ssh2
+                        eval stop_except=\$\{inherit_${stop_prog}2_agent_pid\}
+                    fi
+                fi
+            fi
+
+            # Filter out the running agent pid
+            unset stop_mynewpids
+            for stop_x in $stop_mypids; do
+                [ $stop_x -eq $stop_except ] 2>/dev/null && continue
+                stop_mynewpids="${stop_mynewpids+$stop_mynewpids }$stop_x"
+            done
+
+            if [ -n "$stop_mynewpids" ]; then
+                kill $stop_mynewpids >/dev/null 2>&1
+                mesg "Other $me's $stop_prog-agent(s) ($stop_mynewpids) are now stopped"
+            else
+                mesg "No other $stop_prog-agent(s) than keychain's $stop_except found running"
+            fi
+            ;;
+
+        mine)
+            if [ $stop_except -gt 0 ] 2>/dev/null; then
+                kill $stop_except >/dev/null 2>&1
+                mesg "Keychain $stop_prog-agent $stop_except is now stopped"
+            else
+                mesg "No keychain $stop_prog-agent found running"
+            fi
+            ;;
+    esac
+
+    # remove pid files if keychain-controlled 
+    if [ "$stopwhich" != others ]; then
+        if [ "$stop_prog" != ssh ]; then
+            rm -f "${pidf}-$stop_prog" "${cshpidf}-$stop_prog" 2>/dev/null
+        else
+            rm -f "${pidf}" "${cshpidf}" 2>/dev/null
+        fi
+
+        eval unset ${stop_prog}_agent_pid
+    fi
+}
+
+# synopsis: inheritagents
+# Save agent variables from the environment before they get wiped out
+inheritagents() {
+    # Verify these global vars are null
+    unset inherit_ssh_auth_sock inherit_ssh_agent_pid 
+    unset inherit_ssh2_auth_sock inherit_ssh2_agent_sock
+    unset inherit_gpg_agent_info inherit_gpg_agent_pid
+
+    # Save variables so we can inherit a running agent
+    if [ "$inheritwhich" != none ]; then
+        if wantagent ssh; then
+            if [ -n "$SSH_AUTH_SOCK" ]; then
+                if ls "$SSH_AUTH_SOCK" >/dev/null 2>&1; then
+                    inherit_ssh_auth_sock="$SSH_AUTH_SOCK"
+                    inherit_ssh_agent_pid="$SSH_AGENT_PID"
+                else
+                    warn "SSH_AUTH_SOCK in environment is invalid; ignoring it"
+                fi
+            fi
+
+            if [ -z "$inherit_ssh_auth_sock" -a -n "$SSH2_AUTH_SOCK" ]; then 
+                if ls "$SSH2_AUTH_SOCK" >/dev/null 2>&1; then
+                    inherit_ssh2_auth_sock="$SSH2_AUTH_SOCK"
+                    inherit_ssh2_agent_pid="$SSH2_AGENT_PID"
+                else
+                    warn "SSH2_AUTH_SOCK in environment is invalid; ignoring it"
+                fi
+            fi
+        fi
+
+        if wantagent gpg; then
+            if [ -n "$GPG_AGENT_INFO" ]; then
+                la_IFS="$IFS"  # save current IFS
+                IFS=':'        # set IFS to colon to separate PATH
+                set -- $GPG_AGENT_INFO
+                IFS="$la_IFS"  # restore IFS
+                if kill -0 "$2" >/dev/null 2>&1; then
+                    inherit_gpg_agent_pid="$2"
+                    inherit_gpg_agent_info="$GPG_AGENT_INFO"
+                else
+                    warn "GPG_AGENT_INFO in environment is invalid; ignoring it"
+                fi
+            fi
+        fi
     fi
 }
 
@@ -356,15 +461,11 @@ loadagents() {
     if [ -n "$SSH_AUTH_SOCK" ]; then
         ssh_auth_sock=$SSH_AUTH_SOCK
         ssh_agent_pid=$SSH_AGENT_PID
-        ssh_auth_sock_name=SSH_AUTH_SOCK
-        ssh_agent_pid_name=SSH_AGENT_PID
     elif [ -n "$SSH2_AUTH_SOCK" ]; then
         ssh_auth_sock=$SSH2_AUTH_SOCK
         ssh_agent_pid=$SSH2_AGENT_PID
-        ssh_auth_sock_name=SSH2_AUTH_SOCK
-        ssh_agent_pid_name=SSH2_AGENT_PID
     else
-        unset ssh_auth_sock ssh_agent_pid ssh_auth_sock_name ssh_agent_pid_name
+        unset ssh_auth_sock ssh_agent_pid
     fi
 
     if [ -n "$GPG_AGENT_INFO" ]; then
@@ -383,6 +484,8 @@ loadagents() {
 # Requires $ssh_agent_pid
 startagent() {
     start_prog=${1-ssh}
+    unset start_pid
+    start_inherit_pid=none
     start_mypids=`findpids "$start_prog"`
     [ $? = 0 ] || die
 
@@ -392,11 +495,23 @@ startagent() {
         start_pidf="$pidf"
         start_cshpidf="$cshpidf"
         start_pid="$ssh_agent_pid"
+        if [ -n "$inherit_ssh_auth_sock" -o -n "$inherit_ssh2_auth_sock" ]; then
+            if [ -n "$inherit_ssh_agent_pid" ]; then
+                start_inherit_pid="$inherit_ssh_agent_pid"
+            elif [ -n "$inherit_ssh2_agent_pid" ]; then
+                start_inherit_pid="$inherit_ssh2_agent_pid"
+            else
+                start_inherit_pid="forwarded"
+            fi
+        fi
     else
         start_pidf="${pidf}-$start_prog"
         start_cshpidf="${cshpidf}-$start_prog"
         if [ "$start_prog" = gpg ]; then
             start_pid="$gpg_agent_pid"
+            if [ -n "$inherit_gpg_agent_pid" ]; then
+                start_inherit_pid="$inherit_gpg_agent_pid"
+            fi
         else
             error "I don't know how to start $start_prog-agent (1)"
             return 1
@@ -404,16 +519,28 @@ startagent() {
     fi
     [ "$start_pid" -gt 0 ] 2>/dev/null || start_pid=none
 
+    # This hack makes the case statement easier
+    if [ "$inheritwhich" = any -o "$inheritwhich" = any-once ]; then
+        start_fwdflg=forwarded
+    else
+        unset start_fwdflg
+    fi
+
     # Check for an existing agent
-    case " $start_mypids " in
-        *" $start_pid "*)
+    case "$inheritwhich: $start_mypids $start_fwdflg " in
+        any:*" $start_inherit_pid "*|local:*" $start_inherit_pid "*)
+            mesg "Inheriting ${start_prog}-agent ($start_inherit_pid)"
+            ;;
+
+        none:*" $start_pid "*|*-once:*" $start_pid "*)
             mesg "Found existing ${start_prog}-agent ($start_pid)"
             return 0
             ;;
-    esac
 
-    kill $start_mypids >/dev/null 2>&1 && \
-    mesg "All previously running $start_prog-agent(s) have been stopped."
+        *-once:*" $start_inherit_pid "*)
+            mesg "Inheriting ${start_prog}-agent ($start_inherit_pid)"
+            ;;
+    esac
 
     # Init the bourne-formatted pidfile
     mesg "Initializing $start_pidf file..."
@@ -433,28 +560,52 @@ startagent() {
         return 1
     fi
 
-    # Start the agent.
-    # Branch again since the agents start differently
-    mesg "Starting ${start_prog}-agent"
-    if [ "$start_prog" = ssh ]; then
-        start_out=`ssh-agent`
-    elif [ "$start_prog" = gpg ]; then
-        if [ -n "${timeout}" ]; then
-            start_gpg_timeout=`expr ${timeout} \* 60`
-            start_gpg_timeout="--default-cache-ttl ${start_gpg_timeout}"
+    # Determine content for files
+    unset start_out
+    if [ "$start_inherit_pid" = none ]; then
+
+        # Start the agent.
+        # Branch again since the agents start differently
+        mesg "Starting ${start_prog}-agent"
+        if [ "$start_prog" = ssh ]; then
+            start_out=`ssh-agent`
+        elif [ "$start_prog" = gpg ]; then
+            if [ -n "${timeout}" ]; then
+                start_gpg_timeout="--default-cache-ttl `expr $timeout \* 60`"
+            else
+                unset start_gpg_timeout
+            fi
+            # the 1.9.x series of gpg spews debug on stderr
+            start_out=`gpg-agent --daemon $start_gpg_timeout 2>/dev/null`
         else
-            start_gpg_timeout=''
+            error "I don't know how to start $start_prog-agent (2)"
+            return 1
         fi
-        # the 1.9.x series of gpg spews debug on stderr
-        start_out=`gpg-agent --daemon ${start_gpg_timeout} 2>/dev/null`
+        if [ $? != 0 ]; then
+            rm -f "$start_pidf" "$start_cshpidf" 2>/dev/null
+            error "Failed to start ${start_prog}-agent"
+            return 1
+        fi
+
+    elif [ "$start_prog" = ssh -a -n "$inherit_ssh_auth_sock" ]; then
+        start_out="SSH_AUTH_SOCK=$inherit_ssh_auth_sock; export SSH_AUTH_SOCK;"
+        if [ "$inherit_ssh_agent_pid" -gt 0 ] 2>/dev/null; then
+            start_out="$start_out
+SSH_AGENT_PID=$inherit_ssh_agent_pid; export SSH_AGENT_PID;"
+        fi
+    elif [ "$start_prog" = ssh -a -n "$inherit_ssh2_auth_sock" ]; then
+        start_out="SSH2_AUTH_SOCK=$inherit_ssh2_auth_sock; export SSH2_AUTH_SOCK;
+SSH2_AGENT_PID=$inherit_ssh2_agent_pid; export SSH2_AGENT_PID;"
+        if [ "$inherit_ssh2_agent_pid" -gt 0 ] 2>/dev/null; then
+            start_out="$start_out
+SSH2_AGENT_PID=$inherit_ssh2_agent_pid; export SSH2_AGENT_PID;"
+        fi
+    
+    elif [ "$start_prog" = gpg -a -n "$inherit_gpg_agent_info" ]; then
+        start_out="GPG_AGENT_INFO=$inherit_gpg_agent_info; export GPG_AGENT_INFO;"
+
     else
-        error "I don't know how to start $start_prog-agent (2)"
-        return 1
-    fi
-    if [ $? != 0 ]; then
-        rm -f "$start_pidf" "$start_cshpidf" 2>/dev/null
-        error "Failed to start ${start_prog}-agent"
-        return 1
+        die "something bad happened"    # should never be here
     fi
 
     # Add content to pidfiles.
@@ -574,7 +725,7 @@ ssh_f() {
 # Uses $gpgkeys
 # Returns a newline-separated list of keys found to be missing.
 gpg_listmissing() {
-    glm_missing=''
+    unset glm_missing
 
     glm_disp="$DISPLAY"
     unset DISPLAY
@@ -614,7 +765,7 @@ $glm_k"
 # Uses $sshkeys and $sshavail
 # Returns a newline-separated list of keys found to be missing.
 ssh_listmissing() {
-    slm_missing=''
+    unset slm_missing
 
     # Parse $sshkeys into positional params to preserve spaces in filenames
     set -f;        # disable globbing
@@ -741,10 +892,10 @@ in_path() {
 setagents() {
     if [ -n "$agentsopt" ]; then
         agentsopt=`echo "$agentsopt" | sed 's/,/ /g'`
-        new_agentsopt=''
+        unset new_agentsopt
         for a in $agentsopt; do
             if in_path ${a}-agent >/dev/null; then
-                new_agentsopt="${new_agentsopt}${new_agentsopt+ }${a}"
+                new_agentsopt="${new_agentsopt+$new_agentsopt }${a}"
             else
                 warn "can't find ${a}-agent, removing from list"
             fi
@@ -753,7 +904,7 @@ setagents() {
     else
         for a in ssh gpg; do
             in_path ${a}-agent >/dev/null || continue
-            agentsopt="${agentsopt}${agentsopt+ }${a}"
+            agentsopt="${agentsopt+$agentsopt }${a}"
         done
     fi
 
@@ -785,7 +936,19 @@ while [ -n "$1" ]; do
             setaction help 
             ;;
         --stop|-k) 
-            setaction stop 
+            # As of version 2.5, --stop takes an argument.  For the sake of
+            # backward compatibility, only eat the arg if it's one we recognize.
+            if [ "$2" = mine ]; then
+                stopwhich=mine; shift
+            elif [ "$2" = others ]; then
+                stopwhich=others; shift
+            elif [ "$2" = all ]; then
+                stopwhich=all; shift
+            else
+                # backward compat
+                warn "--stop without an argument is deprecated; see --help"
+                stopwhich=all
+            fi
             ;;
         --version|-V) 
             setaction version 
@@ -820,6 +983,20 @@ while [ -n "$1" ]; do
             ;;
         --ignore-missing)
             ignoreopt=true
+            ;;
+        --inherit)
+            shift
+            case "$1" in
+                local|any|local-once|any-once)
+                    inheritwhich="$1"
+                    ;;
+                *)
+                    die "--inherit requires an argument (local, any, local-once or any-once)"
+                    ;;
+            esac
+            ;;
+        --noinherit)
+            inheritwhich=none
             ;;
         --noask)
             noaskopt=true
@@ -910,32 +1087,39 @@ verifykeydir                    # sets up $keydir
 wantagent ssh && testssh        # sets $openssh and $sunssh
 getuser                         # sets $me
 
+# Inherit agent info from the environment before loadagents wipes it out.
+# Always call this since it checks $inheritopt and sets variables accordingly.
+inheritagents
+
 # --stop: kill the existing ssh-agent(s) and quit
-if [ "$myaction" = stop ]; then 
+if [ -n "$stopwhich" ]; then 
     takelock || die
+    if [ "$stopwhich" = mine -o "$stopwhich" = others ]; then
+        loadagents
+    fi
     for a in $agentsopt; do
         stopagent $a
     done
-    qprint
-    exit 0                      # stopagent is always successful
+    if [ "$stopwhich" != others ]; then
+        qprint
+        exit 0                  # stopagent is always successful
+    fi
 fi
 
 # Note regarding locking: if we're trying to be quick, then don't take the lock.
-# It will be taken later if we discover we can't be quick.  On the other hand,
-# if we're not trying to be quick, then take the lock now to avoid a race
-# condition.
-$quickopt || takelock || die    # take lock to manipulate keys/pids/files
-loadagents                      # sets ssh_auth_sock, ssh_agent_pid, etc
-for a in $agentsopt; do
-    needstart=true
+# It will be taken later if we discover we can't be quick.
+if $quickopt; then
+    loadagents         # sets ssh_auth_sock, ssh_agent_pid, etc
+    unset nagentsopt
+    for a in $agentsopt; do
+        needstart=true
 
-    # Trying to be quick has a price... If we discover the agent isn't running,
-    # then we'll have to check things again (in startagent) after taking the
-    # lock.  So don't do the initial check unless --quick was specified.
-    if $quickopt; then
+        # Trying to be quick has a price... If we discover the agent isn't running,
+        # then we'll have to check things again (in startagent) after taking the
+        # lock.  So don't do the initial check unless --quick was specified.
         if [ $a = ssh ]; then
-            sshavail=`ssh_l`        # try to use existing agent
-                                    # 0 = found keys, 1 = no keys, 2 = no agent
+            sshavail=`ssh_l`    # try to use existing agent
+                                # 0 = found keys, 1 = no keys, 2 = no agent
             if [ $? = 0 -o \( $? = 1 -a -z "$mykeys" \) ]; then
                 mesg "Found existing ssh-agent ($ssh_agent_pid)"
                 needstart=false
@@ -950,18 +1134,27 @@ for a in $agentsopt; do
                 esac
             fi
         fi
-    fi
 
-    if $needstart; then
-        $quickopt && { takelock || die; }
-        startagent $a || die    # XXX switch to warn now that we have agents
-        quickopt=false
-    fi
+        $needstart && nagentsopt="$nagentsopt $a"
+    done
+    agentsopt="$nagentsopt"
+fi
+
+# If there are no agents remaining, then bow out now...
+[ -n "$agentsopt" ] || { qprint; exit 0; }
+
+# There are agents remaining to start, and we now know we can't be quick.  Take
+# the lock before continuing
+takelock || die
+loadagents
+unset nagentsopt
+for a in $agentsopt; do
+    startagent $a && nagentsopt="${nagentsopt+$nagentsopt }$a"
 done
+agentsopt="$nagentsopt"
 
-# If $quickopt is still set at this point, then we're ok to quit
-# (and need to, because we haven't taken the lock)
-$quickopt && { qprint; exit 0; }
+# If there are no agents remaining, then duck out now...
+[ -n "$agentsopt" ] || { qprint; exit 0; }
 
 # --timeout translates almost directly to ssh-add -t, but ssh.com uses
 # minutes and OpenSSH uses seconds
@@ -970,7 +1163,7 @@ if [ -n "$timeout" ] && wantagent ssh; then
     if $openssh || $sunssh; then
         ssh_timeout=`expr $ssh_timeout \* 60`
     fi
-    ssh_timeout="-t ${ssh_timeout}"
+    ssh_timeout="-t $ssh_timeout"
 fi
 
 # --clear: remove all keys from the agent(s)
