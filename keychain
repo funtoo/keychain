@@ -1,4 +1,7 @@
 #!/bin/bash
+trap "" INT
+#clean up color vars
+#add --kill, --restart option?
 
 if [ -z "$KEYCHAIN_ADD" ]
 then
