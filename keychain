@@ -32,18 +32,17 @@ done
 
 #auto-detect whether echo -e works.
 unset BLUE GREEN OFF CYAN E
-if [ -z `echo -e` ]
+if [ -z "`echo -e`" ]
 then
 	E="-e"	
-fi
-
-# color variables won't be defined if --nocolor is present
-if [ -z "`echo $* | grep '\-\-nocolor'`" ]
-then
-	BLUE="\033[34;01m"
-	GREEN="\033[32;01m"
-	OFF="\033[0m"
-	CYAN="\033[01m"
+	# color variables won't be defined if --nocolor is present
+	if [ -z "`echo ${@} | grep '\-\-nocolor'`" ]
+	then
+		BLUE="\033[34;01m"
+		GREEN="\033[32;01m"
+		OFF="\033[0m"
+		CYAN="\033[01m"
+	fi
 fi
 
 echo
@@ -192,6 +191,7 @@ then
 	fi
 	echo $E " ${GREEN}*${OFF} All previously running ssh-agent(s) have been stopped."
 	echo $E " ${GREEN}*${OFF} Initializing ${pidf} file..."
+	# "> pidf" doesn't work ash.  But it should work with any sh-compatible shell
 	> $pidf || { echo "$0: Cannot create ${pidf}; exiting." 1>&2; exit 1; }
 	echo $E " ${GREEN}*${OFF} Initializing ${cshpidf} file..."
 	> $cshpidf || { echo "$0: Cannot create ${cshpidf}; exiting." 1>&2; exit 1; }
@@ -221,7 +221,7 @@ myavail=`ssh-add -l | cut -f2 -d " "`
 for x in $KEYCHAIN_KEYS
 do
  	myid=`ssh-keygen -l -f ${x} 2> /dev/null | cut -f2 -d" "`
- 	if [ -z $myid ]
+ 	if [ -z "$myid" ]
  	then
  		echo $E " ${GREEN}*${OFF} Skipping key ${BLUE}${x}${OFF}: no such file or directory" 1>&2
  		continue
