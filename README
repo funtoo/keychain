@@ -1,0 +1,31 @@
+README for KeyChain; http://www.gentoo.org/projects/keychain
+Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
+
+REQUIREMENTS
+
+Keychain requires bash 2.0 or greater to run, and expects "/bin/bash" to be a
+bash 2.0+ shell; if this isn't the case, you will need to change the first line
+of keychain from "#!/bin/bash" to something like "#!/bin/bash2" so that
+keychain will run under bash 2.0+.  This fix is needed for RedHat 6.2, and
+possibly other popular Linux distributions.
+
+INSTALLATION
+
+To install keychain, simply use the "install" command as follows:
+
+install -m0755 keychain /usr/bin/keychain
+
+Keychain is now installed.  Now, type "keychain --help | less -R" for
+instructions on how to use keychain.  You'll find intructions for modifying
+your ~/.bash_profile under the "Description" section.  For more detailed
+information on keychain, be sure to visit the Gentoo Linux keychain project
+page at:
+
+http://www.gentoo.org/projects/keychain
+
+Best Regards,
+
+Daniel Robbins                                  <drobbins@gentoo.org>
+Chief Architect/President                       http://www.gentoo.org 
+Gentoo Technologies, Inc.			
+

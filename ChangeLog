@@ -1,7 +1,20 @@
 # ChangeLog for KeyChain; http://www.gentoo.org/projects/keychain
 # Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 
-  06 Sep 2001; John Ellson <ellson@lucent.com>: 
-  "pidof" changed to "/sbin/pidof", since it's probably not in $PATH
+*keychain 1.0.1; fixes for calling "pidof"; README; ChangeLog
+
+  07 Sep 2001;
+  Addition of README stating that keychain requires bash 2.0 or greater,
+  as well as quick install directions and web URL.
+
+  07 Sep 2001;
+  Explicitly added /sbin and /usr/sbin to path, and then called "pidof".
+  I think that this is a bit more robust.
   
+  06 Sep 2001; from John Ellson <ellson@lucent.com>: 
+  "pidof" changed to "/sbin/pidof", since it's probably not in $PATH
+ 
+  06 Sep 2001;
+  New ChangeLog! :)
+
 *keychain 1.0; initial release (Aug 2001)
