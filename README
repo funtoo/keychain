@@ -3,6 +3,10 @@ Copyright 2001-2004 Gentoo Foundation; Distributed under the GPL
 
 RELEASE NOTES (See "ChangeLog" for more info):
 
+Keychain 2.4.0 fixes a problem with awk on Solaris, a problem with
+commercial ssh not prompting for a password, and adds gpg-agent
+support.
+
 Keychain 2.3.5 fixes a minor problem where keychain would report the
 wrong number of keys when adding them to ssh-agent
 

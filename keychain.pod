@@ -1,13 +1,13 @@
 =head1 NAME
 
-keychain - re-use ssh-agent between logins
+keychain - re-use ssh-agent and/or gpg-agent between logins
 
 =head1 SYNOPSIS
 
 S<keychain [ -hkQqV ] [ --clear --help --ignore-missing --noask>
 S<--nocolor --nogui --nolock --stop --quick --quiet --version ]>
-S<[ --attempts I<num> ] [ --dir I<dirname> ]>
-S<[ --lockwait I<seconds> ]>
+S<[ --agents I<list> ] [ --attempts I<num> ] [ --dir I<dirname> ]>
+S<[ --host I<name> ] [ --lockwait I<seconds> ]>
 S<[ --timeout I<minutes> ] [ keys... ]>
 
 =head1 DESCRIPTION
@@ -28,12 +28,22 @@ verifies that the key files specified on the command-line are known to
 ssh-agent, otherwise it loads them, prompting you for a password if
 necessary.
 
+Keychain also supports gpg-agent.  It does not track keys since that
+ability is not available in current versions of gpg-agent.  It simply
+will start gpg-agent and make it available to following logins.
+
 keychain supports most UNIX-like operating systems, including Cygwin.
 It works with both Bourne-compatible and csh-compatible shells.
 
 =head1 OPTIONS
 
 =over
+
+=item B<--agents> I<list>
+
+Start the agents listed.  By default keychain will build the list
+automatically based on the existence of ssh-agent and/or gpg-agent on
+the system.  The list should be comma-separated, for example "gpg,ssh"
 
 =item B<--attempts> I<num>
 
@@ -54,6 +64,10 @@ Keychain will use dirname rather than $HOME/.keychain
 =item B<-h --help>
 
 Show help that looks remarkably like this man-page.
+
+=item B<--host> I<name>
+
+Set alternate hostname for creation of pidfiles
 
 =item B<--ignore-missing>
 

@@ -6,7 +6,7 @@
 # Current Maintainer: Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.3.5
+version=2.4.0
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -14,6 +14,8 @@ maintainer="agriffis@gentoo.org"
 zero=`basename "$0"`
 mesglog=''
 myaction=''
+agentsopt=''
+hostopt=''
 ignoreopt=false
 noaskopt=false
 noguiopt=false
@@ -138,11 +140,19 @@ now() {
         return 0
     fi
 
-    if now_seconds=`LC_ALL=C date 2>/dev/null | awk -F'[ :]' '{print $6}'` \
+    # Don't use awk -F'[: ]' here because Solaris awk can't handle it, a regex
+    # field separator needs gawk or nawk.  It's easier to simply avoid awk in
+    # this case.
+    if now_seconds=`LC_ALL=C date 2>/dev/null | sed 's/:/ /g' | xargs | cut -d' ' -f6` \
             && [ "$now_seconds" -ge 0 ] 2>/dev/null; then
         if [ -n "$1" ]; then
-            # account for passing minutes
+            # how many minutes have passed previously?
             now_mult=`expr $1 / 60`
+            if [ "$now_seconds" -lt `expr $1 % 60` ]; then
+                # another minute has passed
+                now_mult=`expr $now_mult + 1`
+            fi
+            # accumulate minutes in now_seconds
             now_seconds=`expr 60 \* $now_mult + $now_seconds`
         fi
         echo $now_seconds
@@ -245,9 +255,12 @@ droplock() {
     [ -n "$lockf" ] && rm -f "$lockf"
 }
 
-# synopsis: findpids
-# Returns a space-separated list of ssh-agent pids
+# synopsis: findpids [prog]
+# Returns a space-separated list of agent pids.
+# prog can be ssh or gpg, defaults to ssh.  Note that if another prog is ever
+# added, need to pay attention to the length for Solaris compatibility.
 findpids() {
+    fp_prog=${1-ssh}
     unset fp_psout
 
     # OS X requires special handling.  It returns a false positive with 
@@ -266,39 +279,52 @@ findpids() {
     # Ignore defunct ssh-agents (bug 28599)
     if [ -n "$fp_psout" ]; then
         echo "$fp_psout" | \
-            awk 'BEGIN{IGNORECASE=1} /defunct/{next} /[s]sh-agen/{print $1}' | xargs
+            awk "BEGIN{IGNORECASE=1} /defunct/{next}
+                /$fp_prog-[a]gen/{print \$1}" | xargs
         return 0
     fi
 
     # If none worked, we're stuck
-    error "Unable to use \"ps\" to scan for ssh-agent processes"
-    error "Please report to $maintainer"
+    error "Unable to use \"ps\" to scan for $fp_prog-agent processes"
+    error "Please report to $maintainer via http://bugs.gentoo.org"
     return 1
 }
 
-# synopsis: stopagent
-# --stop tells keychain to kill the existing ssh-agent(s)
+# synopsis: stopagent [prog]
+# --stop tells keychain to kill the existing agent(s)
+# prog can be ssh or gpg, defaults to ssh.
 stopagent() {
-    sa_mypids=`findpids`
+    stop_prog=${1-ssh}
+    stop_mypids=`findpids "$stop_prog"`
     [ $? = 0 ] || die
 
-    kill $sa_mypids >/dev/null 2>&1
+    kill $stop_mypids >/dev/null 2>&1
 
-    if [ -n "$sa_mypids" ]; then
-        mesg "All $me's ssh-agent(s) ($sa_mypids) are now stopped."
+    if [ -n "$stop_mypids" ]; then
+        mesg "All $me's $stop_prog-agent(s) ($stop_mypids) are now stopped."
     else
-        mesg "No ssh-agent(s) found running."
+        mesg "No $stop_prog-agent(s) found running."
     fi
-    qprint
 
-    rm -f "${pidf}" "${cshpidf}" 2>/dev/null
+    if [ "$stop_prog" != ssh ]; then
+        rm -f "${pidf}-$stop_prog" "${cshpidf}-$stop_prog" 2>/dev/null
+    else
+        rm -f "${pidf}" "${cshpidf}" 2>/dev/null
+    fi
 }
 
-# synopsis: quickload
-# Load agent variables (either from $pidf or environment) and copy
-# implementation-specific environment variables into generic global strings
-quickload() {
-    [ -f "$pidf" ] && . "$pidf"
+# synopsis: loadagents
+# Load agent variables from $pidf and copy implementation-specific environment
+# variables into generic global strings
+loadagents() {
+    unset SSH_AUTH_SOCK SSH_AGENT_PID SSH2_AUTH_SOCK SSH2_AGENT_PID
+    unset GPG_AGENT_INFO    # too bad we have to do this explicitly
+
+    # Load agent pid files
+    for ql_x in "$pidf" "$pidf"-*; do
+        [ -f "$ql_x" ] && . "$ql_x"
+    done
+
     # Copy implementation-specific environment variables into generic local
     # variables.
     if [ -n "$SSH_AUTH_SOCK" ]; then
@@ -313,62 +339,95 @@ quickload() {
         ssh_agent_pid_name=SSH2_AGENT_PID
     else
         unset ssh_auth_sock ssh_agent_pid ssh_auth_sock_name ssh_agent_pid_name
-        return 1
     fi
+
+    if [ -n "$GPG_AGENT_INFO" ]; then
+        la_IFS="$IFS"  # save current IFS
+        IFS=':'        # set IFS to colon to separate PATH
+        set -- $GPG_AGENT_INFO
+        IFS="$la_IFS"  # restore IFS
+        gpg_agent_pid=$2
+    fi
+
     return 0
 }
 
-# synopsis: loadagent
-# Load agent variables from $pidf
-loadagent() {
-    unset SSH_AUTH_SOCK SSH_AGENT_PID SSH2_AUTH_SOCK SSH2_AGENT_PID
-    quickload
-    return $?
-}
-
-# synopsis: startagent
-# Starts the ssh-agent if it isn't already running.
+# synopsis: startagent [prog]
+# Starts an agent if it isn't already running.
 # Requires $ssh_agent_pid
 startagent() {
-    sa_mypids=`findpids`
+    start_prog=${1-ssh}
+    start_mypids=`findpids "$start_prog"`
     [ $? = 0 ] || die
 
+    # Unfortunately there isn't much way to genericize this without introducing
+    # a lot more supporting code/structures.
+    if [ "$start_prog" = ssh ]; then
+        start_pidf="$pidf"
+        start_cshpidf="$cshpidf"
+        start_pid="$ssh_agent_pid"
+    else
+        start_pidf="${pidf}-$start_prog"
+        start_cshpidf="${cshpidf}-$start_prog"
+        if [ "$start_prog" = gpg ]; then
+            start_pid="$gpg_agent_pid"
+        else
+            error "I don't know how to start $start_prog-agent (1)"
+            return 1
+        fi
+    fi
+    [ "$start_pid" -gt 0 ] 2>/dev/null || start_pid=none
+
     # Check for an existing agent
-    [ -n "$ssh_agent_pid" ] || ssh_agent_pid=none
-    case " $sa_mypids " in
-        *" $ssh_agent_pid "*)
-            mesg "Found existing ssh-agent at PID $ssh_agent_pid"
+    case " $start_mypids " in
+        *" $start_pid "*)
+            mesg "Found existing ${start_prog}-agent at PID $start_pid"
             return 0
             ;;
     esac
 
-    kill $sa_mypids >/dev/null 2>&1 && \
-    mesg "All previously running ssh-agent(s) have been stopped."
+    kill $start_mypids >/dev/null 2>&1 && \
+    mesg "All previously running $start_prog-agent(s) have been stopped."
 
     # Init the bourne-formatted pidfile
-    mesg "Initializing ${pidf} file..."
-    :> "$pidf" && chmod 0600 "$pidf"
+    mesg "Initializing $start_pidf file..."
+    :> "$start_pidf" && chmod 0600 "$start_pidf"
     if [ $? != 0 ]; then
-        rm -f "$pidf" "$cshpidf" 2>/dev/null
-        error "can't create ${pidf}"
+        rm -f "$start_pidf" "$start_cshpidf" 2>/dev/null
+        error "can't create ${start_pidf}"
         return 1
     fi
 
     # Init the csh-formatted pidfile
-    mesg "Initializing ${cshpidf} file..."
-    :> "$cshpidf" && chmod 0600 "$cshpidf"
+    mesg "Initializing ${start_cshpidf} file..."
+    :> "$start_cshpidf" && chmod 0600 "$start_cshpidf"
     if [ $? != 0 ]; then
-        rm -f "$pidf" "$cshpidf" 2>/dev/null
-        error "can't create ${cshpidf}"
+        rm -f "$start_pidf" "$start_cshpidf" 2>/dev/null
+        error "can't create ${start_cshpidf}"
         return 1
     fi
 
     # Start the agent.
-    mesg "Starting ssh-agent"
-    sshout=`ssh-agent`
+    # Branch again since the agents start differently
+    mesg "Starting ${start_prog}-agent"
+    if [ "$start_prog" = ssh ]; then
+        start_out=`ssh-agent`
+    elif [ "$start_prog" = gpg ]; then
+        if [ -n "${timeout}" ]; then
+            start_gpg_timeout=`expr ${timeout} \* 60`
+            start_gpg_timeout="--default-cache-ttl ${start_gpg_timeout}"
+        else
+            start_gpg_timeout=''
+        fi
+        # the 1.9.x series of gpg spews debug on stderr
+        start_out=`gpg-agent --daemon ${start_gpg_timeout} 2>/dev/null`
+    else
+        error "I don't know how to start $start_prog-agent (2)"
+        return 1
+    fi
     if [ $? != 0 ]; then
-        rm -f "$pidf" "$cshpidf" 2>/dev/null
-        error "Failed to start ssh-agent"
+        rm -f "$start_pidf" "$start_cshpidf" 2>/dev/null
+        error "Failed to start ${start_prog}-agent"
         return 1
     fi
 
@@ -377,20 +436,20 @@ startagent() {
     # generate Bourne shell syntax.  It appears they also ignore SHELL,
     # according to http://bugs.gentoo.org/show_bug.cgi?id=52874
     # So make no assumptions.
-    sshout=`echo "$sshout" | grep -v 'Agent pid'`
-    case "$sshout" in
+    start_out=`echo "$start_out" | grep -v 'Agent pid'`
+    case "$start_out" in
         setenv*)
-            echo "$sshout" >"$cshpidf"
-            echo "$sshout" | awk '{print $2"="$3" export "$2";"}' >"$pidf"
+            echo "$start_out" >"$start_cshpidf"
+            echo "$start_out" | awk '{print $2"="$3" export "$2";"}' >"$start_pidf"
             ;;
         *)
-            echo "$sshout" >"$pidf"
-            echo "$sshout" | awk -F'[= ]' '{print "setenv "$1" "$2}' >"$cshpidf"
+            echo "$start_out" >"$start_pidf"
+            echo "$start_out" | sed 's/;.*/;/' | sed 's/=/ /' | sed 's/^/setenv /' >"$start_cshpidf"
             ;;
     esac
 
     # Hey the agent should be started now... load it up!
-    loadagent
+    loadagents
 }
 
 # synopsis: ssh_l
@@ -493,7 +552,7 @@ listmissing() {
         case " $myavail " in
             *" $lm_finger "*)
                 # already know about this key
-                mesg "Key: ${BLUE}$lm_k${OFF}"
+                mesg "Known key: ${BLUE}${lm_k}${OFF}"
                 ;;
             *)
                 # need to add this key
@@ -510,7 +569,7 @@ $lm_kfile"
     echo "$lm_missing"
 }
 
-# synopsis: set_action
+# synopsis: setaction
 # Sets $myaction or dies if $myaction is already set
 setaction() {
     if [ -n "$myaction" ]; then
@@ -518,6 +577,64 @@ setaction() {
     else
         myaction="$1"
     fi
+}
+
+# synopsis: in_path
+# Look for executables in the path
+in_path() {
+    ip_lookfor="$1"
+
+    # Parse $PATH into positional params to preserve spaces
+    ip_IFS="$IFS"  # save current IFS
+    IFS=':'        # set IFS to colon to separate PATH
+    set -- $PATH
+    IFS="$ip_IFS"  # restore IFS
+
+    for ip_x in "$@"; do
+        [ -x "$ip_x/$ip_lookfor" ] || continue
+        echo "$ip_x/$ip_lookfor" 
+        return 0
+    done
+
+    return 1
+}
+
+# synopsis: setagents
+# Check validity of agentsopt
+setagents() {
+    if [ -n "$agentsopt" ]; then
+        agentsopt=`echo "$agentsopt" | sed 's/,/ /g'`
+        new_agentsopt=''
+        for a in $agentsopt; do
+            if in_path ${a}-agent >/dev/null; then
+                new_agentsopt="${new_agentsopt}${new_agentsopt+ }${a}"
+            else
+                warn "can't find ${a}-agent, removing from list"
+            fi
+        done
+        agentsopt="${new_agentsopt}"
+    else
+        for a in ssh gpg; do
+            in_path ${a}-agent >/dev/null || continue
+            agentsopt="${agentsopt}${agentsopt+ }${a}"
+        done
+    fi
+
+    if [ -z "$agentsopt" ]; then
+        die "no agents available to start"
+    fi
+}
+
+# synopsis: wantagent prog
+# Return 0 (true) or 1 (false) depending on whether prog is one of the agents in
+# agentsopt
+wantagent() {
+    case "$agentsopt" in
+        "$1"|"$1 "*|*" $1 "*|*" $1")
+            return 0 ;;
+        *)
+            return 1 ;;
+    esac
 }
 
 #
@@ -535,6 +652,10 @@ while [ -n "$1" ]; do
             ;;
         --version|-V) 
             setaction version 
+            ;;
+        --agents)
+            shift
+            agentsopt="$1"
             ;;
         --attempts)
             shift
@@ -554,6 +675,10 @@ while [ -n "$1" ]; do
             ;;
         --clear)
             clearopt=true
+            ;;
+        --host)
+            shift
+            hostopt="$1"
             ;;
         --ignore-missing)
             ignoreopt=true
@@ -614,17 +739,17 @@ while [ -n "$1" ]; do
 done
 
 # Set filenames *after* parsing command-line options to allow 
-# modification of $keydir
+# modification of $keydir and/or $hostopt
 #
 # pidf holds the specific name of the keychain .ssh-agent-myhostname file.
 # We use the new hostname extension for NFS compatibility. cshpidf is the
 # .ssh-agent file with csh-compatible syntax. lockf is the lockfile, used
 # to serialize the execution of multiple ssh-agent processes started 
 # simultaneously
-hostname=`uname -n 2>/dev/null || echo unknown`
-pidf="${keydir}/${hostname}-sh"
-cshpidf="${keydir}/${hostname}-csh"
-lockf="${keydir}/${hostname}-lock"
+[ -z "$hostopt" ] && hostopt=`uname -n 2>/dev/null || echo unknown`
+pidf="${keydir}/${hostopt}-sh"
+cshpidf="${keydir}/${hostopt}-csh"
+lockf="${keydir}/${hostopt}-lock"
 
 # Don't use color if there's no terminal on stdout
 if [ -n "$OFF" ]; then
@@ -641,14 +766,18 @@ versinfo
 trap '' 2
 trap 'droplock' 0 1 15          # drop the lock on exit
 
+setagents                       # verify/set $agentsopt
 verifykeydir                    # sets up $keydir
-testssh                         # sets $openssh
+wantagent ssh && testssh        # sets $openssh
 getuser                         # sets $me
 
 # --stop: kill the existing ssh-agent(s) and quit
 if [ "$myaction" = stop ]; then 
     takelock || die
-    stopagent
+    for a in $agentsopt; do
+        stopagent $a
+    done
+    qprint
     exit 0                      # stopagent is always successful
 fi
 
@@ -657,84 +786,108 @@ fi
 # if we're not trying to be quick, then take the lock now to avoid a race
 # condition.
 $quickopt || takelock || die    # take lock to manipulate keys/pids/files
-loadagent                       # sets ssh_auth_sock, ssh_agent_pid, etc
-myavail=`ssh_l`                 # try to use existing agent
+loadagents                      # sets ssh_auth_sock, ssh_agent_pid, etc
+for a in $agentsopt; do
+    retval=1
+    if [ $a = ssh ]; then
+        myavail=`ssh_l`         # try to use existing agent
                                 # 0 = found keys, 1 = no keys, 2 = no agent
-if [ $? = 0 -o \( $? = 1 -a -z "$mykeys" \) ]; then
-    mesg "Found running ssh-agent ($ssh_agent_pid)"
-    $quickopt && exit 0
-else
-    $quickopt && { takelock || die; }
-    startagent || die           # start ssh-agent
+        if [ $? = 0 -o \( $? = 1 -a -z "$mykeys" \) ]; then
+            mesg "Found existing ssh-agent ($ssh_agent_pid)"
+            retval=0
+        fi
+    elif [ $a = gpg ]; then
+        if [ -n "$gpg_agent_pid" ]; then
+            mesg "Found existing gpg-agent ($gpg_agent_pid)"
+            retval=0
+        fi
+    else
+        die "I don't know how to start ${a}-agent (3)"
+    fi
+
+    if [ $retval = 0 ]; then
+        running="${agentsopt}${agentsopt+ }${a}"
+    else
+        $quickopt && { takelock || die; }
+        startagent $a || die
+        quickopt=false
+    fi
+done
+if $quickopt && [ "$running" = "$agentsopt" ]; then
+    exit 0
 fi
 
 # --timeout translates almost directly to ssh-add -t, but ssh.com uses
 # minutes and OpenSSH uses seconds
-if [ -n "$timeout" ]; then
-    $openssh && timeout=`expr $timeout \* 60`
-    timeout="-t $timeout"
+if [ -n "$timeout" ] && wantagent ssh; then
+    ssh_timeout=$timeout
+    $openssh && ssh_timeout=`expr $ssh_timeout \* 60`
+    ssh_timeout="-t ${ssh_timeout}"
 fi
 
-# --clear: remove all keys from the agent
+# --clear: remove all keys from the agent(s)
 if $clearopt; then
-    sshout=`ssh-add -D 2>&1`
-    if [ $? = 0 ]; then
-        mesg "$sshout"
-        touch "$pidf"           # reset for --timeout
-    else
-        warn "$sshout"
-    fi
+    for a in ${agentsopt}; do
+        if [ $a = ssh ]; then
+            sshout=`ssh-add -D 2>&1`
+            if [ $? = 0 ]; then
+                mesg "ssh-agent: $sshout"
+            else
+                warn "ssh-agent: $sshout"
+            fi
+        else
+            warn "--clear not supported for ${a}-agent"
+        fi
+    done
 fi
 trap 'droplock' 2               # done clearing, safe to ctrl-c
 
 # --noask: "don't ask for keys", so we're all done
 $noaskopt && { qprint; exit 0; }
 
-myavail=`ssh_l`                 # update myavail now that we're locked
-mykeys="`listmissing`"          # cache list of missing keys, newline-separated
+if wantagent ssh; then
+    myavail=`ssh_l`                 # update myavail now that we're locked
+    mykeys="`listmissing`"          # cache list of missing keys, newline-separated
 
-# Attempt to add the keys
-while [ -n "$mykeys" ]; do
+    # Attempt to add the keys
+    while [ -n "$mykeys" ]; do
 
-    mesg "Adding ${BLUE}"`echo "$mykeys" | wc -l`"${OFF} key(s)..."
+        mesg "Adding ${BLUE}"`echo "$mykeys" | wc -l`"${OFF} key(s)..."
 
-    # Parse $mykeys into positional params to preserve spaces in filenames.
-    # This *must* happen after any calls to subroutines because pure Bourne
-    # shell doesn't restore "$@" following a call.  Eeeeek!
-    set -f;            # disable globbing
-    old_IFS="$IFS"     # save current IFS
-    IFS="
-"                      # set IFS to newline
-    set -- $mykeys
-    old_IFS="$lm_IFS"  # restore IFS
-    set +f             # re-enable globbing
+        # Parse $mykeys into positional params to preserve spaces in filenames.
+        # This *must* happen after any calls to subroutines because pure Bourne
+        # shell doesn't restore "$@" following a call.  Eeeeek!
+        set -f;            # disable globbing
+        old_IFS="$IFS"     # save current IFS
+        IFS="
+"                          # set IFS to newline
+        set -- $mykeys
+        old_IFS="$lm_IFS"  # restore IFS
+        set +f             # re-enable globbing
 
-    # For some reason ssh.com spits out multiple success messages per
-    # key.  Use uniq to filter it down to a single message.
-    if $noguiopt || [ -z "$SSH_ASKPASS" -o -z "$DISPLAY" ]; then
-        unset SSH_ASKPASS   # make sure ssh-add doesn't try SSH_ASKPASS
-        sshout=`ssh-add $timeout "$@" 2>&1 | uniq`
-    else
-        sshout=`ssh-add $timeout "$@" 2>&1 </dev/null | uniq`
-    fi
-    retval=$?
-    [ -n "$sshout" ] && echo "$sshout" | while read line; do mesg "$line"; done
-    [ $retval = 0 ] && break
+        if $noguiopt || [ -z "$SSH_ASKPASS" -o -z "$DISPLAY" ]; then
+            unset SSH_ASKPASS   # make sure ssh-add doesn't try SSH_ASKPASS
+            sshout=`ssh-add ${ssh_timeout} "$@"`
+        else
+            sshout=`ssh-add ${ssh_timeout} "$@" </dev/null`
+        fi
+        [ $? = 0 ] && break
 
-    if [ $attempts = 1 ]; then
-        die "Problem adding; giving up"
-    else
-        warn "Problem adding; trying again"
-    fi
+        if [ $attempts = 1 ]; then
+            die "Problem adding; giving up"
+        else
+            warn "Problem adding; trying again"
+        fi
 
-    # Update the list of missing keys
-    myavail=`ssh_l`
-    [ $? = 0 ] || die "problem running ssh-add -l"
-    mykeys="`listmissing`"  # remember, newline-separated
+        # Update the list of missing keys
+        myavail=`ssh_l`
+        [ $? = 0 ] || die "problem running ssh-add -l"
+        mykeys="`listmissing`"  # remember, newline-separated
 
-    # Decrement the countdown
-    attempts=`expr $attempts - 1`
-done
+        # Decrement the countdown
+        attempts=`expr $attempts - 1`
+    done
+fi
 
 qprint  # trailing newline
 
