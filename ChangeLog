@@ -8,6 +8,7 @@
   Added keychain man page, fixed bugs with displaying colors for keychain 
   --help.  Also added a $grepopts to fix the grepping for a pid on cygwin
   Also added a TODO document
+  color fix based on submission by Luke Holden <email@alterself.org>
 
 * keychain 2.0.2 (26 Aug 2002)
 
