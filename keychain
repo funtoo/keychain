@@ -1,32 +1,28 @@
 #!/bin/bash
-trap "" INT
-#clean up color vars
-#add --kill, --restart option?
+# Copyright 1999-2001 Gentoo Technologies, Inc.
+# Distributed under the terms of the GNU General Public License, v2 or later
+# Author: Daniel Robbins <drobbins@gentoo.org>
+# $Header$
 
-if [ -z "$KEYCHAIN_ADD" ]
-then
-	KEYCHAIN_ADD="ssh-add"
-fi
+trap "" INT
+#add --kill, --restart option?
 
 KEYCHAIN_KEYS=""
 for x in ${*}
 do
+	#if it's not an --option, add it to our list of keys
 	if [ "${x:0:2}" != "--" ]
 	then
 		KEYCHAIN_KEYS="$KEYCHAIN_KEYS ${x}"
 	fi
 done
 
-KEYLITE="\033[35;01m"
-HILITE3="\033[34;01m"
-HILITE2="\033[32;01m"
-HILITE=${HILITE2}
-LOLITE="\033[0m"
-GREEN=$HILITE2
+BLUE="\033[34;01m"
+GREEN="\033[32;01m"
+OFF="\033[0m"
 CYAN="\033[36;01m"
-OFF=$LOLITE
 echo
-echo -e "${HILITE2}KeyChain 1.0; ${HILITE3}http://www.gentoo.org/projects/keychain${LOLITE}\n Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL" 
+echo -e "${GREEN}KeyChain 1.0; ${BLUE}http://www.gentoo.org/projects/keychain${OFF}\n Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL" 
 
 if [ -n "`echo $* | grep '\-\-help'`" ]
 then
@@ -80,6 +76,7 @@ cat <<EOHELP
  add any of the keys you specified if they haven't yet been added to ssh-agent.
 
 EOHELP
+#' this line is a simple fix for vim syntax highlighting
 	exit 1
 fi
 
@@ -89,7 +86,7 @@ then
 	touch ~/.ssh-agent
 	chmod 0600 ~/.ssh-agent
 	SSH_AGENT_PID="NULL"
-	echo -e " ${HILITE}*${LOLITE} Initializing ~/.ssh-agent file"
+	echo -e " ${GREEN}*${OFF} Initializing ~/.ssh-agent file"
 else
 	source ~/.ssh-agent > /dev/null
 fi
@@ -99,7 +96,7 @@ for x in `pidof ssh-agent`
 do
 	if [ "$x" = "$SSH_AGENT_PID" ]
 	then
-		echo -e " ${HILITE}*${LOLITE} Found existing ssh-agent at PID ${x}"
+		echo -e " ${GREEN}*${OFF} Found existing ssh-agent at PID ${x}"
 		match="yes"
 		break
 	fi
@@ -108,21 +105,22 @@ done
 if [ "$match" = "no" ]
 then
 	chmod 0600 ~/.ssh-agent
-	echo -e " ${HILITE}*${LOLITE} starting new ssh-agent"
+	echo -e " ${GREEN}*${OFF} starting new ssh-agent"
 	nohup ssh-agent > ~/.ssh-agent
 	source ~/.ssh-agent > /dev/null
 fi
 
 if [ -n "`echo $* | grep '\-\-clear'`" ]
 then
-	echo -ne " ${HILITE}*${LOLITE} "
-	$KEYCHAIN_ADD -D
+	echo -ne " ${GREEN}*${OFF} "
+	ssh-add -D
 fi
 
-myavail=`$KEYCHAIN_ADD -l | cut -f2 -d " "`
+myavail=`ssh-add -l | cut -f2 -d " "`
 
 if [ -n "`echo $* | grep '\-\-noask'`" ]
 then
+	#--noask means "don't ask for keys", so skip this next part	
 	echo
 	exit 0
 fi
@@ -140,12 +138,12 @@ do
 	done
 	if [ $match -ne 1 ]
 	then
-		echo -e " ${HILITE}*${LOLITE} Key: ${x} missing"
+		echo -e " ${GREEN}*${OFF} Key: ${x} missing"
 		echo
-		$KEYCHAIN_ADD ${x}
-	echo
-else
-		echo -e " ${HILITE}*${LOLITE} Key: ${HILITE3}${x}${LOLITE}"
+		ssh-add ${x}
+		echo
+	else
+		echo -e " ${GREEN}*${OFF} Key: ${BLUE}${x}${OFF}"
 	fi
 done
 echo
