@@ -1,5 +1,6 @@
 #!/bin/bash
 V=1.9
-mkdir keychain-${V}; cp keychain* README ChangeLog keychain-${V}
-chown -R root.root keychain-${V}
-tar cjvf keychain-${V}.tar.bz2 keychain-${V}
+rm -rf /tmp/keychain-${V}
+mkdir /tmp/keychain-${V}; cp keychain keychain.* README ChangeLog /tmp/keychain-${V}
+chown -R root.root /tmp/keychain-${V}
+cd /tmp; tar cjvf keychain-${V}.tar.bz2 keychain-${V}

@@ -4,6 +4,8 @@
 
 * keychain 1.9 (04 Mar 2002)
 
+  04 Mar 2002; changed license from "GPL, v2 or later" to "GPL v2".
+  
   04 Mar 2002; added "keychain.cygwin" for Cygwin systems.  It may be time to
   follow this pattern and start building separate, optimized scripts for each
   platform so they don't get too sluggish.  Maybe I could use a C preprocessor
