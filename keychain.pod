@@ -7,6 +7,7 @@ keychain - re-use ssh-agent between logins
 S<keychain [ -hkQqV ] [ --clear --help --ignore-missing --noask>
 S<--nocolor --nogui --nolock --stop --quick --quiet --version ]>
 S<[ --attempts I<num> ] [ --dir I<dirname> ]>
+S<[ --lockwait I<seconds> ]>
 S<[ --timeout I<minutes> ] [ keys... ]>
 
 =head1 DESCRIPTION
@@ -59,6 +60,11 @@ Show help that looks remarkably like this man-page.
 Don't warn if some keys on the command-line can't be found.  This is
 useful for situations where you have a shared .bash_profile, but your
 keys might not be available on every machine where keychain is run.
+
+=item B<--lockwait> I<seconds>
+
+How long to wait for the lock to become available.  Defaults to 30
+seconds.
 
 =item B<--noask>
 

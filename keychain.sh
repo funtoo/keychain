@@ -6,7 +6,7 @@
 # Current Maintainer: Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.2.2
+version=2.3.0
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -18,6 +18,7 @@ ignoreopt=false
 noaskopt=false
 noguiopt=false
 nolockopt=false
+lockwait=30
 openssh=unknown
 quickopt=false
 quietopt=false
@@ -38,8 +39,7 @@ RED="[31;01m"
 # We use the new hostname extension for NFS compatibility. cshpidf is the
 # .ssh-agent file with csh-compatible syntax. lockf is the lockfile, used
 # to serialize the execution of multiple ssh-agent processes started 
-# simultaneously (only works if lockfile from the procmail package is
-# available.
+# simultaneously
 hostname=`uname -n 2>/dev/null || echo unknown`
 pidf="${keydir}/${hostname}-sh"
 cshpidf="${keydir}/${hostname}-csh"
@@ -126,6 +126,42 @@ verifykeydir() {
     fi
 }
 
+# synopsis: now previous_now
+# Returns some seconds value on stdout, for timing things.  Accepts a
+# previous_now parameter which should be the last value returned.  (No data can
+# be persistent because this is called from a subshell.) If this is called less
+# than once per minute on a non-GNU system then it might skip a minute.
+now() {
+    if [ -n "$BASH_VERSION" -a "$SECONDS" -ge 0 ] 2>/dev/null; then
+        echo $SECONDS
+        return 0
+    fi
+
+    if now_seconds=`date +%s 2>/dev/null` \
+            && [ "$now_seconds" -gt 0 ] 2>/dev/null; then
+        if [ $now_seconds -lt "$1" ] 2>/dev/null; then
+            warn "time went backwards, taking countermeasures"
+            echo `expr $1 + 1`
+        else
+            echo $now_seconds
+        fi
+        return 0
+    fi
+
+    if now_seconds=`LC_ALL=C date 2>/dev/null | awk -F'[ :]' '{print $6}'` \
+            && [ "$now_seconds" -ge 0 ] 2>/dev/null; then
+        if [ -n "$1" ]; then
+            # account for passing minutes
+            now_mult=`expr $1 / 60`
+            now_seconds=`expr 60 \* $now_mult + $now_seconds`
+        fi
+        echo $now_seconds
+        return 0
+    fi
+
+    return 1
+}
+
 # synopsis: takelock
 # Attempts to get the lockfile $lockf.  If locking isn't available, just returns.
 # If locking is available but can't get the lock, exits with error.
@@ -136,22 +172,81 @@ takelock() {
         return 0
     fi
 
-    # lockfile is part of procmail
-    # TODO: implement with mkdir to avoid the dependency
-    lockfile -1 -r 30 -l 35 -s 2 "$lockf" 2>/dev/null
-    case $? in
-        0)
-            return 0 
-            ;;
-        73)
-            error "couldn't get lock"
+    tl_faking=false
+    tl_oldpid=''
+
+    # Setup timer
+    if [ $lockwait -eq 0 ]; then
+        true    # don't bother to set tl_start, tl_end, tl_current
+    elif tl_start=`now`; then
+        tl_end=`expr $tl_start + $lockwait`
+        tl_current=$tl_start
+    else
+        # we'll fake it the best we can
+        tl_faking=true
+        tl_start=0
+        tl_end=`expr $lockwait \* 10`
+        tl_current=0
+    fi
+
+    # Try to lock for $lockwait seconds
+    while [ $lockwait -eq 0 -o $tl_current -lt $tl_end ]; do
+        tl_error=`ln -s $$ "$lockf" 2>&1` && return 0
+
+        # advance our timer
+        if [ $lockwait -gt 0 ]; then
+            if $tl_faking; then
+                tl_current=`expr $tl_current + 1`
+            else
+                tl_current=`now $tl_current`
+            fi
+        fi
+
+        # check for old-style lock; unlikely
+        if [ -f "$lockf" ]; then
+            error "please remove old-style lock: $lockf"
             return 1
-            ;;
-        *)
-            warn "locking unavailable (install procmail or use --nolock)"
-            return 0
-            ;;
-    esac
+        fi
+
+        # read the lock
+        tl_pid=`readlink "$lockf" 2>/dev/null`
+        if [ -z "$tl_pid" ]; then 
+            tl_pid=`ls -l "$lockf" 2>/dev/null | awk '{print $NF}'`
+        fi
+        if [ -z "$tl_pid" ]; then
+            # lock seems to have disappeared, try again
+            continue
+        fi
+
+        # test for a stale lock
+        kill -0 "$tl_pid" 2>/dev/null
+        if [ $? != 0 ]; then
+            # Avoid a race condition; another keychain might have started at
+            # this point.  If the pid is the same as the last time we
+            # checked, then go ahead and remove the stale lock.  Otherwise
+            # remember the pid and try again.
+            if [ "$tl_pid" = "$tl_oldpid" ]; then
+                warn "removing stale lock for pid $tl_pid"
+                rm -f "$lockf"
+            else
+                tl_oldpid="$tl_pid"
+            fi
+            # try try again
+            continue
+        fi
+
+        # sleep for a bit to wait for the keychain process holding the lock
+        sleep 0.1 >/dev/null 2>&1 && continue
+        perl -e 'select(undef, undef, undef, 0.1)' \
+            >/dev/null 2>&1 && continue
+        # adjust granularity of tl_current stepping
+        $tl_faking && tl_current=`expr $tl_current + 9`
+        sleep 1
+    done
+
+    # no luck
+    error "failed to get the lock${tl_pid+, held by pid $tl_pid}: $tl_error"
+    return 1
 }
 
 # synopsis: droplock
@@ -434,7 +529,7 @@ while [ -n "$1" ]; do
             shift
             case "$1" in
                 */.*) keydir="$1" ;;
-                '')   die "--dir requires an argument" >&2 ;;
+                '')   die "--dir requires an argument" ;;
                 *)    keydir="$1/.keychain" ;;  # be backward-compatible
             esac
             ;;
@@ -452,6 +547,14 @@ while [ -n "$1" ]; do
             ;;
         --nolock)
             nolockopt=true
+            ;;
+        --lockwait)
+            shift
+            if [ "$1" -ge 0 ] 2>/dev/null; then
+                lockwait="$1"
+            else
+                die "--lockwait requires an argument 0 <= n <= 50"
+            fi
             ;;
         --quick|-Q)
             quickopt=true

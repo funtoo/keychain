@@ -1,4 +1,5 @@
-V=$(shell bash keychain --version 2>&1 | awk -F'[ ;]' '/^K/{print $$2; exit}')
+V=$(shell /bin/sh keychain.sh --version 2>&1 | \
+	awk -F'[ ;]' '/^K/{print $$2; exit}')
 
 all: keychain.1 keychain
 
@@ -7,7 +8,7 @@ keychain.1: keychain.pod Makefile
 		--center='http://gentoo.org/proj/en/keychain.xml' \
 		keychain.pod keychain.1
 
-keychain: keychain.bash keychain.txt Makefile
+keychain: keychain.sh keychain.txt Makefile
 	perl -e '\
 		$$/ = undef; \
 		open P, "keychain.txt" or die "cant open keychain.txt"; \
@@ -17,7 +18,7 @@ keychain: keychain.bash keychain.txt Makefile
 			s/\*(\w+)\*/\$${CYAN}$$1\$${OFF}/g; \
 			s/(^|\s)(-+[-\w]+)/$$1\$${GREEN}$$2\$${OFF}/mg; \
 			$$pod = $$_; \
-		open B, "keychain.bash" or die "cant open keychain.bash"; \
+		open B, "keychain.sh" or die "cant open keychain.sh"; \
 			$$_ = <B>; \
 			s/INSERT_POD_OUTPUT_HERE\n/$$pod/ || die; \
 		print' >keychain
