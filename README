@@ -3,6 +3,9 @@ Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 
 RELEASE NOTES (See "ChangeLog" for more info):
 
+Keychain 2.3.4 fixes a problem where keychain would mistake defunct
+ssh-agent processes for running ones
+
 Keychain 2.3.3 fixes a problem in the help output, makes --dir work
 correctly, correctly handles spaces in file and directory names, and
 fixes operation on HP-UX with older OpenSSH

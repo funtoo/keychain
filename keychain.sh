@@ -6,7 +6,7 @@
 # Current Maintainer: Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.3.3
+version=2.3.4
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -261,15 +261,16 @@ findpids() {
     # BSD syntax for others
     [ -z "$fp_psout" ] && fp_psout=`ps x 2>/dev/null`
 
-    # Return the list of pids; ignore case for Cygwin
-    # and check only 8 characters since Solaris truncates at that length
+    # Return the list of pids; ignore case for Cygwin.
+    # Check only 8 characters since Solaris truncates at that length.
+    # Ignore defunct ssh-agents (bug 28599)
     if [ -n "$fp_psout" ]; then
         echo "$fp_psout" | \
-            awk 'BEGIN{IGNORECASE=1} /[s]sh-agen/{print $1}' | xargs
+            awk 'BEGIN{IGNORECASE=1} /defunct/{next} /[s]sh-agen/{print $1}' | xargs
         return 0
     fi
 
-    # If neither worked, we're stuck
+    # If none worked, we're stuck
     error "Unable to use \"ps\" to scan for ssh-agent processes"
     error "Please report to $maintainer"
     return 1

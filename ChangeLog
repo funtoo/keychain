@@ -3,6 +3,12 @@
 # Written by Daniel Robbins <drobbins@gentoo.org>
 # Maintained by Aron Griffis <agriffis@gentoo.org>
 
+* keychain 2.3.4 (24 Jul 2004)
+
+  24 Jul 2004; Aron Griffis <agriffis@gentoo.org>;
+  Fix bug 28599 reported by Bruno Pelaia; ignore defunct processes in
+  ps output
+
 * keychain 2.3.3 (30 Jun 2004)
 
   30 Jun 2004; Aron Griffis <agriffis@gentoo.org>;

@@ -1,5 +1,6 @@
 V=$(shell /bin/sh keychain.sh --version 2>&1 | \
 	awk -F'[ ;]' '/^K/{print $$2; exit}')
+D=$(shell date +'%d %b %Y')
 
 all: keychain.1 keychain
 
@@ -43,3 +44,16 @@ tarball: all
 	/bin/tar cjvf keychain-$V.tar.bz2 keychain-$V
 	rm -rf keychain-$V
 	ls -l keychain-$V.tar.bz2
+
+webpage:
+	perl -0777i.bak -pe '\
+		BEGIN{open F, "ChangeLog"; local $$/=undef; \
+			($$C=<F>) =~ s/^.*?\n\n//s; \
+			$$C =~ s/&/&amp;/g; \
+			$$C =~ s/</&lt;/g; \
+			$$C =~ s/>/&gt;/g; }; \
+		s/(<version>).*?(?=<.version>)/$${1}$V/; \
+		s/(<date>).*?(?=<.date>)/$${1}$D/; \
+		s/(keychain-)[\d.]+(?=\.tar|\S*rpm)/$${1}$V/g; \
+		s/(<!-- begin automatic ChangeLog insertion -->).*?(?=<!-- end)/$${1}$$C/s;' \
+			~/gentoo/xml/htdocs/proj/en/keychain/index.xml
