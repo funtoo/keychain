@@ -6,7 +6,7 @@
 # Current Maintainer: Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.2.0
+version=2.2.2
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -177,9 +177,10 @@ findpids() {
     [ -z "$fp_psout" ] && fp_psout=`ps x 2>/dev/null`
 
     # Return the list of pids; ignore case for Cygwin
+    # and check only 8 characters since Solaris truncates at that length
     if [ -n "$fp_psout" ]; then
         echo "$fp_psout" | \
-            awk 'BEGIN{IGNORECASE=1} /[s]sh-agent/{print $1}' | xargs
+            awk 'BEGIN{IGNORECASE=1} /[s]sh-agen/{print $1}' | xargs
         return 0
     fi
 
@@ -289,9 +290,9 @@ startagent() {
 
     # Add content to pidfiles
     echo "$sshout" | grep -v 'Agent pid' >"$pidf"
-    . "$pidf"
-    echo "setenv $SSH_AUTH_SOCK_NAME $SSH_AUTH_SOCK" >"$cshpidf"
-    echo "setenv $SSH_AGENT_PID_NAME $SSH_AGENT_PID" >>"$cshpidf"
+    loadagent
+    echo "setenv $ssh_auth_sock_name $ssh_auth_sock" >"$cshpidf"
+    echo "setenv $ssh_agent_pid_name $ssh_agent_pid" >>"$cshpidf"
 }
 
 # synopsis: ssh_l

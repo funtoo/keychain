@@ -12,7 +12,7 @@ keychain: keychain.bash keychain.txt Makefile
 		$$/ = undef; \
 		open P, "keychain.txt" or die "cant open keychain.txt"; \
 			$$_ = <P>; \
-			s/^(NAME|SEE_ALSO).*?\n\n//msg; \
+			s/^(NAME|SEE ALSO).*?\n\n//msg; \
 			s/\$$/\\\$$/g; \
 			s/\*(\w+)\*/\$${CYAN}$$1\$${OFF}/g; \
 			s/(^|\s)(-+[-\w]+)/$$1\$${GREEN}$$2\$${OFF}/mg; \

@@ -3,6 +3,12 @@ Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 
 RELEASE NOTES (See "ChangeLog" for more info):
 
+Keychain 2.2.2 fixes the generation of the -csh file, reported by Jens
+Svalgaard Kohrt in http://bugs.gentoo.org/show_bug.cgi?id=49813
+
+Keychain 2.2.1 includes a fix for Solaris, which cuts off ps -u output
+at 8 characters.  Reported by and tested by Clay England.
+
 Keychain 2.2.0 is a complete rewrite with a lot of compatibility and
 speed fixes.  Additionally it provides --timeout for carpaski and
 others interested in this feature.
