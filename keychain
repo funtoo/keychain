@@ -4,11 +4,19 @@
 # Author: Daniel Robbins <drobbins@gentoo.org>
 # $Header$
 
-version=1.2
+version=1.3
 
 trap "" INT
 PATH="/sbin:/usr/sbin:${PATH}"; export PATH;
 KEYCHAIN_KEYS=""
+
+#pidf holds the specific name of the keychain .ssh-agent-myhostname file.  We
+# use the new hostname extension for NFS compatibility. cshpidf is the
+# .ssh-agent file with csh-compatible syntax.
+
+pidf=~/.ssh-agent-`uname -n`
+cshpidf=~/.ssh-agent-csh-`uname -n`
+
 for x in ${*}
 do
 	# if it's not an --option, add it to our list of keys
@@ -19,10 +27,15 @@ do
 	fi
 done
 
-BLUE="\033[34;01m"
-GREEN="\033[32;01m"
-OFF="\033[0m"
-CYAN="\033[36;01m"
+#color variables won't be defined if --nocolor is present
+if [ -z "`echo $* | grep '\-\-nocolor'`" ]
+then
+	BLUE="\033[34;01m"
+	GREEN="\033[32;01m"
+	OFF="\033[0m"
+	CYAN="\033[36;01m"
+fi
+
 echo
 echo -e "${GREEN}KeyChain ${version}; ${BLUE}http://www.gentoo.org/projects/keychain${OFF}\n Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL" 
 
@@ -31,7 +44,8 @@ then
 	# --stop tells keychain to kill the existing ssh-agent(s), then exit
  	kill `ps uxw | grep ssh-agent | grep -v grep | awk '{print $2}'` > /dev/null 2>&1
  	kill -9 `ps uxw | grep ssh-agent | grep -v grep | awk '{print $2}'` > /dev/null 2>&1
- 	#`whoami` (rather than the $LOGNAME var) gives us the euid rather than the uid (what we want)
+ 	rm -f ${pidf} ${cshpidf}
+	#`whoami` (rather than the $LOGNAME var) gives us the euid rather than the uid (what we want)
 	echo -e " ${GREEN}*${OFF} All ssh-agent(s) started by" `whoami` "are now stopped."
 	echo
 	exit 0
@@ -46,21 +60,23 @@ Description:
 
  Keychain is an OpenSSH key manager, typically run from ~/.bash_profile.  When
  run, it will make sure ssh-agent is running; if not, it will start ssh-agent.
- It will redirect ssh-agent's output to ~/.ssh-agent, so that cron jobs that
- need to use ssh-agent keys can simply source this file and make the necessary
- passwordless ssh connections.  In addition, when keychain runs, it will check
- with ssh-agent and make sure that the ssh RSA/DSA keys that you specified on
- the keychain command line have actually been added to ssh-agent.  If not, you
- are prompted for the appropriate passphrases so that they can be added by
- keychain.
+ It will redirect ssh-agent's output to ~/.ssh-agent-[hostname], so that cron
+ jobs that need to use ssh-agent keys can simply source this file and make the
+ necessary passwordless ssh connections.  In addition, when keychain runs, it
+ will check with ssh-agent and make sure that the ssh RSA/DSA keys that you
+ specified on the keychain command line have actually been added to ssh-agent.
+ If not, you are prompted for the appropriate passphrases so that they can be
+ added by keychain.
 
  Typically, one uses keychain by adding the following to the top of their
  ~/.bash_profile (or ~/.zshrc, in case of zsh):
 
 EOHELP
 echo -e "  ${CYAN}keychain ~/.ssh/id_rsa ~/.ssh/id_dsa"
-echo -e "  source ~/.ssh-agent > /dev/null${OFF}"
-echo -e "  # the > /dev/null eliminates the redundant agent PID output"
+echo -e "  . ~/.ssh-agent-\`uname -n\`${OFF}"
+echo -e "  # note the use of back-quotes (\`) rather than single-quotes (') above."
+echo -e "  # We now append the hostname (\`uname -n\`) to the .ssh-agent filename"
+echo -e "  # for NFS-compatibility."
 echo
 cat <<EOHELP
  Keychain allows all your apps and cron jobs to use a single ssh-agent process
@@ -86,10 +102,15 @@ echo -e " ${GREEN}--noask${OFF}"
 echo
 cat <<EOHELP
  This option tells keychain do everything it normally does (ensure ssh-agent is
- running, set up the ~/.ssh-agent file) except that it will not prompt you to
- add any of the keys you specified if they haven't yet been added to ssh-agent.
-
+ running, set up the ~/.ssh-agent-[hostname] file) except that it will not
+ prompt you to add any of the keys you specified if they haven't yet been added
+ to ssh-agent.
 EOHELP
+echo
+echo -e " ${GREEN}--nocolor${OFF}"
+echo
+echo " This option disables color highlighting for non vt-100-compatible terms."
+echo
 echo -e " ${GREEN}--stop${OFF}"
 echo
 cat <<EOHELP
@@ -102,14 +123,15 @@ EOHELP
 fi
 
 
-if [ ! -f ~/.ssh-agent ]
+if [ ! -f $pidf ]
 then
-	echo -e " ${GREEN}*${OFF} Initializing ~/.ssh-agent file..."
-	touch ~/.ssh-agent || ( echo "$0: Cannot create ~/.ssh-agent, exiting." 1>&2 && exit 1 )
-	chmod 0600 ~/.ssh-agent
+	echo -e " ${GREEN}*${OFF} Initializing ${pidf} file..."
+	touch $pidf || ( echo "$0: Cannot create ${pidf}; exiting." 1>&2 && exit 1 )
+	chmod 0600 $pidf
 	SSH_AGENT_PID="NULL"
 else
-	source ~/.ssh-agent > /dev/null
+	eval `( cat $pidf ; echo env ) | $SHELL 2>/dev/null | grep ^SSH_A`
+	export SSH_AGENT_PID SSH_AUTH_SOCK
 fi
 
 match="no"
@@ -127,10 +149,11 @@ done
 
 if [ "$match" = "no" ]
 then
-	chmod 0600 ~/.ssh-agent
+	chmod 0600 $pidf 
 	echo -e " ${GREEN}*${OFF} starting new ssh-agent"
-	nohup ssh-agent > ~/.ssh-agent
-	source ~/.ssh-agent > /dev/null
+	nohup ssh-agent -s | grep -v 'Agent pid' > $pidf
+	eval `( cat $pidf ; echo env ) | $SHELL 2>/dev/null | grep ^SSH_A`
+	export SSH_AGENT_PID SSH_AUTH_SOCK
 fi
 
 if [ -n "`echo $* | grep '\-\-clear'`" ]

@@ -1,12 +1,23 @@
 # ChangeLog for KeyChain; http://www.gentoo.org/projects/keychain
 # Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 
-*keychain 1.2; fixes for calling "pidof"; README; ChangeLog
+  10 Sep 2001; Robert R. Wal (rrw@hell.pl):
+  Very nice NFS fixes, colorization fixes, tcsh redirect -> grep -v
+  fix.  Thanks go out to others who sent me similar patches.
+
+  10 Sep 2001; Johann Visagie (johann@egenetics.com):
+  "source" to "." shell-compatibility fixes.  Thanks for the FreeBSD
+  port.
+
+  10 Sep 2001; Marko Myllynen (myllynen@lut.fi):
+  rm -f $pidf after stopping ssh-agent fix
+
+*keychain 1.2 
 
   09 Sep 2001; README updates to reflect new changes.
   
-  09 Sep 2001; Applied great patch from someone who wishes to remain
-  anonymous.  bash 1/zsh/sh compatibility; now only tries to kill *your*
+  09 Sep 2001; Marko Myllynen (myllynen@lut.fi):
+  bash 1/zsh/sh compatibility; now only tries to kill *your*
   ssh-agent processes, version fix, .ssh-agent file creation error 
   detection.  Thanks! 
 
@@ -20,7 +31,7 @@
   Explicitly added /sbin and /usr/sbin to path, and then called "pidof".
   I think that this is a bit more robust.
   
-  06 Sep 2001; from John Ellson <ellson@lucent.com>: 
+  06 Sep 2001; from John Ellson (ellson@lucent.com): 
   "pidof" changed to "/sbin/pidof", since it's probably not in $PATH
  
   06 Sep 2001;

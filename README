@@ -3,10 +3,10 @@ Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 
 REQUIREMENTS
 
-Keychain 1.2 and above should work with any sh-compatible shell, and should
-work under most POSIX-friendly environments.  Colorization features may look
-weird if you're not using a vt100-compatible terminal; There will be a fix
-for this in the next keychain release.
+Keychain 1.2 and above should work with any bash 1, bash 2, ksh and
+zsh-compatible shell and should work under most POSIX-friendly environments.
+Colorization features may look weird if you're not using a vt100-compatible
+terminal; There will be a fix for this in the next keychain release.
 
 INSTALLATION
 
