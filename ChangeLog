@@ -2,6 +2,41 @@
 # Copyright 2002 Gentoo Technologies, Inc.; Distributed under the GPL version 2
 # Written by Daniel Robbins (drobbins@gentoo.org)
 
+* keychain 2.0 (17 Aug 2002)
+
+  17 Aug 2002; (Many submitters): A fix for keychain when running on HP-UX
+  10.20.
+  
+  17 Aug 2002; Patrice DUMAS - DOCT <dumas@centre-cired.fr>: Now perform help
+  early on to avoid unnecessary processing. Also added --dir option to allow
+  keychain to look in an alternate location for the .keychain directory (use
+  like this: "keychain --dir /var/foo")
+ 
+  17 Aug 2002; Martial MICHEL <martial@users.sourceforge.net>: Martial also
+  suggested moving help processing to earlier in the script. He also submitted
+  a patch to place .ssh-agent-* files in a ~/.keychain/ directory, which makes
+  sense particularly for NFS users so I integrated the concept into the code.
+ 
+  17 Aug 2002; Fred Carter <fred.carter@amberpoint.com>: Cygwin fix to use
+  proper "ps" options.
+
+  17 Aug 2002; Adrian Howard <adrianh@quietstars.com>: patch so that lockfile
+  gets removed even if --noask is specified.
+
+  17 Aug 2002; Mario Wolff <wolff@voll.prima.de>: Replaced an awk dependency
+  with a shell construct for improved performance.
+
+  17 Aug 2002; Marcus Stoegbauer <marcus@grmpf.org>, Dmitry Frolov
+  <frolov@riss-telecom.ru>: I (Daniel Robbins) solved problems reported by
+  Marcus and Dmitry (mis-parsed command line issues) by following Dmitry's good
+  suggestion of performing argument parsing all at once at the top of the
+  script.
+
+  17 Aug 2002; Brian W. Curry <truth@bcurry.cjb.net>: Added commercial SSH2
+  client support; improved output readability by initializing myfail=0;
+  integrated Cygwin support into the main keychain script; improved Cygwin
+  support by setting "trap" appropriately. Thanks Brian!
+
 * keychain 1.9 (04 Mar 2002)
 
   04 Mar 2002; changed license from "GPL, v2 or later" to "GPL v2".
@@ -16,165 +51,148 @@
 
 * keychain 1.8 (29 Nov 2001)
 
-  29 Nov 2001; Philip Hallstrom (philip@adhesivemedia.com)
-  Added a "--local" option for removing the ${HOSTNAME} from the various
-  files that keychain creates.  Handy for non-NFS users.
+  29 Nov 2001; Philip Hallstrom (philip@adhesivemedia.com) Added a "--local"
+  option for removing the ${HOSTNAME} from the various files that keychain
+  creates.  Handy for non-NFS users.
   
-  29 Nov 2001; Aron Griffis (agriffis@gentoo.org)
-  Using the Bourne shell "type" builtin rather than using the external
-  "which" command.  Should make things a lot more robust and slightly
-  faster.
+  29 Nov 2001; Aron Griffis (agriffis@gentoo.org) Using the Bourne shell "type"
+  builtin rather than using the external "which" command.  Should make things a
+  lot more robust and slightly faster.
   
-  09 Nov 2001; Mike Briseno (mike@radik.com)
-  Solaris' "which" command outputs "no lockfile in..." to stdout rather
-  than stderr.  A one-line fix (test the error condition) has been
-  applied.
+  09 Nov 2001; Mike Briseno (mike@radik.com) Solaris' "which" command outputs
+  "no lockfile in..." to stdout rather than stderr.  A one-line fix (test the
+  error condition) has been applied.
 
   09 Nov 2001; lockfile settings tweak
 
-  09 Nov 2001; Rewrote how keychain detects failed passphrase attempts.
-  If you stop making progress providing valid passphrases, it's three
-  strikes and you're out.
+  09 Nov 2001; Rewrote how keychain detects failed passphrase attempts.  If you
+  stop making progress providing valid passphrases, it's three strikes and
+  you're out.
 
-  09 Nov 2001; Constantine P. Sapuntzakis (csapuntz@stanford.edu)
-  Some private keys can't be "ssh-keygen -l -f"'d; this patch causes
-  keychain to look for the corresponding public key if the private
-  key doesn't work.  Thanks Constantine!
+  09 Nov 2001; Constantine P. Sapuntzakis (csapuntz@stanford.edu) Some private
+  keys can't be "ssh-keygen -l -f"'d; this patch causes keychain to look for
+  the corresponding public key if the private key doesn't work.  Thanks
+  Constantine!
 
-  09 Nov 2001; Victor Leitman (vleitman@yahoo.com)
-  CYAN color misdefined; fixed.
+  09 Nov 2001; Victor Leitman (vleitman@yahoo.com) CYAN color misdefined;
+  fixed.
   
-  27 Oct 2001; Brian Wellington (bwelling@xbill.org)
-  A "quiet mode" (--quiet) fix; I missed an "echo".
+  27 Oct 2001; Brian Wellington (bwelling@xbill.org) A "quiet mode" (--quiet)
+  fix; I missed an "echo".
   
-  27 Oct 2001; J.A. Neitzel (jan@belvento.org)
-  Missed another "kill -9"; it's now gone.
+  27 Oct 2001; J.A. Neitzel (jan@belvento.org) Missed another "kill -9"; it's
+  now gone.
 
 * keychain 1.7 (21 Oct 2001) 
  
-  21 Oct 2001; Frederic Gobry (frederic.gobry@smartdata.ch)
-  Frederic suggested using procmail's lockfile to serialize the
-  execution of critical parts of keychain, thus avoiding multiple
-  ssh-agent processes being started if you happen to have multiple
-  xterms open automatically when you log in.  Initially, I didn't
-  think I could add this, since systems may not have the lockfile
-  command; however, keychain will now auto-detect whether lockfile
-  is installed; if it is, keychain will automatically use it, thus
-  preventing multiple ssh-agent processes from being spawned. 
+  21 Oct 2001; Frederic Gobry (frederic.gobry@smartdata.ch) Frederic suggested
+  using procmail's lockfile to serialize the execution of critical parts of
+  keychain, thus avoiding multiple ssh-agent processes being started if you
+  happen to have multiple xterms open automatically when you log in.
+  Initially, I didn't think I could add this, since systems may not have the
+  lockfile command; however, keychain will now auto-detect whether lockfile is
+  installed; if it is, keychain will automatically use it, thus preventing
+  multiple ssh-agent processes from being spawned. 
   
-  21 Oct 2001; Raymond Wu (ursus@usa.net):
-  --nocolor test is no longer inside the test for whether "echo -e"
-  works.  According to Raymond, this works optimally on his Solaris
-  box.
+  21 Oct 2001; Raymond Wu (ursus@usa.net): --nocolor test is no longer inside
+  the test for whether "echo -e" works.  According to Raymond, this works
+  optimally on his Solaris box.
   
-  21 Oct 2001; J.A. Neitzel (jan@belvento.org):
-  No longer "kill -9" our ssh-agent processes. SIGTERM should be 
-  sufficient and will allow ssh-agent to clean up after itself 
-  (this reverses a previously-applied patch).
+  21 Oct 2001; J.A. Neitzel (jan@belvento.org): No longer "kill -9" our
+  ssh-agent processes. SIGTERM should be sufficient and will allow ssh-agent to
+  clean up after itself (this reverses a previously-applied patch).
   
-  21 Oct 2001; Thomas Finneid (tfinneid@online.no):
-  Added argument "--quiet | -q" to make the program less 
-  intrusive to the user; with it, only error and interactive 
-  messages will appear.
+  21 Oct 2001; Thomas Finneid (tfinneid@online.no): Added argument "--quiet |
+  -q" to make the program less intrusive to the user; with it, only error and
+  interactive messages will appear.
   
-  21 Oct 2001; Thomas Finneid (tfinneid@online.no):
-  Changed the format of some arguments to bring them more in
-  line with common *nix programs: added "-h" as alias for "--help";
-  added "-k" as alias for "--stop"
+  21 Oct 2001; Thomas Finneid (tfinneid@online.no): Changed the format of some
+  arguments to bring them more in line with common *nix programs: added "-h" as
+  alias for "--help"; added "-k" as alias for "--stop"
 
-  21 Oct 2001; Mark Stosberg (mark@summersault.com):
-  $pidf to "$pidf" fixes to allow keychain to work with paths that
-  include spaces (for Darwin and MacOS X in particular).
+  21 Oct 2001; Mark Stosberg (mark@summersault.com): $pidf to "$pidf" fixes to
+  allow keychain to work with paths that include spaces (for Darwin and MacOS X
+  in particular).
   
-  21 Oct 2001; Jonathan Wakely (redi@redi.uklinux.net):
-  Small patch to convert "echo -n -e" to "echo -e "\c"" for FreeBSD
-  compatibility.
+  21 Oct 2001; Jonathan Wakely (redi@redi.uklinux.net): Small patch to convert
+  "echo -n -e" to "echo -e "\c"" for FreeBSD compatibility.
 
 * keychain 1.6 (15 Oct 2001)
 
-  13 Oct 2001; Ralf Horstmann (ralf.horstmann@webwasher.com):
-  Add /usr/ucb to path for Solaris systems.
+  13 Oct 2001; Ralf Horstmann (ralf.horstmann@webwasher.com): Add /usr/ucb to
+  path for Solaris systems.
   
-  11 Oct 2001; Idea from Joe Reid (jreid@vnet.net):
-  Try to add multiple keys using ssh-add; avoid typing in identical
-  passphrases more than once.  Good idea!
+  11 Oct 2001; Idea from Joe Reid (jreid@vnet.net): Try to add multiple keys
+  using ssh-add; avoid typing in identical passphrases more than once.  Good
+  idea!
 
 *keychain 1.5 (21 Sep 2001)
 
-  21 Sep 2001; David Hull (hull@paracel.com):
-  misc. compatibility, signal handling, cleanup fixes
+  21 Sep 2001; David Hull (hull@paracel.com): misc. compatibility, signal
+  handling, cleanup fixes
   
-  21 Sep 2001; 
-  "ps" test to find the right one for your OS.
+  21 Sep 2001; "ps" test to find the right one for your OS.
 
-  20 Sep 2001; Marko Myllynen (myllynen@lut.fi):
-  "grep [s]sh-agent" to "grep [s]sh-agent" (zsh fix)
+  20 Sep 2001; Marko Myllynen (myllynen@lut.fi): "grep [s]sh-agent" to "grep
+  [s]sh-agent" (zsh fix)
 
 *keychain 1.4 (20 Sep 2001)
 
-  20 Sep 2001; David Hull (hull@paracel.com):
-  "touch $foo" to ">$foo" optimization and other "don't fork" fixes.
-  Converted ${foo#--} to a case statement for Solaris sh compatibility.
+  20 Sep 2001; David Hull (hull@paracel.com): "touch $foo" to ">$foo"
+  optimization and other "don't fork" fixes.  Converted ${foo#--} to a case
+  statement for Solaris sh compatibility.
 
-  20 Sep 2001;
-  Try an alternate "ps" syntax if our default one fails.  This should
-  give us Solaris and IRIX (sysV) compatibility without breaking BSD.
+  20 Sep 2001; Try an alternate "ps" syntax if our default one fails.  This
+  should give us Solaris and IRIX (sysV) compatibility without breaking BSD.
 
-  20 Sep 2001; Hans Peter Verne (h.p.verne@usit.uio.no);
-  "echo -e" to "echo $E" (for IRIX compatibility with --nocolor),
-  optimization of grep ("grep [s]sh-agent")
+  20 Sep 2001; Hans Peter Verne (h.p.verne@usit.uio.no); "echo -e" to "echo $E"
+  (for IRIX compatibility with --nocolor), optimization of grep ("grep
+  [s]sh-agent")
   
-  17 Sep 2001; Marko Myllynen (myllynen@lut.fi):
-  Various fixes: trap signal 2 if signal INT not supported (NetBSD);
-  handle invalid keys correctly; ancient version of ash didn't support ~,
-  so using $HOME; correct zsh instruction; minor cleanups
+  17 Sep 2001; Marko Myllynen (myllynen@lut.fi): Various fixes: trap signal 2
+  if signal INT not supported (NetBSD); handle invalid keys correctly; ancient
+  version of ash didn't support ~, so using $HOME; correct zsh instruction;
+  minor cleanups
 
 *keychain 1.3 (12 Sep 2001)
   
-  12 Sep 2001;
-  Minor color changes; the cyan was hard to read on xterm-colored
+  12 Sep 2001; Minor color changes; the cyan was hard to read on xterm-colored
   terms so it was switched to bold.  Additional --help text added.
   
-  10 Sep 2001;
-  We now use .ssh-agent-[hostname] instead of .ssh-agent.
-  We now create a .ssh-agent-csh-[hostname] file that can be sourced
-  by csh-compatible shells.  We also now kill all our existing 
-  ssh-agent processes before starting a new one.
+  10 Sep 2001; We now use .ssh-agent-[hostname] instead of .ssh-agent.  We now
+  create a .ssh-agent-csh-[hostname] file that can be sourced by csh-compatible
+  shells.  We also now kill all our existing ssh-agent processes before
+  starting a new one.
 
-  10 Sep 2001; Robert R. Wal (rrw@hell.pl):
-  Very nice NFS fixes, colorization fixes, tcsh redirect -> grep -v
-  fix.  Thanks go out to others who sent me similar patches.
+  10 Sep 2001; Robert R. Wal (rrw@hell.pl): Very nice NFS fixes, colorization
+  fixes, tcsh redirect -> grep -v fix.  Thanks go out to others who sent me
+  similar patches.
 
-  10 Sep 2001; Johann Visagie (johann@egenetics.com):
-  "source" to "." shell-compatibility fixes.  Thanks for the FreeBSD
-  port.
+  10 Sep 2001; Johann Visagie (johann@egenetics.com): "source" to "."
+  shell-compatibility fixes.  Thanks for the FreeBSD port.
 
-  10 Sep 2001; Marko Myllynen (myllynen@lut.fi):
-  rm -f $pidf after stopping ssh-agent fix
+  10 Sep 2001; Marko Myllynen (myllynen@lut.fi): rm -f $pidf after stopping
+  ssh-agent fix
 
 *keychain 1.2 
 
   09 Sep 2001; README updates to reflect new changes.
   
-  09 Sep 2001; Marko Myllynen (myllynen@lut.fi):
-  bash 1/zsh/sh compatibility; now only tries to kill *your*
-  ssh-agent processes, version fix, .ssh-agent file creation error 
-  detection.  Thanks! 
+  09 Sep 2001; Marko Myllynen (myllynen@lut.fi): bash 1/zsh/sh compatibility;
+  now only tries to kill *your* ssh-agent processes, version fix, .ssh-agent
+  file creation error detection.  Thanks! 
 
 *keychain 1.1; fixes for calling "pidof"; README; ChangeLog
 
-  07 Sep 2001;
-  Addition of README stating that keychain requires bash 2.0 or greater,
-  as well as quick install directions and web URL.
+  07 Sep 2001; Addition of README stating that keychain requires bash 2.0 or
+  greater, as well as quick install directions and web URL.
 
-  07 Sep 2001;
-  Explicitly added /sbin and /usr/sbin to path, and then called "pidof".
-  I think that this is a bit more robust.
+  07 Sep 2001; Explicitly added /sbin and /usr/sbin to path, and then called
+  "pidof".  I think that this is a bit more robust.
   
-  06 Sep 2001; from John Ellson (ellson@lucent.com): 
-  "pidof" changed to "/sbin/pidof", since it's probably not in $PATH
+  06 Sep 2001; from John Ellson (ellson@lucent.com): "pidof" changed to
+  "/sbin/pidof", since it's probably not in $PATH
  
-  06 Sep 2001;
-  New ChangeLog! :)
+  06 Sep 2001; New ChangeLog! :)
 
 *keychain 1.0; initial release (Aug 2001)

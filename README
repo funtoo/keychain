@@ -3,6 +3,15 @@ Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 
 RELEASE NOTES (See "ChangeLog" for more info):
 
+Keychain 2.0 contains HP-UX and Cygwin fixes (Cygwin support is now inside the
+main keychain script), and now stores keychain files in the ~/.keychain/
+directory for tidiness. New filenames too: ~/.keychain/sh-${HOSTNAME} and
+~/.keychain/csh-${HOSTNAME}. Keychain 2.0 also contains a bunch of additional
+fixes and performance improvements, and the --local option has been
+depreciated. Added the --dir option so that you can specify an alternate
+location for keychain to look for the .keychain directory: "keychain --dir
+/var/foo /path/to/my/key" will cause keychain to look for /var/foo/.keychain.
+
 Keychain 1.9 contains fixed Solaris support and a new "keychain.cygwin" script
 for Cygwin systems.  Sorry for the long delay in releasing this one; I've been
 busy :)
