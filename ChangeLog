@@ -2,13 +2,16 @@
 # Copyright 2002 Gentoo Technologies, Inc.; Distributed under the GPL version 2
 # Written by Daniel Robbins (drobbins@gentoo.org)
 
+  26 Aug 2002; the Tru64 fix didn't work; it was being caused by "trap - foo"
+  rather than "tail +2 -". Now really fixed.
+
 * keychain 2.0.2 (26 Aug 2002)
 
   26 Aug 2002; fixed "ssh-add" call to only redirect stdin (thus enabling
-  ssh-askpass) if SSH_ASKPASS happens to be set; this is to work around a bug
-  in OpenSSH were redirecting stdin will enable ssh-askpass even if SSH_ASKPASS
-  isn't set, which contradicts the OpenSSH 3.4_p1 man page. To enable
-  ssh-askpass, keychain now requires that the SSH_ASKPASS var be set to point
+  ssh-askpass) if ssh_askpass happens to be set; this is to work around a bug
+  in openssh were redirecting stdin will enable ssh-askpass even if ssh_askpass
+  isn't set, which contradicts the openssh 3.4_p1 man page. to enable
+  ssh-askpass, keychain now requires that the ssh_askpass var be set to point
   to your askpass program.
 
 * keychain 2.0.1 (24 Aug 2002)

@@ -4,7 +4,7 @@
 # Author: Daniel Robbins <drobbins@gentoo.org>
 # $Header$
 
-version=2.0.1
+version=2.0.3
 
 PATH="/sbin:/usr/sbin:${PATH}:/usr/ucb"; export PATH;
 
@@ -356,7 +356,7 @@ then
 fi
 
 #now that keys are potentially cleared, it's safe to be aborted by ^C
-trap - $trapint
+trap $trapint
 
 if [ -n "$noaskopt" ]
 then
