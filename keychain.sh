@@ -78,7 +78,7 @@ die() {
 # Display the version information
 versinfo() {
     qprint
-    qprint "${GREEN}KeyChain ${version}; ${BLUE}http://www.gentoo.org/projects/keychain${OFF}"
+    qprint "${GREEN}KeyChain ${version}; ${BLUE}http://www.gentoo.org/proj/en/keychain/${OFF}"
     qprint "Copyright 2002-2004 Gentoo Foundation; Distributed under the GPL"
     qprint
 }
