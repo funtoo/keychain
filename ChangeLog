@@ -1,9 +1,16 @@
 # ChangeLog for Keychain; http://www.gentoo.org/projects/keychain
-# Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
+# Copyright 2002 Gentoo Technologies, Inc.; Distributed under the GPL version 2
 # Written by Daniel Robbins (drobbins@gentoo.org)
 
-  06 Dec 2001; several people: Solaris doesn't like '-e' comparisons; 
-  switched to '-f'
+* keychain 1.9 (04 Mar 2002)
+
+  04 Mar 2002; added "keychain.cygwin" for Cygwin systems.  It may be time to
+  follow this pattern and start building separate, optimized scripts for each
+  platform so they don't get too sluggish.  Maybe I could use a C preprocessor
+  for this.
+  
+  06 Dec 2001; several people: Solaris doesn't like '-e' comparisons; switched
+  to '-f'
 
 * keychain 1.8 (29 Nov 2001)
 

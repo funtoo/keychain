@@ -1,0 +1,336 @@
+#!/bin/sh
+# Copyright 1999-2001 Gentoo Technologies, Inc.
+# Distributed under the terms of the GNU General Public License, v2 or later
+# Author: Daniel Robbins <drobbins@gentoo.org>
+# $Header$
+
+version=1.8
+
+trap "" INT || { echo "$0: warning: trapping signal 2 instead of INT" 1>&2; trap "" 2; }
+PATH="/sbin:/usr/sbin:${PATH}:/usr/ucb"; export PATH;
+KEYCHAIN_KEYS=""
+
+# pidf holds the specific name of the keychain .ssh-agent-myhostname file.
+# We use the new hostname extension for NFS compatibility. cshpidf is the
+# .ssh-agent file with csh-compatible syntax. lockf is the lockfile, used
+# to serialize the execution of multiple ssh-agent processes started 
+# simultaneously (only works if lockfile from the procmail package is
+# available.
+
+hostname=`uname -n`
+if [ -z "`echo ${@} | grep '\-\-local'`" ]
+then
+	pidf="${HOME}/.ssh-agent-${hostname}"
+	cshpidf="${HOME}/.ssh-agent-csh-${hostname}"
+	lockf="${HOME}/.keychain-lock-${hostname}"
+else
+	pidf="${HOME}/.ssh-agent"
+	cshpidf="${HOME}/.ssh-agent-csh"
+	lockf="${HOME}/.keychain-lock"
+fi
+
+# perform lock if we have lockfile available                                    
+if type lockfile >/dev/null 2>&1; then                                          
+	lockfile -1 -r 30 -l 35 -s 2 "$lockf"                                       
+	if [ $? != 0 ]; then                                                        
+		echo "Error: Couldn't get lock" >&2                                     
+		exit 1                                                                  
+	fi                                                                          
+fi
+
+for x in ${@}
+do
+	# if it's not an --option, add it to our list of keys
+	case ${x} in
+		-*)    
+			;;
+		*)      
+			KEYCHAIN_KEYS="$KEYCHAIN_KEYS ${x}" 
+			;;
+	esac
+done
+
+#auto-detect whether echo -e works.
+unset BLUE GREEN OFF CYAN E
+if [ -z "`echo -e`" ]
+then
+	E="-e"	
+	# color variables won't be defined if --nocolor is present
+fi
+if [ -z "`echo ${@} | grep '\-\-nocolor'`" ]
+then
+	BLUE="\033[34;01m"
+	GREEN="\033[32;01m"
+	OFF="\033[0m"
+	CYAN="\033[36;01m"
+fi
+
+quiet_mode="no"
+if [ -n "`echo ${@} | grep '\-\-quiet'`" ] || [ -n "`echo $* | grep '\-q'`" ] ;
+then
+	quiet_mode="yes"
+fi
+
+if [ "$quiet_mode" = "no" ]
+then
+	echo
+	echo $E "${GREEN}KeyChain ${version}; ${BLUE}http://www.gentoo.org/projects/keychain${OFF}"
+	echo $E " Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL" 
+fi
+
+#Special cygwin version
+psopts="-u `whoami` -f"
+#End special cygwin version
+
+mypids=`ps $psopts 2>/dev/null | grep "[s]sh-agent" | awk '{print $2}'` > /dev/null 2>&1
+
+if [ -n "`echo $* | grep '\-\-stop'`" ] || [ -n "`echo $* | grep '\-k'`" ]
+then
+	# --stop tells keychain to kill the existing ssh-agent(s), then exit
+	kill $mypids > /dev/null 2>&1
+	rm -f "${pidf}" "${cshpidf}" "$lockf" 2> /dev/null
+	#`whoami` (rather than the $LOGNAME var) gives us the euid rather than the uid (what we want)
+	if [ "$quiet_mode" = "no" ]
+	then
+		echo $E " ${GREEN}*${OFF} All ssh-agent(s) started by" `whoami` "are now stopped."
+		echo
+	fi
+	exit 0
+fi
+
+if [ -n "`echo $* | grep '\-h'`" ]
+then
+echo $E Usage: ${CYAN}${0}${OFF} [ ${GREEN}options${OFF} ] ${CYAN}sshkey${OFF} ...
+cat <<EOHELP
+
+Description:
+
+ Keychain is an OpenSSH key manager, typically run from ~/.bash_profile.  When
+ run, it will make sure ssh-agent is running; if not, it will start ssh-agent.
+ It will redirect ssh-agent's output to ~/.ssh-agent-[hostname], so that cron
+ jobs that need to use ssh-agent keys can simply source this file and make the
+ necessary passwordless ssh connections.  In addition, when keychain runs, it
+ will check with ssh-agent and make sure that the ssh RSA/DSA keys that you
+ specified on the keychain command line have actually been added to ssh-agent.
+ If not, you are prompted for the appropriate passphrases so that they can be
+ added by keychain.
+
+ Typically, one uses keychain by adding the following to the top of their
+ ~/.bash_profile (or ~/.zlogin, in case of zsh):
+
+EOHELP
+echo $E "  ${CYAN}keychain ~/.ssh/id_rsa ~/.ssh/id_dsa"
+echo $E "  . ~/.ssh-agent-\${HOSTNAME}${OFF}"
+echo
+echo $E "  # alt. syntax: . ~/.ssh-agent-\`uname -n\`"
+echo $E "  # note the use of back-quotes (\`) rather than single-quotes (') above."
+echo $E "  # We now append the hostname (\`uname -n\`) to the .ssh-agent filename"
+echo $E "  # for NFS-compatibility."
+echo
+echo " You can make keychain work with your csh-compatible shell by adding the"
+echo " following to your .cshrc:"
+echo
+echo $E "  ${CYAN}keychain ~/.ssh/id_rsa ~/.ssh/id_dsa"
+echo $E "  source ~/.ssh-agent-csh-\${HOSTNAME}${OFF}"
+echo
+cat <<EOHELP
+ Keychain allows all your apps and cron jobs to use a single ssh-agent process
+ as an authentication agent.  By default, the ssh-agent started by keychain is
+ long-running and will continue to run, even after you have logged out from the
+ system.  If you'd like to tighten up security a bit, take a look at the
+EOHELP
+echo $E " ${GREEN}--clear${OFF} option, described below."
+echo
+echo Options:
+echo   
+echo $E " ${GREEN}--local${OFF}"
+echo
+cat <<EOHELP
+ Prevents keychain from appending the hostname to any of the files.  This
+ makes life simpler in a non NFS world.
+EOHELP
+echo   
+echo $E " ${GREEN}--clear${OFF}"
+echo
+cat <<EOHELP
+ Tells keychain to delete all of ssh-agent's host keys.  Typically, This is
+ used in the ~/.bash_profile.  The theory behind this is that keychain should
+ assume that you are an intruder until proven otherwise.  However, while this
+ option increases security, it still allows your cron jobs to use your ssh keys
+ when you're logged out.
+EOHELP
+echo
+echo $E " ${GREEN}--noask${OFF}"
+echo
+cat <<EOHELP
+ This option tells keychain do everything it normally does (ensure ssh-agent is
+ running, set up the ~/.ssh-agent-[hostname] file) except that it will not
+ prompt you to add any of the keys you specified if they haven't yet been added
+ to ssh-agent.
+EOHELP
+echo
+echo $E " ${GREEN}--nocolor${OFF}"
+echo
+echo " This option disables color highlighting for non vt-100-compatible terms."
+echo
+echo $E " ${GREEN}--stop | -k${OFF}"
+echo
+cat <<EOHELP
+ This option tells keychain to stop all running ssh-agent processes, and then
+ exit.
+EOHELP
+echo
+echo $E " ${GREEN}--quiet | -q${OFF}"
+echo
+cat <<EOHELP
+ This option tells keychain to turn off verbose mode and only print error
+ messages and interactive messages. This is useful for login scripts etc.
+EOHELP
+#' this line is a simple fix for vim syntax highlighting
+	rm -f "$lockf" 2> /dev/null
+	exit 1
+fi
+
+if [ -f $pidf ]
+then
+	. $pidf	
+else
+	SSH_AGENT_PID="NULL"
+fi
+
+match="no"
+for x in $mypids
+do
+	if [ "$x" = "$SSH_AGENT_PID" ]
+	then
+		if [ "$quiet_mode" = "no" ]
+		then
+			echo $E " ${GREEN}*${OFF} Found existing ssh-agent at PID ${x}"
+		fi
+		match="yes"
+		break
+	fi
+done
+
+if [ "$match" = "no" ]
+then
+	if [ -n "$mypids" ]
+	then
+		kill $mypids > /dev/null 2>&1
+	fi
+	if [ "$quiet_mode" = "no" ]
+	then
+		echo $E " ${GREEN}*${OFF} All previously running ssh-agent(s) have been stopped."
+		echo $E " ${GREEN}*${OFF} Initializing ${pidf} file..."
+	fi
+	# "> pidf" doesn't work ash.  But it should work with any sh-compatible shell
+	> "$pidf" || { echo "$0: Cannot create ${pidf}; exiting." 1>&2; rm -f "$pidf" "$cshpidf" "$lockf" 2> /dev/null; exit 1; }
+	[ "$quiet_mode" = "no" ] && echo $E " ${GREEN}*${OFF} Initializing ${cshpidf} file..."
+	> "$cshpidf" || { echo "$0: Cannot create ${cshpidf}; exiting." 1>&2; rm -f "$pidf" "$cshpidf" "$lockf" 2> /dev/null; exit 1; }
+	chmod 0600 "$pidf" "$cshpidf"
+	[ "$quiet_mode" = "no" ] && echo $E " ${GREEN}*${OFF} Starting new ssh-agent"
+	nohup ssh-agent -s | grep -v 'Agent pid' > "$pidf"
+	. "$pidf"
+	echo "setenv SSH_AUTH_SOCK $SSH_AUTH_SOCK;" > "$cshpidf"
+	echo "setenv SSH_AGENT_PID $SSH_AGENT_PID;" >> "$cshpidf"
+fi
+
+if [ -n "`echo $* | grep '\-\-clear'`" ]
+then
+	echo $E " ${GREEN}*${OFF} \c"
+	ssh-add -D
+fi
+
+#now that keys are potentially cleared, it's safe to be aborted by ^C
+trap - INT || trap - 2
+
+if [ -n "`echo $* | grep '\-\-noask'`" ]
+then
+	# --noask means "don't ask for keys", so skip this next part	
+	echo
+	exit 0
+fi
+
+# hook in to existing agent
+. "$pidf"
+
+missingkeys="START"
+#below, previous count of missing keys, and count of missing keys, respectively.
+#when the difference between these two numbers does not abort after three tries,
+#we abort the loop (using $countdown)
+pmcount=0
+mcount=0
+countdown=3
+while [ $countdown -gt 1 ] && [ "$missingkeys" != "" ]
+do
+	pmcount=$mcount
+	mcount=0
+	missingkeys=""
+	myavail=`ssh-add -l | cut -f2 -d " "`
+	if [ $? -ne 0 ]
+	then
+		echo $E " ${CYAN}*${OFF} Problems listing keys; exiting..."
+		exit 1
+	fi
+	for x in $KEYCHAIN_KEYS
+	do
+		if [ ! -f "$x" ]
+		then
+			echo $E " ${CYAN}*${OFF} Can't find ${x}; skipping..."
+			continue
+		fi
+		if [ -f "${x}.pub" ]
+		then
+			myfing=`ssh-keygen -l -f ${x}.pub 2>&1`
+		else
+			myfing=`ssh-keygen -l -f ${x} 2>&1`
+			if [ $? -ne 0 ]
+			then
+				echo $E " ${CYAN}*${OFF} Warning: ${x}.pub missing; can't tell if key ${x} already loaded."
+				myfail=3
+			fi
+		fi
+		myfing=`echo ${myfing} | cut -f2 -d " "`
+		skip=0
+		for y in $myavail
+		do
+			if [ "$y" = "$myfing" ]
+			then
+				skip=1
+				break
+			fi
+		done
+		if [ $skip -ne 1 ]
+		then
+			missingkeys="$missingkeys $x"
+			mcount=`expr $mcount + 1`
+		fi
+	done
+	if [ "$missingkeys" = "" ]
+	then
+		break
+	fi
+	if [ `expr $pmcount - $mcount` -eq 0 ]
+	then
+		countdown=`expr $countdown - 1`
+	else
+		countdown=3
+	fi
+	if [ "$quiet_mode" = "no" ] 
+	then
+		echo $E " ${GREEN}*${OFF} ${BLUE}${mcount}${OFF} more keys to add..."
+	fi	
+	ssh-add ${missingkeys}
+	if [ $? -ne 0 ]
+	then
+		myfail=`expr $myfail + 1`
+		echo $E " ${CYAN}*${OFF} Problem adding key${OFF}..."
+	fi
+done
+if [ "$quiet_mode" = "no" ]
+then
+	echo
+fi
+#remove lockfile if it exists
+rm -f "$lockf" 2> /dev/null
+
