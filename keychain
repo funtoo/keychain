@@ -108,7 +108,7 @@ EOHELP
 echo $E "  ${CYAN}keychain ~/.ssh/id_rsa ~/.ssh/id_dsa"
 echo $E "  . ~/.ssh-agent-\${HOSTNAME}${OFF}"
 echo
-echo $E "  # alt. syntax: . ~/.ssh-agent-\`uname -h\`"
+echo $E "  # alt. syntax: . ~/.ssh-agent-\`uname -n\`"
 echo $E "  # note the use of back-quotes (\`) rather than single-quotes (') above."
 echo $E "  # We now append the hostname (\`uname -n\`) to the .ssh-agent filename"
 echo $E "  # for NFS-compatibility."
