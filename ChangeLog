@@ -3,6 +3,15 @@
 # Written by Daniel Robbins <drobbins@gentoo.org>
 # Maintained by Aron Griffis <agriffis@gentoo.org>
 
+* keychain 2.5.0 (07 Jan 2005)
+
+  07 Jan 2005; Aron Griffis <agriffis@gentoo.org>;
+  Add inheritance support via --inherit.  Add parameters to --stop for
+  more control.  Change the default behavior of keychain to inherit if
+  there's no keychain agent running ("--inherit local-once"), and
+  refrain from killing other agents unless "--stop others" is
+  specified.
+
 * keychain 2.4.3 (17 Nov 2004)
 
   17 Nov 2004; Aron Griffis <agriffis@gentoo.org>;

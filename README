@@ -3,6 +3,9 @@ Copyright 2001-2004 Gentoo Foundation; Distributed under the GPL
 
 RELEASE NOTES (See "ChangeLog" for more info):
 
+Keychain 2.5.0 adds inheritance support via --inherit and changes
+default behavior so that non-keychain agents aren't killed by default.
+
 Keychain 2.4.3 fixes a problem on BSD where multiple agents would be
 started.
 
