@@ -4,10 +4,10 @@
 # Author: Daniel Robbins <drobbins@gentoo.org>
 # $Header$
 
-version=1.5
+version=1.6
 
 trap "" INT || { echo "$0: warning: trapping signal 2 instead of INT" 1>&2; trap "" 2; }
-PATH="/sbin:/usr/sbin:${PATH}"; export PATH;
+PATH="/sbin:/usr/sbin:${PATH}:/usr/ucb"; export PATH;
 KEYCHAIN_KEYS=""
 
 # pidf holds the specific name of the keychain .ssh-agent-myhostname file.
@@ -209,6 +209,9 @@ then
 	ssh-add -D
 fi
 
+#now that keys are potentially cleared, it's safe to be aborted by ^C
+trap - INT || trap - 2
+
 if [ -n "`echo $* | grep '\-\-noask'`" ]
 then
 	# --noask means "don't ask for keys", so skip this next part	
@@ -216,30 +219,47 @@ then
 	exit 0
 fi
 
-myavail=`ssh-add -l | cut -f2 -d " "`
+# hook in to existing agent
+. $pidf
 
-for x in $KEYCHAIN_KEYS
+missingkeys="START"
+myfail=0
+while [ $myfail -lt 3 ] && [ "$missingkeys" != "" ]
 do
- 	myid=`ssh-keygen -l -f ${x} 2> /dev/null | cut -f2 -d" "`
- 	if [ -z "$myid" ]
- 	then
- 		echo $E " ${GREEN}*${OFF} Skipping key ${BLUE}${x}${OFF}: no such file or directory" 1>&2
- 		continue
+	missingkeys=""
+	myavail=`ssh-add -l | cut -f2 -d " "`
+	if [ $? -ne 0 ]
+	then
+		echo $E " ${CYAN}*${OFF} Problems listing keys; exiting..."
+		exit 1
 	fi
-	match=0
-	for y in $myavail
+	for x in $KEYCHAIN_KEYS
 	do
-		if [ "$myid" = "$y" ]
+		myfing=`ssh-keygen -l -f ${x} 2>&1 | cut -f2 -d " "`
+		skip=0
+		for y in $myavail
+		do
+			if [ "$y" = "$myfing" ]
+			then
+				skip=1
+				break
+			fi
+		done
+		if [ $skip -ne 1 ]
 		then
-			match=1
+			missingkeys="$missingkeys $x"
 		fi
 	done
-	if [ $match -ne 1 ]
+	if [ "$missingkeys" = "" ]
 	then
-		echo $E " ${GREEN}*${OFF} Adding key ${BLUE}${x}${OFF}..."
-		ssh-add ${x}
-	else
-		echo $E " ${GREEN}*${OFF} Already using key ${BLUE}${x}${OFF}"
+		break
+	fi
+	echo $E " ${GREEN}*${OFF} Adding ${BLUE}${missingkeys}${OFF}..."
+	ssh-add ${missingkeys}
+	if [ $? -ne 0 ]
+	then
+		myfail=`expr $myfail + 1`
+		echo $E " ${CYAN}*${OFF} Problem adding key${OFF}..."
 	fi
 done
 echo

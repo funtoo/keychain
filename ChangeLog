@@ -2,6 +2,13 @@
 # Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 # Written by Daniel Robbins (drobbins@gentoo.org)
 
+  13 Oct 2001; Ralf Horstmann (ralf.horstmann@webwasher.com)
+  Add /usr/ucb to path for Solaris systems.
+  
+  11 Oct 2001; Idea from Joe Reid (jreid@vnet.net):
+  Try to add multiple keys using ssh-add; avoid typing in identical
+  passphrases more than once.  Good idea!
+
 *keychain 1.5 (21 Sep 2001)
 
   21 Sep 2001; David Hull (hull@paracel.com):
