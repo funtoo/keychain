@@ -6,7 +6,7 @@
 # Current Maintainer: Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.5.0
+version=2.5.1
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -540,6 +540,12 @@ startagent() {
         *-once:*" $start_inherit_pid "*)
             mesg "Inheriting ${start_prog}-agent ($start_inherit_pid)"
             ;;
+
+        *)
+            # start_inherit_pid might be "forwarded" which we don't allow with,
+            # for example, local-once (the default setting)
+            start_inherit_pid=none
+            ;;
     esac
 
     # Init the bourne-formatted pidfile
@@ -946,8 +952,7 @@ while [ -n "$1" ]; do
                 stopwhich=all; shift
             else
                 # backward compat
-                warn "--stop without an argument is deprecated; see --help"
-                stopwhich=all
+                stopwhich=all-warn
             fi
             ;;
         --version|-V) 
@@ -1093,6 +1098,10 @@ inheritagents
 
 # --stop: kill the existing ssh-agent(s) and quit
 if [ -n "$stopwhich" ]; then 
+    if [ "$stopwhich" = all-warn ]; then
+        warn "--stop without an argument is deprecated; see --help"
+        stopwhich=all
+    fi
     takelock || die
     if [ "$stopwhich" = mine -o "$stopwhich" = others ]; then
         loadagents
