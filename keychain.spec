@@ -1,5 +1,5 @@
 Name:      keychain
-Version:   2.3.0
+Version:   2.3.1
 Release:   1
 Summary:   ssh-agent manager for OpenSSH and commercial SSH2
 Vendor:    Gentoo Technologies, Inc.
