@@ -1,7 +1,16 @@
 # ChangeLog for KeyChain; http://www.gentoo.org/projects/keychain
 # Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 
-*keychain 1.0.1; fixes for calling "pidof"; README; ChangeLog
+*keychain 1.2; fixes for calling "pidof"; README; ChangeLog
+
+  09 Sep 2001; README updates to reflect new changes.
+  
+  09 Sep 2001; Applied great patch from someone who wishes to remain
+  anonymous.  bash 1/zsh/sh compatibility; now only tries to kill *your*
+  ssh-agent processes, version fix, .ssh-agent file creation error 
+  detection.  Thanks! 
+
+*keychain 1.1; fixes for calling "pidof"; README; ChangeLog
 
   07 Sep 2001;
   Addition of README stating that keychain requires bash 2.0 or greater,

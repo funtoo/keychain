@@ -1,18 +1,19 @@
-#!/bin/bash
+#!/bin/sh
 # Copyright 1999-2001 Gentoo Technologies, Inc.
 # Distributed under the terms of the GNU General Public License, v2 or later
 # Author: Daniel Robbins <drobbins@gentoo.org>
 # $Header$
 
-# keychain 1.0
+version=1.2
 
 trap "" INT
-export PATH="/sbin:/usr/sbin:${PATH}"
+PATH="/sbin:/usr/sbin:${PATH}"; export PATH;
 KEYCHAIN_KEYS=""
 for x in ${*}
 do
-	#if it's not an --option, add it to our list of keys
-	if [ "${x:0:2}" != "--" ]
+	# if it's not an --option, add it to our list of keys
+	test=${x#--}
+	if [ "$x" = "$test" ]
 	then
 		KEYCHAIN_KEYS="$KEYCHAIN_KEYS ${x}"
 	fi
@@ -23,13 +24,15 @@ GREEN="\033[32;01m"
 OFF="\033[0m"
 CYAN="\033[36;01m"
 echo
-echo -e "${GREEN}KeyChain 1.0; ${BLUE}http://www.gentoo.org/projects/keychain${OFF}\n Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL" 
+echo -e "${GREEN}KeyChain ${version}; ${BLUE}http://www.gentoo.org/projects/keychain${OFF}\n Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL" 
 
 if [ -n "`echo $* | grep '\-\-stop'`" ]
 then
-	#--stop tells keychain to kill the existing ssh-agent(s), then exit
-	killall ssh-agent > /dev/null 2>&1
-	echo -e " ${GREEN}*${OFF} All existing ssh-agent(s) have been stopped."
+	# --stop tells keychain to kill the existing ssh-agent(s), then exit
+ 	kill `ps uxw | grep ssh-agent | grep -v grep | awk '{print $2}'` > /dev/null 2>&1
+ 	kill -9 `ps uxw | grep ssh-agent | grep -v grep | awk '{print $2}'` > /dev/null 2>&1
+ 	#`whoami` (rather than the $LOGNAME var) gives us the euid rather than the uid (what we want)
+	echo -e " ${GREEN}*${OFF} All ssh-agent(s) started by" `whoami` "are now stopped."
 	echo
 	exit 0
 fi
@@ -52,12 +55,12 @@ Description:
  keychain.
 
  Typically, one uses keychain by adding the following to the top of their
- ~/.bash_profile:
+ ~/.bash_profile (or ~/.zshrc, in case of zsh):
 
 EOHELP
 echo -e "  ${CYAN}keychain ~/.ssh/id_rsa ~/.ssh/id_dsa"
 echo -e "  source ~/.ssh-agent > /dev/null${OFF}"
-echo -e "  #the > /dev/null eliminates the redundant agent PID output"
+echo -e "  # the > /dev/null eliminates the redundant agent PID output"
 echo
 cat <<EOHELP
  Keychain allows all your apps and cron jobs to use a single ssh-agent process
@@ -99,18 +102,19 @@ EOHELP
 fi
 
 
-if [ ! -e ~/.ssh-agent ]
+if [ ! -f ~/.ssh-agent ]
 then
-	touch ~/.ssh-agent
+	echo -e " ${GREEN}*${OFF} Initializing ~/.ssh-agent file..."
+	touch ~/.ssh-agent || ( echo "$0: Cannot create ~/.ssh-agent, exiting." 1>&2 && exit 1 )
 	chmod 0600 ~/.ssh-agent
 	SSH_AGENT_PID="NULL"
-	echo -e " ${GREEN}*${OFF} Initializing ~/.ssh-agent file"
 else
 	source ~/.ssh-agent > /dev/null
 fi
 
 match="no"
-#/sbin and /usr/sbin have been explicitly added to the path; we should find pidof
+# /sbin and /usr/sbin have been explicitly added to the path;
+# we should find pidof
 for x in `pidof ssh-agent`
 do
 	if [ "$x" = "$SSH_AGENT_PID" ]
@@ -139,7 +143,7 @@ myavail=`ssh-add -l | cut -f2 -d " "`
 
 if [ -n "`echo $* | grep '\-\-noask'`" ]
 then
-	#--noask means "don't ask for keys", so skip this next part	
+	# --noask means "don't ask for keys", so skip this next part	
 	echo
 	exit 0
 fi
@@ -165,4 +169,3 @@ do
 	fi
 done
 echo
-

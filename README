@@ -3,11 +3,10 @@ Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 
 REQUIREMENTS
 
-Keychain requires bash 2.0 or greater to run, and expects "/bin/bash" to be a
-bash 2.0+ shell; if this isn't the case, you will need to change the first line
-of keychain from "#!/bin/bash" to something like "#!/bin/bash2" so that
-keychain will run under bash 2.0+.  This fix is needed for RedHat 6.2, and
-possibly other popular Linux distributions.
+Keychain 1.2 and above should work with any sh-compatible shell, and should
+work under most POSIX-friendly environments.  Colorization features may look
+weird if you're not using a vt100-compatible terminal; There will be a fix
+for this in the next keychain release.
 
 INSTALLATION
 
