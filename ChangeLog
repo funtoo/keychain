@@ -1,0 +1,7 @@
+# ChangeLog for KeyChain; http://www.gentoo.org/projects/keychain
+# Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
+
+  06 Sep 2001; John Ellson <ellson@lucent.com>: 
+  "pidof" changed to "/sbin/pidof", since it's probably not in $PATH
+  
+*keychain 1.0; initial release (Aug 2001)
