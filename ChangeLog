@@ -3,6 +3,10 @@
 # Written by Daniel Robbins <drobbins@gentoo.org>
 # Maintained by Aron Griffis <agriffis@gentoo.org>
 
+  15 Sep 2004; Aron Griffis <agriffis@gentoo.org>;
+  Fix pod2man output so it formats properly on SGI systems.  Thanks to
+  Matthew Moore for reporting the problem.
+
 * keychain 2.4.0 (09 Sep 2004)
 
   09 Sep 2004; Aron Griffis <agriffis@gentoo.org>;

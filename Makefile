@@ -13,6 +13,7 @@ keychain.1: keychain.pod
 	pod2man --name=keychain --release=$V \
 		--center='http://gentoo.org/proj/en/keychain.xml' \
 		keychain.pod keychain.1
+	sed -i "s/^'br/.br/" keychain.1
 
 keychain: keychain.sh keychain.txt
 	perl -e '\
