@@ -452,7 +452,12 @@ do
 	then
 		echo $E " ${GREEN}*${OFF} ${BLUE}${mcount}${OFF} more keys to add..."
 	fi	
-	ssh-add ${missingkeys} < /dev/null
+	if [ -n "$SSH_ASKPASS" ]
+	then
+		ssh-add ${missingkeys} < /dev/null
+	else
+		ssh-add ${missingkeys}
+	fi
 	if [ $? -ne 0 ]
 	then
 		myfail=`expr $myfail + 1`
