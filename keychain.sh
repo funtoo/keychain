@@ -6,12 +6,12 @@
 # Current Maintainer: Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.3.1
+version=2.3.3
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
 maintainer="agriffis@gentoo.org"
-zero="`basename $0`"
+zero=`basename "$0"`
 mesglog=''
 myaction=''
 ignoreopt=false
@@ -34,16 +34,6 @@ CYAN="[36;01m"
 GREEN="[32;01m"
 OFF="[0m"
 RED="[31;01m"
-
-# pidf holds the specific name of the keychain .ssh-agent-myhostname file.
-# We use the new hostname extension for NFS compatibility. cshpidf is the
-# .ssh-agent file with csh-compatible syntax. lockf is the lockfile, used
-# to serialize the execution of multiple ssh-agent processes started 
-# simultaneously
-hostname=`uname -n 2>/dev/null || echo unknown`
-pidf="${keydir}/${hostname}-sh"
-cshpidf="${keydir}/${hostname}-csh"
-lockf="${keydir}/${hostname}-lock"
 
 # synopsis: qprint "message"
 qprint() {
@@ -117,12 +107,12 @@ getuser() {
 # Make sure the key dir is set up correctly.  Exits on error.
 verifykeydir() {
     # Create keydir if it doesn't exist already
-    if [ -f ${keydir} ]; then
+    if [ -f "${keydir}" ]; then
         die "${keydir} is a file (it should be a directory)"
     # Solaris 9 doesn't have -e; using -d....
-    elif [ ! -d ${keydir} ]; then
-        mkdir ${keydir}      || die "can't create ${keydir}"
-        chmod 0700 ${keydir} || die "can't chmod ${keydir}"
+    elif [ ! -d "${keydir}" ]; then
+        mkdir "${keydir}"      || die "can't create ${keydir}"
+        chmod 0700 "${keydir}" || die "can't chmod ${keydir}"
     fi
 }
 
@@ -411,7 +401,8 @@ ssh_l() {
     if $openssh; then
         # Error codes:
         #   0  success
-        #   1  no identities (not an error)
+        #   1  OpenSSH_3.8.1p1 on Linux: no identities (not an error)
+        #      OpenSSH_3.0.2p1 on HP-UX: can't connect to auth agent
         #   2  can't connect to auth agent
         case $sl_retval in
             0)
@@ -422,15 +413,15 @@ ssh_l() {
                 return 0
                 ;;
             1)
-                return 0
-                ;;
-            *)
-                return $sl_retval
+                case "$sl_mylist" in
+                    *"open a connection"*) sl_retval=2 ;;
+                esac
                 ;;
         esac
+        return $sl_retval
     else
         # Error codes:
-        #   0  success
+        #   0  success - however might say "The authorization agent has no keys."
         #   1  can't connect to auth agent
         #   2  bad passphrase
         #   3  bad identity file
@@ -468,11 +459,20 @@ ssh_f() {
 
 # synopsis: listmissing
 # Uses $mykeys and $myavail
-# Returns a space-separated list of keys found to be missing.
+# Returns a newline-separated list of keys found to be missing.
 listmissing() {
     lm_missing=''
 
-    for lm_k in $mykeys; do
+    # Parse $mykeys into positional params to preserve spaces in filenames
+    set -f;        # disable globbing
+    lm_IFS="$IFS"  # save current IFS
+    IFS="
+"                  # set IFS to newline
+    set -- $mykeys
+    IFS="$lm_IFS"  # restore IFS
+    set +f         # re-enable globbing
+
+    for lm_k in "$@"; do
         # Search for the keyfile
         if [ -f "$lm_k" ]; then
             lm_kfile="$lm_k"
@@ -486,20 +486,22 @@ listmissing() {
         fi
 
         # Fingerprint current user-specified key
-        finger=`ssh_f "$lm_kfile"` || continue
+        lm_finger=`ssh_f "$lm_kfile"` || continue
 
         # Check if it needs to be added
         case " $myavail " in
-            *" $finger "*)
+            *" $lm_finger "*)
                 # already know about this key
                 mesg "Key: ${BLUE}$lm_k${OFF}"
                 ;;
             *)
                 # need to add this key
-                lm_missing="$lm_missing $lm_kfile"
+                lm_missing="$lm_missing
+$lm_kfile"
                 ;;
         esac
     done
+
     echo "$lm_missing"
 }
 
@@ -511,6 +513,22 @@ setaction() {
     else
         myaction="$1"
     fi
+}
+
+# synopsis: escape_string
+# Escapes $1 so that information such as spaces can be extracted later
+escape_string() {
+    # So far we only handle spaces and percent symbols;
+    # percents *must* be escaped first
+    echo "$1" | sed -e 's/%/%25/g' -e 's/ /%20/g'
+}
+
+# synopsis: unescape_string
+# Restore $1 to state prior to calling escape_string
+unescape_string() {
+    # So far we only handle spaces and percent symbols;
+    # percents *must* be unescaped last
+    echo "$1" | sed -e 's/%20/ /g' -e 's/%20/%/g'
 }
 
 #
@@ -587,7 +605,11 @@ while [ -n "$1" ]; do
             ;;
         --)
             shift
-            [ -n "$1" ] && mykeys="${mykeys} $*"
+            IFS="
+"
+            mykeys=${mykeys+"$mykeys
+"}"$*"
+            unset IFS
             break
             ;;
         -*)
@@ -595,11 +617,25 @@ while [ -n "$1" ]; do
             exit 1
             ;;
         *)
-            mykeys="${mykeys} $1"
+            mykeys=${mykeys+"$mykeys
+"}"$1"
             ;;
     esac
     shift
 done
+
+# Set filenames *after* parsing command-line options to allow 
+# modification of $keydir
+#
+# pidf holds the specific name of the keychain .ssh-agent-myhostname file.
+# We use the new hostname extension for NFS compatibility. cshpidf is the
+# .ssh-agent file with csh-compatible syntax. lockf is the lockfile, used
+# to serialize the execution of multiple ssh-agent processes started 
+# simultaneously
+hostname=`uname -n 2>/dev/null || echo unknown`
+pidf="${keydir}/${hostname}-sh"
+cshpidf="${keydir}/${hostname}-csh"
+lockf="${keydir}/${hostname}-lock"
 
 # Don't use color if there's no terminal on stdout
 if [ -n "$OFF" ]; then
@@ -643,7 +679,7 @@ else
     startagent || die           # start ssh-agent
 fi
 
-# --timeout translates almost directly to ssh-add -t, but commercial ssh uses
+# --timeout translates almost directly to ssh-add -t, but ssh.com uses
 # minutes and OpenSSH uses seconds
 if [ -n "$timeout" ]; then
     $openssh && timeout=`expr $timeout \* 60`
@@ -666,18 +702,31 @@ trap 'droplock' 2               # done clearing, safe to ctrl-c
 $noaskopt && { qprint; exit 0; }
 
 myavail=`ssh_l`                 # update myavail now that we're locked
-mykeys=`listmissing`            # cache list of missing keys
+mykeys="`listmissing`"          # cache list of missing keys, newline-separated
 
 # Attempt to add the keys
 while [ -n "$mykeys" ]; do
-    mesg "Adding ${BLUE}`echo $mykeys | wc -w`${OFF} key(s)..."
 
-    # For some reason commercial ssh spits out multiple success messages per
+    mesg "Adding ${BLUE}"`echo "$mykeys" | wc -l`"${OFF} key(s)..."
+
+    # Parse $mykeys into positional params to preserve spaces in filenames.
+    # This *must* happen after any calls to subroutines because pure Bourne
+    # shell doesn't restore "$@" following a call.  Eeeeek!
+    set -f;            # disable globbing
+    old_IFS="$IFS"     # save current IFS
+    IFS="
+"                      # set IFS to newline
+    set -- $mykeys
+    old_IFS="$lm_IFS"  # restore IFS
+    set +f             # re-enable globbing
+
+    # For some reason ssh.com spits out multiple success messages per
     # key.  Use uniq to filter it down to a single message.
-    if $noguiopt || [ -z "$SSH_ASKPASS" ]; then
-        sshout=`ssh-add $timeout $mykeys 2>&1 | uniq`
+    if $noguiopt || [ -z "$SSH_ASKPASS" -o -z "$DISPLAY" ]; then
+        unset SSH_ASKPASS   # make sure ssh-add doesn't try SSH_ASKPASS
+        sshout=`ssh-add $timeout "$@" 2>&1 | uniq`
     else
-        sshout=`ssh-add $timeout $mykeys 2>&1 </dev/null | uniq`
+        sshout=`ssh-add $timeout "$@" 2>&1 </dev/null | uniq`
     fi
     retval=$?
     [ -n "$sshout" ] && echo "$sshout" | while read line; do mesg "$line"; done
@@ -692,7 +741,7 @@ while [ -n "$mykeys" ]; do
     # Update the list of missing keys
     myavail=`ssh_l`
     [ $? = 0 ] || die "problem running ssh-add -l"
-    mykeys=`listmissing`
+    mykeys="`listmissing`"  # remember, newline-separated
 
     # Decrement the countdown
     attempts=`expr $attempts - 1`

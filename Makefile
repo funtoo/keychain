@@ -15,6 +15,7 @@ keychain: keychain.sh keychain.txt Makefile
 			$$_ = <P>; \
 			s/^(NAME|SEE ALSO).*?\n\n//msg; \
 			s/\$$/\\\$$/g; \
+			s/\`/\\\`/g; \
 			s/\*(\w+)\*/\$${CYAN}$$1\$${OFF}/g; \
 			s/(^|\s)(-+[-\w]+)/$$1\$${GREEN}$$2\$${OFF}/mg; \
 			$$pod = $$_; \
@@ -31,6 +32,10 @@ clean:
 	rm -f keychain keychain.txt keychain.1
 
 tarball: all
+	if [ `id -u` != 0 ]; then \
+		echo "You must be root to create the tarball" >&2; \
+		exit 1; \
+	fi
 	mkdir keychain-$V
 	cp keychain README ChangeLog COPYING keychain.pod keychain.1 \
 		keychain.spec keychain-$V

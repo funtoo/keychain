@@ -3,6 +3,13 @@ Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 
 RELEASE NOTES (See "ChangeLog" for more info):
 
+Keychain 2.3.3 fixes a problem in the help output, makes --dir work
+correctly, correctly handles spaces in file and directory names, and
+fixes operation on HP-UX with older OpenSSH
+
+Keychain 2.3.2 fixes a problem involving ssh-askpass where keychain
+would attempt to use the gui even when --nogui is specified
+
 Keychain 2.3.1 fixes a problem when users are running csh, at least on
 Solaris and BSD.
 
