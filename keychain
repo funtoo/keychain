@@ -1,7 +1,8 @@
 #!/bin/sh
-# Copyright 1999-2002 Gentoo Technologies, Inc.
+# Copyright 1999-2003 Gentoo Technologies, Inc.
 # Distributed under the terms of the GNU General Public License v2
 # Author: Daniel Robbins <drobbins@gentoo.org>
+# Current Maintainer: Seth Chandler <sethbc@gentoo.org>
 # $Header$
 
 version=2.0.3
@@ -59,6 +60,26 @@ do
 	esac
 	shift
 done
+
+#auto-detect whether echo -e works.
+unset E
+if [ -z "`echo -e`" ]
+then
+        E="-e"
+fi
+
+BLUE="\033[34;01m"
+GREEN="\033[32;01m"
+OFF="\033[0m"
+CYAN="\033[36;01m"
+
+	# color variables won't be defined if --nocolor is present
+if [ "$nocolopt" = "yes" ]
+then
+  unset BLUE GREEN OFF CYAN
+fi
+
+
 #first, handle help.
 if [ "$myaction" = "help" ]
 then
@@ -214,23 +235,8 @@ if type lockfile >/dev/null 2>&1; then
 	lockfile -1 -r 30 -l 35 -s 2 "$lockf"                                       
 	if [ $? != 0 ]; then                                                        
 		echo "$0: Couldn't get lock" >&2                                     
-		exit 1                                                                  
-	fi                                                                          
-fi
-
-#auto-detect whether echo -e works.
-unset BLUE GREEN OFF CYAN E
-if [ -z "`echo -e`" ]
-then
-	E="-e"	
-	# color variables won't be defined if --nocolor is present
-fi
-if [ -z "$nocolopt" ]
-then
-	BLUE="\033[34;01m"
-	GREEN="\033[32;01m"
-	OFF="\033[0m"
-	CYAN="\033[36;01m"
+		exit 1                                                              
+	fi
 fi
 
 if [ -z "$quietopt" ]
@@ -245,6 +251,7 @@ if [ "$cygwin" = "yes" ]
 then
 	#for cygwin
 	psopts="-e -u $me -f"
+	grepopts="-i"
 elif [ "$hpux" = "yes" ]
 then	
 	#for hp-ux
@@ -265,13 +272,13 @@ else
 	if [ "$psopts" = "FAIL" ]
 	then
 		echo "$0: unable to use \"ps\" to scan for ssh-agent processes.  Report keychain version and"
-		echo "system configuration to drobbins@gentoo.org."
+		echo "system configuration to sethbc@gentoo.org."
 		rm -f "${lockf}" 2> /dev/null
 		exit 1
 	fi
 fi
 
-mypids=`ps $psopts 2>/dev/null | grep "[s]sh-agent"` > /dev/null 2>&1
+mypids=`ps $psopts 2>/dev/null | grep $grepopts "[s]sh-agent"` > /dev/null 2>&1
 #extract the second item from mypids:
 if [ -n "$mypids" ]
 then
@@ -356,7 +363,7 @@ then
 fi
 
 #now that keys are potentially cleared, it's safe to be aborted by ^C
-trap $trapint
+trap - $trapint
 
 if [ -n "$noaskopt" ]
 then
