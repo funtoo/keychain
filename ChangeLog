@@ -2,7 +2,7 @@
 # Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 # Written by Daniel Robbins (drobbins@gentoo.org)
 
-*keychain 1.4 (17 Sep 2001)
+*keychain 1.4 (20 Sep 2001)
 
   20 Sep 2001; David Hull <hull@paracel.com>:
   "touch $foo" to ">$foo" optimization and other "don't fork" fixes.

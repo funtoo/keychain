@@ -1,5 +1,5 @@
 #!/bin/bash
-V=1.3
+V=1.4
 mkdir keychain-${V}; cp keychain README ChangeLog keychain-${V}
 chown -R root.root keychain-${V}
 tar cjvf keychain-${V}.tar.bz2 keychain-${V}
