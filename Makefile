@@ -9,12 +9,12 @@ all: keychain.1 keychain keychain.spec
 keychain.spec: keychain.spec.in
 	sed 's/KEYCHAIN_VERSION/$V/' keychain.spec.in > keychain.spec
 
-keychain.1: keychain.pod Makefile
+keychain.1: keychain.pod
 	pod2man --name=keychain --release=$V \
 		--center='http://gentoo.org/proj/en/keychain.xml' \
 		keychain.pod keychain.1
 
-keychain: keychain.sh keychain.txt Makefile
+keychain: keychain.sh keychain.txt
 	perl -e '\
 		$$/ = undef; \
 		open P, "keychain.txt" or die "cant open keychain.txt"; \
@@ -50,15 +50,14 @@ keychain-$V.tar.gz: $(TARBALL_CONTENTS)
 	sudo rm -rf keychain-$V
 	ls -l keychain-$V.tar.bz2
 
-# I believe that setting these NOTPARALLEL will result in them being
-# built individually.  Hopefully GNU make will evaluate whether
-# keychain-$V-1.src.rpm needs to be built after building
-# keychain-$V-1.noarch.rpm so that rpmbuild isn't executed twice.
-.NOTPARALLEL: keychain-$V-1.noarch.rpm keychain-$V-1.src.rpm
-keychain-$V-1.noarch.rpm keychain-$V-1.src.rpm: keychain-$V.tar.gz
+# Building noarch.rpm builds src.rpm at the same time.  I haven't
+# found an elegant way yet to prevent parallel builds from messing
+# this up, so all deps in the Makefile refer only to noarch.rpm
+keychain-$V-1.noarch.rpm: keychain-$V.tar.gz
 	rpmbuild -ta keychain-$V.tar.bz2
-	rpm --addsign ~/redhat/RPMS/noarch/keychain-$V-1.noarch.rpm \
-		~/redhat/SRPMS/keychain-$V-1.src.rpm
+	mv ~/redhat/RPMS/noarch/keychain-$V-1.noarch.rpm \
+		~/redhat/SRPMS/keychain-$V-1.src.rpm .
+	rpm --addsign keychain-$V-1.noarch.rpm keychain-$V-1.src.rpm
 
 .PHONY: webpage
 webpage:
@@ -77,14 +76,15 @@ webpage:
 		cvs commit -m 'update to $V' index.xml
 
 .PHONY: mypage
-mypage: keychain-$V.tar.gz keychain-$V-1.noarch.rpm keychain-$V-1.src.rpm
-	rsync -vPe ssh keychain-$V.tar.bz2 gentoo:public_html/keychain/
-	rsync -vPe ssh ~/redhat/RPMS/noarch/keychain-$V-1.noarch.rpm \
-		~/redhat/SRPMS/keychain-$V-1.src.rpm gentoo:public_html/keychain/
+mypage: keychain-$V.tar.gz keychain-$V-1.noarch.rpm
+	rsync -vPe ssh keychain-$V.tar.bz2 ChangeLog \
+		keychain-$V-1.noarch.rpm keychain-$V-1.src.rpm \
+		gentoo:public_html/keychain/
 	ssh gentoo make -C public_html/keychain
 
 .PHONY: release
 release: mypage webpage
+	rsync -vPe ssh keychain-$V.tar.bz2 gentoo:/space/distfiles-local/
 
 .PHONY: clean
 clean:
