@@ -1,12 +1,12 @@
 #!/bin/sh
-# Copyright 1999-2003 Gentoo Foundation
+# Copyright 1999-2004 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
 # Author: Daniel Robbins <drobbins@gentoo.org>
 # Previous Maintainer: Seth Chandler <sethbc@gentoo.org>
 # Current Maintainer: Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.4.2.1
+version=2.4.3
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -107,6 +107,12 @@ testssh() {
 getuser() {
     # whoami gives euid, which might be different from USER or LOGNAME
     me=`whoami` || die "Who are you?  whoami doesn't know..."
+}
+
+# synopsis: getos
+# Set the global string $OSTYPE
+getos() {
+    OSTYPE=`uname` || die 'uname failed'
 }
 
 # synopsis: verifykeydir
@@ -267,16 +273,32 @@ findpids() {
     fp_prog=${1-ssh}
     unset fp_psout
 
-    # OS X requires special handling.  It returns a false positive with 
-    # "ps -u $me" but is running bash so we can check for it via OSTYPE
-    case "$OSTYPE" in darwin*) fp_psout=`ps x 2>/dev/null` ;; esac
+    # Different systems require different invocations of ps.  Try to generalize
+    # the best we can.  The only requirement is that the agent command name
+    # appears in the line, and the PID is the first item on the line.
+    [ -n "$OSTYPE" ] || getos
 
-    # SysV syntax will work on Cygwin, Linux, HP-UX and Tru64 
-    # (among others)
-    [ -z "$fp_psout" ] && fp_psout=`ps -u $me 2>/dev/null`
+    # Try systems where we know what to do first
+    case "$OSTYPE" in
+        AIX|*bsd*|*BSD*|CYGWIN|darwin*|Linux|OSF1)
+            fp_psout=`ps x 2>/dev/null` ;;      # BSD syntax
+        HP-UX)
+            fp_psout=`ps -u $me 2>/dev/null` ;; # SysV syntax
+        SunOS)
+            case `uname -r` in
+                [56]*)
+                    fp_psout=`ps -u $me 2>/dev/null` ;; # SysV syntax
+                *)
+                    fp_psout=`ps x 2>/dev/null` ;;      # BSD syntax
+            esac ;;
+    esac
 
-    # BSD syntax for others
-    [ -z "$fp_psout" ] && fp_psout=`ps x 2>/dev/null`
+    # If we didn't get a match above, try a list of possibilities...
+    # The first one will probably fail on systems supporting only BSD syntax.
+    if [ -z "$fp_psout" ]; then
+        fp_psout=`UNIX95=1 ps -u $me -o pid,comm 2>/dev/null | grep '^ *[0-9]'`
+        [ -z "$fp_psout" ] && fp_psout=`ps x 2>/dev/null`
+    fi
 
     # Return the list of pids; ignore case for Cygwin.
     # Check only 8 characters since Solaris truncates at that length.
@@ -939,7 +961,7 @@ done
 
 # If $quickopt is still set at this point, then we're ok to quit
 # (and need to, because we haven't taken the lock)
-$quickopt && exit 0
+$quickopt && { qprint; exit 0; }
 
 # --timeout translates almost directly to ssh-add -t, but ssh.com uses
 # minutes and OpenSSH uses seconds

@@ -3,6 +3,9 @@ Copyright 2001-2004 Gentoo Foundation; Distributed under the GPL
 
 RELEASE NOTES (See "ChangeLog" for more info):
 
+Keychain 2.4.3 fixes a problem on BSD where multiple agents would be
+started.
+
 Keychain 2.4.2.1 fixes some minor issues in the test for existing gpg
 keys.
 
