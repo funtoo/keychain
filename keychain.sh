@@ -6,7 +6,7 @@
 # Current Maintainer: Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.5.2
+version=2.5.3
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -765,7 +765,7 @@ gpg_listmissing() {
 
     for glm_k in "$@"; do
         # Check if this key is known to the agent.  Don't know another way...
-        if echo | gpg --no-tty --sign --local-user "$glm_k" -o - >/dev/null 2>&1; then
+        if echo | gpg --use-agent --no-tty --sign --local-user "$glm_k" -o - >/dev/null 2>&1; then
             # already know about this key
             mesg "Known gpg key: ${BLUE}${glm_k}${OFF}"
             continue
@@ -780,7 +780,7 @@ $glm_k"
         fi
     done
 
-    DISPLAY="$glm_disp"
+    [ -n "$glm_disp" ] && DISPLAY="$glm_disp"
 
     echo "$glm_missing"
 }
@@ -1244,8 +1244,11 @@ if wantagent ssh; then
         set +f             # re-enable globbing
 
         if $noguiopt || [ -z "$SSH_ASKPASS" -o -z "$DISPLAY" ]; then
+            savedisplay="$DISPLAY"
+            unset DISPLAY       # DISPLAY="" can cause problems
             unset SSH_ASKPASS   # make sure ssh-add doesn't try SSH_ASKPASS
             sshout=`ssh-add ${ssh_timeout} "$@"`
+            [ -n "$savedisplay" ] && DISPLAY="$savedisplay"
         else
             sshout=`ssh-add ${ssh_timeout} "$@" </dev/null`
         fi
@@ -1273,7 +1276,8 @@ if wantagent gpg; then
     gpgattempts=$attempts
 
     $noguiopt && unset DISPLAY
-    GPG_TTY=`tty` ; export GPG_TTY  # fall back to ncurses pinentry
+    [ -n "$DISPLAY" ] || unset DISPLAY  # DISPLAY="" can cause problems
+    GPG_TTY=`tty` ; export GPG_TTY      # fall back to ncurses pinentry
 
     # Attempt to add the keys
     while [ -n "$gpgkeys" ]; do
@@ -1293,13 +1297,13 @@ if wantagent gpg; then
         set +f             # re-enable globbing
 
         for k in "$@"; do
-            echo | gpg --no-tty --sign --local-user "$k" -o - >/dev/null 2>&1
+            echo | gpg --use-agent --no-tty --sign --local-user "$k" -o - >/dev/null 2>&1
             [ $? != 0 ] && tryagain=true
         done
         $tryagain || break
 
         if [ $gpgattempts = 1 ]; then
-            die "Problem adding; giving up"
+            die "Problem adding (is pinentry installed?); giving up"
         else
             warn "Problem adding; trying again"
         fi
