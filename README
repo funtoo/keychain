@@ -3,6 +3,9 @@ Copyright 2001-2004 Gentoo Foundation; Distributed under the GPL
 
 RELEASE NOTES (See "ChangeLog" for more info):
 
+Keychain 2.4.2.1 fixes some minor issues in the test for existing gpg
+keys.
+
 Keychain 2.4.2 has complete support for gpg-agent, including adding
 keys, clearing the agent, etc.  The default for --attempts was changed
 from 3 to 1.

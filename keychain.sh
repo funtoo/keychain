@@ -6,7 +6,7 @@
 # Current Maintainer: Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.4.2
+version=2.4.2.1
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -554,6 +554,9 @@ ssh_f() {
 gpg_listmissing() {
     glm_missing=''
 
+    glm_disp="$DISPLAY"
+    unset DISPLAY
+
     # Parse $gpgkeys into positional params to preserve spaces in filenames
     set -f;        # disable globbing
     glm_IFS="$IFS"  # save current IFS
@@ -565,7 +568,7 @@ gpg_listmissing() {
 
     for glm_k in "$@"; do
         # Check if this key is known to the agent.  Don't know another way...
-        if echo | DISPLAY= gpg --no-tty --sign --local-user "$glm_k" -o - >/dev/null 2>&1; then
+        if echo | gpg --no-tty --sign --local-user "$glm_k" -o - >/dev/null 2>&1; then
             # already know about this key
             mesg "Known gpg key: ${BLUE}${glm_k}${OFF}"
             continue
@@ -579,6 +582,8 @@ $glm_k"
             fi
         fi
     done
+
+    DISPLAY="$glm_disp"
 
     echo "$glm_missing"
 }
