@@ -4,8 +4,9 @@
 # Author: Daniel Robbins <drobbins@gentoo.org>
 # $Header$
 
+# keychain 1.0
+
 trap "" INT
-#add --kill, --restart option?
 
 KEYCHAIN_KEYS=""
 for x in ${*}
@@ -23,6 +24,15 @@ OFF="\033[0m"
 CYAN="\033[36;01m"
 echo
 echo -e "${GREEN}KeyChain 1.0; ${BLUE}http://www.gentoo.org/projects/keychain${OFF}\n Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL" 
+
+if [ -n "`echo $* | grep '\-\-stop'`" ]
+then
+	#--stop tells keychain to kill the existing ssh-agent(s), then exit
+	killall ssh-agent > /dev/null 2>&1
+	echo -e " ${GREEN}*${OFF} All existing ssh-agent(s) have been stopped."
+	echo
+	exit 0
+fi
 
 if [ -n "`echo $* | grep '\-\-help'`" ]
 then
@@ -138,10 +148,9 @@ do
 	done
 	if [ $match -ne 1 ]
 	then
-		echo -e " ${GREEN}*${OFF} Key: ${x} missing"
+		echo -e " ${GREEN}*${OFF} Key ${x} missing."
 		echo
 		ssh-add ${x}
-		echo
 	else
 		echo -e " ${GREEN}*${OFF} Key: ${BLUE}${x}${OFF}"
 	fi
