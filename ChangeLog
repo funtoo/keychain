@@ -2,9 +2,55 @@
 # Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 # Written by Daniel Robbins (drobbins@gentoo.org)
 
+  27 Oct 2001; Brian Wellington (bwelling@xbill.org)
+  A "quiet mode" (--quiet) fix; I missed an "echo".
+  
+  27 Oct 2001; J.A. Neitzel (jan@belvento.org)
+  Missed another "kill -9"; it's now gone.
+
+* keychain 1.7 (21 Oct 2001) 
+ 
+  21 Oct 2001; Frederic Gobry (frederic.gobry@smartdata.ch)
+  Frederic suggested using procmail's lockfile to serialize the
+  execution of critical parts of keychain, thus avoiding multiple
+  ssh-agent processes being started if you happen to have multiple
+  xterms open automatically when you log in.  Initially, I didn't
+  think I could add this, since systems may not have the lockfile
+  command; however, keychain will now auto-detect whether lockfile
+  is installed; if it is, keychain will automatically use it, thus
+  preventing multiple ssh-agent processes from being spawned. 
+  
+  21 Oct 2001; Raymond Wu (ursus@usa.net):
+  --nocolor test is no longer inside the test for whether "echo -e"
+  works.  According to Raymond, this works optimally on his Solaris
+  box.
+  
+  21 Oct 2001; J.A. Neitzel (jan@belvento.org):
+  No longer "kill -9" our ssh-agent processes. SIGTERM should be 
+  sufficient and will allow ssh-agent to clean up after itself 
+  (this reverses a previously-applied patch).
+  
+  21 Oct 2001; Thomas Finneid (tfinneid@online.no):
+  Added argument "--quiet | -q" to make the program less 
+  intrusive to the user; with it, only error and interactive 
+  messages will appear.
+  
+  21 Oct 2001; Thomas Finneid (tfinneid@online.no):
+  Changed the format of some arguments to bring them more in
+  line with common *nix programs: added "-h" as alias for "--help";
+  added "-k" as alias for "--stop"
+
+  21 Oct 2001; Mark Stosberg (mark@summersault.com):
+  $pidf to "$pidf" fixes to allow keychain to work with paths that
+  include spaces (for Darwin and MacOS X in particular).
+  
+  21 Oct 2001; Jonathan Wakely (redi@redi.uklinux.net):
+  Small patch to convert "echo -n -e" to "echo -e "\c"" for FreeBSD
+  compatibility.
+
 * keychain 1.6 (15 Oct 2001)
 
-  13 Oct 2001; Ralf Horstmann (ralf.horstmann@webwasher.com)
+  13 Oct 2001; Ralf Horstmann (ralf.horstmann@webwasher.com):
   Add /usr/ucb to path for Solaris systems.
   
   11 Oct 2001; Idea from Joe Reid (jreid@vnet.net):

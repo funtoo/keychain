@@ -3,23 +3,37 @@ Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 
 RELEASE NOTES:
 
-KeyChain 1.5 contains a number of shell compatibility fixes for Solaris, IRIX,
+Keychain 1.7 will use procmail's lockfile command if available to serialize the
+startup of multiple keychain processes; this is a good thing if you have
+multiple xterms opening simultaneously when you start X.  This new feature
+prevents multiple instances of ssh-agent from mistakenly being started.  To
+enable this feature, install procmail on your system.  We also now have a
+ssh-agent kill fix, a Solaris output fix, Darwin/MacOS X fix, FreeBSD output
+fix, new short-style options (-k/-h for --stop and --help), and a new
+--quiet/-q option for less-verbose output.
+
+Keychain 1.6 will now try to add multiple keys at once, so that if you have
+two keys with the same passphrase, you only need to type in the passphrase
+once.  Also contains a /usr/ucb Solaris path compatibility fix.
+
+Keychain 1.5 contains a number of shell compatibility fixes for Solaris, IRIX,
 and various other cleanups and optimizations.  If we are not universally sh-
 compatible at this point, we are extremely close.
 
-KeyChain 1.4 *should* now be compatible with Linux, BSD, Solaris, IRIX and
+Keychain 1.4 *should* now be compatible with Linux, BSD, Solaris, IRIX and
 hopefully many other POSIX-like environments.  Please submit any compatibility
 patches to Daniel Robbins at drobbins@gentoo.org.
 
-KeyChain 1.3 and above now create ~/.ssh-agent-[hostname] files, making
+Keychain 1.3 and above now create ~/.ssh-agent-[hostname] files, making
 KeyChain compatible with NFS-mounted home directories.  There is also a new
 ~/.ssh-agent-csh-[hostname] available that can be sourced by csh-based shells.
 
 REQUIREMENTS
 
-KeyChain 1.3 and above should now be sh-compliant. Colorization features may
+Keychain 1.3 and above should now be sh-compliant. Colorization features may
 look weird if you're not using a vt100-compatible terminal and can be disabled
-with the --nocolor option.
+with the --nocolor option.  You can make keychain less verbose by using the -q
+or --quiet option.
 
 INSTALLATION
 
@@ -27,7 +41,7 @@ To install keychain, simply use the "install" command as follows:
 
 install -m0755 keychain /usr/bin/keychain
 
-Keychain is now installed.  Now, type "keychain --help | less -R" for
+Keychain is now installed.  Now, type "keychain --help | less -r" for
 instructions on how to use keychain.  You'll find intructions for modifying
 your ~/.bash_profile under the "Description" section.  For more detailed
 information on keychain, be sure to visit the Gentoo Linux keychain project
