@@ -1,8 +1,17 @@
 # ChangeLog for KeyChain; http://www.gentoo.org/projects/keychain
 # Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
+# Written by Daniel Robbins (drobbins@gentoo.org)
 
 *keychain 1.4 (17 Sep 2001)
 
+  20 Sep 2001;
+  Try an alternate "ps" syntax if our default one fails.  This should
+  give us Solaris and IRIX (sysV) compatibility without breaking BSD.
+
+  20 Sep 2001; Hans Peter Verne (h.p.verne@usit.uio.no);
+  "echo -e" to "echo $E" (for IRIX compatibility with --nocolor),
+  optimization of grep ("grep [s]sh-agent")
+  
   17 Sep 2001; Marko Myllynen (myllynen@lut.fi):
   Various fixes: trap signal 2 if signal INT not supported (NetBSD);
   handle invalid keys correctly; ancient version of ash didn't support ~,
@@ -15,6 +24,7 @@
   terms so it was switched to bold.  Additional --help text added.
   
   10 Sep 2001;
+  We now use .ssh-agent-[hostname] instead of .ssh-agent.
   We now create a .ssh-agent-csh-[hostname] file that can be sourced
   by csh-compatible shells.  We also now kill all our existing 
   ssh-agent processes before starting a new one.
