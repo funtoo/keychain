@@ -520,22 +520,6 @@ setaction() {
     fi
 }
 
-# synopsis: escape_string
-# Escapes $1 so that information such as spaces can be extracted later
-escape_string() {
-    # So far we only handle spaces and percent symbols;
-    # percents *must* be escaped first
-    echo "$1" | sed -e 's/%/%25/g' -e 's/ /%20/g'
-}
-
-# synopsis: unescape_string
-# Restore $1 to state prior to calling escape_string
-unescape_string() {
-    # So far we only handle spaces and percent symbols;
-    # percents *must* be unescaped last
-    echo "$1" | sed -e 's/%20/ /g' -e 's/%20/%/g'
-}
-
 #
 # MAIN PROGRAM
 #
