@@ -1,7 +1,21 @@
-# ChangeLog for KeyChain; http://www.gentoo.org/projects/keychain
+# ChangeLog for Keychain; http://www.gentoo.org/projects/keychain
 # Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 # Written by Daniel Robbins (drobbins@gentoo.org)
 
+  06 Dec 2001; several people: Solaris doesn't like '-e' comparisons; 
+  switched to '-f'
+
+* keychain 1.8 (29 Nov 2001)
+
+  29 Nov 2001; Philip Hallstrom (philip@adhesivemedia.com)
+  Added a "--local" option for removing the ${HOSTNAME} from the various
+  files that keychain creates.  Handy for non-NFS users.
+  
+  29 Nov 2001; Aron Griffis (agriffis@gentoo.org)
+  Using the Bourne shell "type" builtin rather than using the external
+  "which" command.  Should make things a lot more robust and slightly
+  faster.
+  
   09 Nov 2001; Mike Briseno (mike@radik.com)
   Solaris' "which" command outputs "no lockfile in..." to stdout rather
   than stderr.  A one-line fix (test the error condition) has been

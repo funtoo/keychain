@@ -18,16 +18,25 @@ KEYCHAIN_KEYS=""
 # available.
 
 hostname=`uname -n`
-pidf="${HOME}/.ssh-agent-${hostname}"
-cshpidf="${HOME}/.ssh-agent-csh-${hostname}"
-lockfile="`which lockfile 2>/dev/null`"
-#fix for Solaris, which prints "no lockfile in" to stdout instead of stderr.
-[ $? -ne 0 ] && lockfile=""
-#now, lockfile is set to empty if it returned an error code.
-lockf="${HOME}/.keychain-lock-${hostname}"
+if [ -z "`echo ${@} | grep '\-\-local'`" ]
+then
+	pidf="${HOME}/.ssh-agent-${hostname}"
+	cshpidf="${HOME}/.ssh-agent-csh-${hostname}"
+	lockf="${HOME}/.keychain-lock-${hostname}"
+else
+	pidf="${HOME}/.ssh-agent"
+	cshpidf="${HOME}/.ssh-agent-csh"
+	lockf="${HOME}/.keychain-lock"
+fi
 
-# perform lock if we have lockfile available
-[ -z "$lockfile" ] || $lockfile -1 -r 30 -l 35 -s 2 "$lockf"
+# perform lock if we have lockfile available                                    
+if type lockfile >/dev/null 2>&1; then                                          
+	lockfile -1 -r 30 -l 35 -s 2 "$lockf"                                       
+	if [ $? != 0 ]; then                                                        
+		echo "Error: Couldn't get lock" >&2                                     
+		exit 1                                                                  
+	fi                                                                          
+fi
 
 for x in ${@}
 do
@@ -57,7 +66,7 @@ then
 fi
 
 quiet_mode="no"
-if [ -n "`echo $* | grep '\-\-quiet'`" ] || [ -n "`echo $* | grep '\-q'`" ] ;
+if [ -n "`echo ${@} | grep '\-\-quiet'`" ] || [ -n "`echo $* | grep '\-q'`" ] ;
 then
 	quiet_mode="yes"
 fi
@@ -150,6 +159,13 @@ EOHELP
 echo $E " ${GREEN}--clear${OFF} option, described below."
 echo
 echo Options:
+echo   
+echo $E " ${GREEN}--local${OFF}"
+echo
+cat <<EOHELP
+ Prevents keychain from appending the hostname to any of the files.  This
+ makes life simpler in a non NFS world.
+EOHELP
 echo   
 echo $E " ${GREEN}--clear${OFF}"
 echo
@@ -275,12 +291,12 @@ do
 	fi
 	for x in $KEYCHAIN_KEYS
 	do
-		if [ ! -e "$x" ]
+		if [ ! -f "$x" ]
 		then
 			echo $E " ${CYAN}*${OFF} Can't find ${x}; skipping..."
 			continue
 		fi
-		if [ -e "${x}.pub" ]
+		if [ -f "${x}.pub" ]
 		then
 			myfing=`ssh-keygen -l -f ${x}.pub 2>&1`
 		else

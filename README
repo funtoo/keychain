@@ -1,7 +1,13 @@
 README for KeyChain; http://www.gentoo.org/projects/keychain
 Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 
-RELEASE NOTES:
+RELEASE NOTES (See "ChangeLog" for more info):
+
+Keychain 1.8 contains many shell compatibility improvements and various other
+fixes, improved "lockfile" settings, improved detection of failed passphrase
+attempts, the new ability to query public keys if the private key doesn't
+contain a fingerprint, a quiet mode fix, and a new "--local" option for non-NFS
+users who don't want to have the hostname appended to keychain's dot files.
 
 Keychain 1.7 will use procmail's lockfile command if available to serialize the
 startup of multiple keychain processes; this is a good thing if you have
