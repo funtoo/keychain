@@ -2,6 +2,8 @@
 # Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 # Written by Daniel Robbins (drobbins@gentoo.org)
 
+* keychain 1.6 (15 Oct 2001)
+
   13 Oct 2001; Ralf Horstmann (ralf.horstmann@webwasher.com)
   Add /usr/ucb to path for Solaris systems.
   
