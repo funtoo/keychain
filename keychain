@@ -82,7 +82,7 @@ Description:
 
 EOHELP
 	echo $E "  ${CYAN}keychain ~/.ssh/id_rsa ~/.ssh/id_dsa"
-	echo $E "  . ~/.keychain/\${HOSTNAME}-sh${OFF}"
+	echo $E "  . ~/.keychain/sh-\${HOSTNAME}${OFF}"
 	echo
 	echo $E "  # alt. syntax: . ~/.keychain/sh-\`uname -n\`"
 	echo $E "  # note the use of back-quotes (\`) rather than single-quotes (') above."
@@ -93,7 +93,7 @@ EOHELP
 	echo " following to your .cshrc:"
 	echo
 	echo $E "  ${CYAN}keychain ~/.ssh/id_rsa ~/.ssh/id_dsa"
-	echo $E "  source ~/.keychain/\${HOSTNAME}-csh${OFF}"
+	echo $E "  source ~/.keychain/csh-\${HOSTNAME}${OFF}"
 	echo
 	cat <<EOHELP
  Keychain allows all your apps and cron jobs to use a single ssh-agent process
