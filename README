@@ -3,6 +3,10 @@ Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 
 RELEASE NOTES (See "ChangeLog" for more info):
 
+Keychain 1.9 contains fixed Solaris support and a new "keychain.cygwin" script
+for Cygwin systems.  Sorry for the long delay in releasing this one; I've been
+busy :)
+
 Keychain 1.8 contains many shell compatibility improvements and various other
 fixes, improved "lockfile" settings, improved detection of failed passphrase
 attempts, the new ability to query public keys if the private key doesn't
