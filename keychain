@@ -4,7 +4,7 @@
 # Author: Daniel Robbins <drobbins@gentoo.org>
 # $Header$
 
-version=1.7
+version=1.8
 
 trap "" INT || { echo "$0: warning: trapping signal 2 instead of INT" 1>&2; trap "" 2; }
 PATH="/sbin:/usr/sbin:${PATH}:/usr/ucb"; export PATH;
@@ -21,10 +21,13 @@ hostname=`uname -n`
 pidf="${HOME}/.ssh-agent-${hostname}"
 cshpidf="${HOME}/.ssh-agent-csh-${hostname}"
 lockfile="`which lockfile 2>/dev/null`"
+#fix for Solaris, which prints "no lockfile in" to stdout instead of stderr.
+[ $? -ne 0 ] && lockfile=""
+#now, lockfile is set to empty if it returned an error code.
 lockf="${HOME}/.keychain-lock-${hostname}"
 
 # perform lock if we have lockfile available
-[ -z "$lockfile" ] || $lockfile -1 "$lockf"
+[ -z "$lockfile" ] || $lockfile -1 -r 30 -l 35 -s 2 "$lockf"
 
 for x in ${@}
 do
@@ -50,7 +53,7 @@ then
 	BLUE="\033[34;01m"
 	GREEN="\033[32;01m"
 	OFF="\033[0m"
-	CYAN="\033[01m"
+	CYAN="\033[36;01m"
 fi
 
 quiet_mode="no"
@@ -86,7 +89,6 @@ then
 	rm -f "${lockf}" 2> /dev/null
 	exit 1
 fi
-
 
 mypids=`ps $psopts 2>/dev/null | grep "[s]sh-agent" | awk '{print $2}'` > /dev/null 2>&1
 
@@ -190,7 +192,6 @@ EOHELP
 	exit 1
 fi
 
-
 if [ -f $pidf ]
 then
 	. $pidf	
@@ -235,9 +236,6 @@ then
 	echo "setenv SSH_AGENT_PID $SSH_AGENT_PID;" >> "$cshpidf"
 fi
 
-#unlock, now that ssh-agent is running
-rm -f "$lockf" 2> /dev/null
-
 if [ -n "`echo $* | grep '\-\-clear'`" ]
 then
 	echo $E " ${GREEN}*${OFF} \c"
@@ -258,9 +256,16 @@ fi
 . "$pidf"
 
 missingkeys="START"
-myfail=0
-while [ $myfail -lt 3 ] && [ "$missingkeys" != "" ]
+#below, previous count of missing keys, and count of missing keys, respectively.
+#when the difference between these two numbers does not abort after three tries,
+#we abort the loop (using $countdown)
+pmcount=0
+mcount=0
+countdown=3
+while [ $countdown -gt 1 ] && [ "$missingkeys" != "" ]
 do
+	pmcount=$mcount
+	mcount=0
 	missingkeys=""
 	myavail=`ssh-add -l | cut -f2 -d " "`
 	if [ $? -ne 0 ]
@@ -270,7 +275,23 @@ do
 	fi
 	for x in $KEYCHAIN_KEYS
 	do
-		myfing=`ssh-keygen -l -f ${x} 2>&1 | cut -f2 -d " "`
+		if [ ! -e "$x" ]
+		then
+			echo $E " ${CYAN}*${OFF} Can't find ${x}; skipping..."
+			continue
+		fi
+		if [ -e "${x}.pub" ]
+		then
+			myfing=`ssh-keygen -l -f ${x}.pub 2>&1`
+		else
+			myfing=`ssh-keygen -l -f ${x} 2>&1`
+			if [ $? -ne 0 ]
+			then
+				echo $E " ${CYAN}*${OFF} Warning: ${x}.pub missing; can't tell if key ${x} already loaded."
+				myfail=3
+			fi
+		fi
+		myfing=`echo ${myfing} | cut -f2 -d " "`
 		skip=0
 		for y in $myavail
 		do
@@ -283,13 +304,23 @@ do
 		if [ $skip -ne 1 ]
 		then
 			missingkeys="$missingkeys $x"
+			mcount=`expr $mcount + 1`
 		fi
 	done
 	if [ "$missingkeys" = "" ]
 	then
 		break
 	fi
-	[ "$quiet_mode" = "no" ] && echo $E " ${GREEN}*${OFF} Adding ${BLUE}${missingkeys}${OFF}..."
+	if [ `expr $pmcount - $mcount` -eq 0 ]
+	then
+		countdown=`expr $countdown - 1`
+	else
+		countdown=3
+	fi
+	if [ "$quiet_mode" = "no" ] 
+	then
+		echo $E " ${GREEN}*${OFF} ${BLUE}${mcount}${OFF} more keys to add..."
+	fi	
 	ssh-add ${missingkeys}
 	if [ $? -ne 0 ]
 	then
@@ -301,3 +332,6 @@ if [ "$quiet_mode" = "no" ]
 then
 	echo
 fi
+#remove lockfile if it exists
+rm -f "$lockf" 2> /dev/null
+

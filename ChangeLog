@@ -2,6 +2,25 @@
 # Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 # Written by Daniel Robbins (drobbins@gentoo.org)
 
+  09 Nov 2001; Mike Briseno (mike@radik.com)
+  Solaris' "which" command outputs "no lockfile in..." to stdout rather
+  than stderr.  A one-line fix (test the error condition) has been
+  applied.
+
+  09 Nov 2001; lockfile settings tweak
+
+  09 Nov 2001; Rewrote how keychain detects failed passphrase attempts.
+  If you stop making progress providing valid passphrases, it's three
+  strikes and you're out.
+
+  09 Nov 2001; Constantine P. Sapuntzakis (csapuntz@stanford.edu)
+  Some private keys can't be "ssh-keygen -l -f"'d; this patch causes
+  keychain to look for the corresponding public key if the private
+  key doesn't work.  Thanks Constantine!
+
+  09 Nov 2001; Victor Leitman (vleitman@yahoo.com)
+  CYAN color misdefined; fixed.
+  
   27 Oct 2001; Brian Wellington (bwelling@xbill.org)
   A "quiet mode" (--quiet) fix; I missed an "echo".
   
