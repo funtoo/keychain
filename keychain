@@ -4,18 +4,19 @@
 # Author: Daniel Robbins <drobbins@gentoo.org>
 # $Header$
 
-version=1.3
+version=1.4
 
-trap "" INT
+trap "" INT || ( echo "$0: warning: trapping signal 2 instead of INT" 1>&2 && trap "" 2 )
 PATH="/sbin:/usr/sbin:${PATH}"; export PATH;
 KEYCHAIN_KEYS=""
 
-#pidf holds the specific name of the keychain .ssh-agent-myhostname file.  We
-# use the new hostname extension for NFS compatibility. cshpidf is the
+# pidf holds the specific name of the keychain .ssh-agent-myhostname file.
+# We use the new hostname extension for NFS compatibility. cshpidf is the
 # .ssh-agent file with csh-compatible syntax.
 
-pidf=~/.ssh-agent-`uname -n`
-cshpidf=~/.ssh-agent-csh-`uname -n`
+hostname=`uname -n`
+pidf=$HOME/.ssh-agent-${hostname}
+cshpidf=$HOME/.ssh-agent-csh-${hostname}
 
 for x in ${*}
 do
@@ -27,24 +28,28 @@ do
 	fi
 done
 
-#color variables won't be defined if --nocolor is present
+# color variables won't be defined if --nocolor is present
 if [ -z "`echo $* | grep '\-\-nocolor'`" ]
 then
 	BLUE="\033[34;01m"
 	GREEN="\033[32;01m"
 	OFF="\033[0m"
-	CYAN="\033[36;01m"
+	CYAN="\033[01m"
+else
+	unset BLUE GREEN OFF CYAN
 fi
 
 echo
 echo -e "${GREEN}KeyChain ${version}; ${BLUE}http://www.gentoo.org/projects/keychain${OFF}\n Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL" 
 
+mypids=`ps uxw | grep ssh-agent | grep -v grep | awk '{print $2}'` > /dev/null 2>&1
+
 if [ -n "`echo $* | grep '\-\-stop'`" ]
 then
 	# --stop tells keychain to kill the existing ssh-agent(s), then exit
- 	kill `ps uxw | grep ssh-agent | grep -v grep | awk '{print $2}'` > /dev/null 2>&1
- 	kill -9 `ps uxw | grep ssh-agent | grep -v grep | awk '{print $2}'` > /dev/null 2>&1
- 	rm -f ${pidf} ${cshpidf}
+	kill $mypids > /dev/null 2>&1
+ 	kill -9 $mypids > /dev/null 2>&1
+ 	rm -f ${pidf} ${cshpidf} 2> /dev/null
 	#`whoami` (rather than the $LOGNAME var) gives us the euid rather than the uid (what we want)
 	echo -e " ${GREEN}*${OFF} All ssh-agent(s) started by" `whoami` "are now stopped."
 	echo
@@ -69,14 +74,22 @@ Description:
  added by keychain.
 
  Typically, one uses keychain by adding the following to the top of their
- ~/.bash_profile (or ~/.zshrc, in case of zsh):
+ ~/.bash_profile (or ~/.zlogin, in case of zsh):
 
 EOHELP
 echo -e "  ${CYAN}keychain ~/.ssh/id_rsa ~/.ssh/id_dsa"
-echo -e "  . ~/.ssh-agent-\`uname -n\`${OFF}"
+echo -e "  . ~/.ssh-agent-\${HOSTNAME}${OFF}"
+echo
+echo -e "  # alt. syntax: . ~/.ssh-agent-\`uname -h\`"
 echo -e "  # note the use of back-quotes (\`) rather than single-quotes (') above."
 echo -e "  # We now append the hostname (\`uname -n\`) to the .ssh-agent filename"
 echo -e "  # for NFS-compatibility."
+echo
+echo " You can make keychain work with your csh-compatible shell by adding the"
+echo " following to your .cshrc:"
+echo
+echo -e "  ${CYAN}keychain ~/.ssh/id_rsa ~/.ssh/id_dsa"
+echo -e "  source ~/.ssh-agent-csh-\${HOSTNAME}${OFF}"
 echo
 cat <<EOHELP
  Keychain allows all your apps and cron jobs to use a single ssh-agent process
@@ -123,21 +136,15 @@ EOHELP
 fi
 
 
-if [ ! -f $pidf ]
+if [ -f $pidf ]
 then
-	echo -e " ${GREEN}*${OFF} Initializing ${pidf} file..."
-	touch $pidf || ( echo "$0: Cannot create ${pidf}; exiting." 1>&2 && exit 1 )
-	chmod 0600 $pidf
-	SSH_AGENT_PID="NULL"
+	. $pidf	
 else
-	eval `( cat $pidf ; echo env ) | $SHELL 2>/dev/null | grep ^SSH_A`
-	export SSH_AGENT_PID SSH_AUTH_SOCK
+	SSH_AGENT_PID="NULL"
 fi
 
 match="no"
-# /sbin and /usr/sbin have been explicitly added to the path;
-# we should find pidof
-for x in `pidof ssh-agent`
+for x in $mypids
 do
 	if [ "$x" = "$SSH_AGENT_PID" ]
 	then
@@ -149,11 +156,23 @@ done
 
 if [ "$match" = "no" ]
 then
-	chmod 0600 $pidf 
-	echo -e " ${GREEN}*${OFF} starting new ssh-agent"
+	if [ -n "$mypids" ]
+	then
+		kill $mypids > /dev/null 2>&1
+		kill -9 $mypids > /dev/null 2>&1
+	fi
+ 	rm -f ${pidf} ${cshpidf} 2> /dev/null
+	echo -e " ${GREEN}*${OFF} All previously running ssh-agent(s) have been stopped."
+	echo -e " ${GREEN}*${OFF} Initializing ${pidf} file..."
+	touch $pidf || ( echo "$0: Cannot create ${pidf}; exiting." 1>&2 && exit 1 )
+	echo -e " ${GREEN}*${OFF} Initializing ${cshpidf} file..."
+	touch $cshpidf || ( echo "$0: Cannot create ${cshpidf}; exiting." 1>&2 && exit 1 )
+	chmod 0600 $pidf $cshpidf
+	echo -e " ${GREEN}*${OFF} Starting new ssh-agent"
 	nohup ssh-agent -s | grep -v 'Agent pid' > $pidf
-	eval `( cat $pidf ; echo env ) | $SHELL 2>/dev/null | grep ^SSH_A`
-	export SSH_AGENT_PID SSH_AUTH_SOCK
+	. $pidf
+	echo "setenv SSH_AUTH_SOCK $SSH_AUTH_SOCK;" > $cshpidf
+	echo "setenv SSH_AGENT_PID $SSH_AGENT_PID;" >> $cshpidf
 fi
 
 if [ -n "`echo $* | grep '\-\-clear'`" ]
@@ -162,8 +181,6 @@ then
 	ssh-add -D
 fi
 
-myavail=`ssh-add -l | cut -f2 -d " "`
-
 if [ -n "`echo $* | grep '\-\-noask'`" ]
 then
 	# --noask means "don't ask for keys", so skip this next part	
@@ -171,9 +188,16 @@ then
 	exit 0
 fi
 
+myavail=`ssh-add -l | cut -f2 -d " "`
+
 for x in $KEYCHAIN_KEYS
 do
-	myid=`ssh-keygen -l -f ${x} | cut -f2 -d" "`
+ 	myid=`ssh-keygen -l -f ${x} 2> /dev/null | cut -f2 -d" "`
+ 	if [ -z $myid ]
+ 	then
+ 		echo -e " ${GREEN}*${OFF} Skipping key ${BLUE}${x}${OFF}: no such file or directory" 1>&2
+ 		continue
+	fi
 	match=0
 	for y in $myavail
 	do
@@ -184,11 +208,10 @@ do
 	done
 	if [ $match -ne 1 ]
 	then
-		echo -e " ${GREEN}*${OFF} Key ${x} missing."
-		echo
+		echo -e " ${GREEN}*${OFF} Adding key ${BLUE}${x}${OFF}..."
 		ssh-add ${x}
 	else
-		echo -e " ${GREEN}*${OFF} Key: ${BLUE}${x}${OFF}"
+		echo -e " ${GREEN}*${OFF} Already using key ${BLUE}${x}${OFF}"
 	fi
 done
 echo

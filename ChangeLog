@@ -1,6 +1,24 @@
 # ChangeLog for KeyChain; http://www.gentoo.org/projects/keychain
 # Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 
+*keychain 1.4 (17 Sep 2001)
+
+  17 Sep 2001; Marko Myllynen (myllynen@lut.fi):
+  Various fixes: trap signal 2 if signal INT not supported (NetBSD);
+  handle invalid keys correctly; ancient version of ash didn't support ~,
+  so using $HOME; correct zsh instruction; minor cleanups
+
+*keychain 1.3 (12 Sep 2001)
+  
+  12 Sep 2001;
+  Minor color changes; the cyan was hard to read on xterm-colored
+  terms so it was switched to bold.  Additional --help text added.
+  
+  10 Sep 2001;
+  We now create a .ssh-agent-csh-[hostname] file that can be sourced
+  by csh-compatible shells.  We also now kill all our existing 
+  ssh-agent processes before starting a new one.
+
   10 Sep 2001; Robert R. Wal (rrw@hell.pl):
   Very nice NFS fixes, colorization fixes, tcsh redirect -> grep -v
   fix.  Thanks go out to others who sent me similar patches.
