@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 1999-2003 Gentoo Technologies, Inc.
+# Copyright 1999-2003 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
 # Author: Daniel Robbins <drobbins@gentoo.org>
 # Previous Maintainer: Seth Chandler <sethbc@gentoo.org>
@@ -71,7 +71,7 @@ die() {
 versinfo() {
     qprint
     qprint "${GREEN}KeyChain ${version}; ${BLUE}http://www.gentoo.org/projects/keychain${OFF}"
-    qprint "Copyright 2002-2004 Gentoo Technologies, Inc.; Distributed under the GPL"
+    qprint "Copyright 2002-2004 Gentoo Foundation; Distributed under the GPL"
     qprint
 }
 

@@ -1,9 +1,8 @@
 # ChangeLog for Keychain; http://www.gentoo.org/projects/keychain
-# Copyright 2002 Gentoo Technologies, Inc.; Distributed under the GPL version 2
+# Copyright 2002 Gentoo Foundation; Distributed under the GPL version 2
 # Written by Daniel Robbins <drobbins@gentoo.org>
 # Maintained by Seth Chandler <sethbc@gentoo.org>
 
 Things to do on keychain:
 
 Reworking locking (to fix OS X control-c bug)
-
