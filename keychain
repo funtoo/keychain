@@ -110,7 +110,9 @@ else
 fi
 
 match="no"
-for x in `pidof ssh-agent`
+# pidof may very well not be in the user's path, so we specify its explicit
+# location.
+for x in `/sbin/pidof ssh-agent`
 do
 	if [ "$x" = "$SSH_AGENT_PID" ]
 	then
