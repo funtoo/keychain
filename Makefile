@@ -1,8 +1,13 @@
 V=$(shell /bin/sh keychain.sh --version 2>&1 | \
 	awk -F'[ ;]' '/^K/{print $$2; exit}')
 D=$(shell date +'%d %b %Y')
+TARBALL_CONTENTS=keychain README ChangeLog COPYING keychain.pod keychain.1 \
+				 keychain.spec keychain-$V
 
-all: keychain.1 keychain
+all: keychain.1 keychain keychain.spec
+
+keychain.spec: keychain.spec.in
+	sed 's/KEYCHAIN_VERSION/$V/' keychain.spec.in > keychain.spec
 
 keychain.1: keychain.pod Makefile
 	pod2man --name=keychain --release=$V \
@@ -29,22 +34,33 @@ keychain: keychain.sh keychain.txt Makefile
 keychain.txt: keychain.pod
 	pod2text keychain.pod keychain.txt
 
-clean:
-	rm -f keychain keychain.txt keychain.1
-
-tarball: all
-	if [ `id -u` != 0 ]; then \
-		echo "You must be root to create the tarball" >&2; \
+keychain-$V.tar.gz: $(TARBALL_CONTENTS)
+	@if ! grep -qF '* keychain $V ' ChangeLog; then \
+		echo "**** Need to update the ChangeLog for version $V"; \
+		exit 1; \
+	fi
+	@if ! grep -qF 'Keychain $V ' README; then \
+		echo "**** Need to update the README for version $V"; \
 		exit 1; \
 	fi
 	mkdir keychain-$V
-	cp keychain README ChangeLog COPYING keychain.pod keychain.1 \
-		keychain.spec keychain-$V
-	chown -R root:root keychain-$V
+	cp $(TARBALL_CONTENTS)
+	sudo chown -R root:root keychain-$V
 	/bin/tar cjvf keychain-$V.tar.bz2 keychain-$V
-	rm -rf keychain-$V
+	sudo rm -rf keychain-$V
 	ls -l keychain-$V.tar.bz2
 
+# I believe that setting these NOTPARALLEL will result in them being
+# built individually.  Hopefully GNU make will evaluate whether
+# keychain-$V-1.src.rpm needs to be built after building
+# keychain-$V-1.noarch.rpm so that rpmbuild isn't executed twice.
+.NOTPARALLEL: keychain-$V-1.noarch.rpm keychain-$V-1.src.rpm
+keychain-$V-1.noarch.rpm keychain-$V-1.src.rpm: keychain-$V.tar.gz
+	rpmbuild -ta keychain-$V.tar.bz2
+	rpm --addsign ~/redhat/RPMS/noarch/keychain-$V-1.noarch.rpm \
+		~/redhat/SRPMS/keychain-$V-1.src.rpm
+
+.PHONY: webpage
 webpage:
 	perl -0777i.bak -pe '\
 		BEGIN{open F, "ChangeLog"; local $$/=undef; \
@@ -57,3 +73,19 @@ webpage:
 		s/(keychain-)[\d.]+(?=\.tar|\S*rpm)/$${1}$V/g; \
 		s/(<!-- begin automatic ChangeLog insertion -->).*?(?=<!-- end)/$${1}$$C/s;' \
 			~/gentoo/xml/htdocs/proj/en/keychain/index.xml
+	cd ~/gentoo/xml/htdocs/proj/en/keychain && \
+		cvs commit -m 'update to $V' index.xml
+
+.PHONY: mypage
+mypage: keychain-$V.tar.gz keychain-$V-1.noarch.rpm keychain-$V-1.src.rpm
+	rsync -vPe ssh keychain-$V.tar.bz2 gentoo:public_html/keychain/
+	rsync -vPe ssh ~/redhat/RPMS/noarch/keychain-$V-1.noarch.rpm \
+		~/redhat/SRPMS/keychain-$V-1.src.rpm gentoo:public_html/keychain/
+	ssh gentoo make -C public_html/keychain
+
+.PHONY: release
+release: mypage webpage
+
+.PHONY: clean
+clean:
+	rm -f keychain keychain.txt keychain.1 keychain.spec

@@ -1,7 +1,10 @@
 README for KeyChain; http://www.gentoo.org/projects/keychain
-Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
+Copyright 2001-2004 Gentoo Technologies, Inc.; Distributed under the GPL
 
 RELEASE NOTES (See "ChangeLog" for more info):
+
+Keychain 2.3.5 fixes a minor problem where keychain would report the
+wrong number of keys when adding them to ssh-agent
 
 Keychain 2.3.4 fixes a problem where keychain would mistake defunct
 ssh-agent processes for running ones

@@ -6,7 +6,7 @@
 # Current Maintainer: Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.3.4
+version=2.3.5
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -497,8 +497,12 @@ listmissing() {
                 ;;
             *)
                 # need to add this key
-                lm_missing="$lm_missing
+                if [ -z "$lm_missing" ]; then
+                    lm_missing="$lm_kfile"
+                else
+                    lm_missing="$lm_missing
 $lm_kfile"
+                fi
                 ;;
         esac
     done
