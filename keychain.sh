@@ -40,8 +40,8 @@ keydir="${HOME}/.keychain"
 BLUE="[34;01m"
 CYAN="[36;01m"
 GREEN="[32;01m"
-OFF="[0m"
 RED="[31;01m"
+OFF="[0m"
 
 # synopsis: qprint "message"
 qprint() {
