@@ -3,6 +3,9 @@ Copyright 2001-2004 Gentoo Foundation; Distributed under the GPL
 
 RELEASE NOTES (See "ChangeLog" for more info):
 
+Keychain 2.4.1 enables Sun SSH compatibility and fixes some more
+Solaris awk problems.
+
 Keychain 2.4.0 fixes a problem with awk on Solaris, a problem with
 commercial ssh not prompting for a password, and adds gpg-agent
 support.

@@ -1,7 +1,7 @@
 Name:      keychain
 Version:   KEYCHAIN_VERSION
 Release:   1
-Summary:   ssh-agent manager for OpenSSH and commercial SSH2
+Summary:   agent manager for OpenSSH, ssh.com, Sun SSH, and GnuPG
 Vendor:    Gentoo Foundation
 Packager:  Aron Griffis <agriffis@gentoo.org>
 URL:       http://www.gentoo.org/proj/en/keychain/index.xml
@@ -9,17 +9,17 @@ Source0:   %{name}-%{version}.tar.bz2
 License:   GPL v2
 Group:     Applications/Internet
 BuildArch: noarch
-Requires:  bash openssh-clients sh-utils
+Requires:  bash sh-utils
 Prefix:    /usr/bin
 BuildRoot: %{_tmppath}/%{name}-root
 
 %description
-Keychain is an extremely handy OpenSSH and commercial SSH2-compatible RSA/DSA
-key management application. It acts as a front-end to ssh-agent, allowing you
-to easily have one long-running ssh-agent process per system, rather than per
-login session. This dramatically reduces the number of times you need to enter
-your passphrase from once per new login session to once every time your local
-machine is rebooted.
+Keychain is a manager for OpenSSH, ssh.com, Sun SSH and GnuPG agents.
+It acts as a front-end to the agents, allowing you to easily have one
+long-running agent process per system, rather than per login session.
+This dramatically reduces the number of times you need to enter your
+passphrase from once per new login session to once every time your
+local machine is rebooted.
 
 %prep
 %setup -q

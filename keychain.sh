@@ -6,7 +6,7 @@
 # Current Maintainer: Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.4.0
+version=2.4.1
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -22,6 +22,7 @@ noguiopt=false
 nolockopt=false
 lockwait=30
 openssh=unknown
+sunssh=unknown
 quickopt=false
 quietopt=false
 clearopt=false
@@ -87,14 +88,15 @@ EOHELP
 }
 
 # synopsis: testssh
-# Figure out which ssh is in use, set the global boolean $openssh
+# Figure out which ssh is in use, set the global boolean $openssh and $sunssh
 testssh() {
-    # Query local host for SSH application, presently supporting only
-    # OpenSSH (see http://www.openssh.org) when openssh="yes" and
-    # SSH2 (see http://www.ssh.com) when openssh="no".
+    # Query local host for SSH application, presently supporting 
+    # OpenSSH, Sun SSH, and ssh.com
+    openssh=false
+    sunssh=false
     case "`ssh -V 2>&1`" in
         *OpenSSH*) openssh=true ;;
-        *)         openssh=false ;;
+        *Sun?SSH*) sunssh=true ;;
     esac
 }
 
@@ -479,6 +481,27 @@ ssh_l() {
                 ;;
         esac
         return $sl_retval
+
+    elif $sunssh; then
+        # Error codes (from http://docs.sun.com/db/doc/817-3936/6mjgdbvio?a=view)
+        #   0  success (even when there are no keys)
+        #   1  error
+        case $sl_retval in
+            0)
+                # Output of ssh-add -l:
+                #   md5 1024 7c:c3:e2:7e:fb:05:43:f1:8e:e6:91:0d:02:a0:f0:9f /home/harvey/.ssh/id_dsa(DSA)
+                # Return a space-separated list of fingerprints
+                echo "$sl_mylist" | cut -f3 -d' ' | xargs
+                return 0
+                ;;
+            1)
+                case "$sl_mylist" in
+                    *"open a connection"*) sl_retval=2 ;;
+                esac
+                ;;
+        esac
+        return $sl_retval
+
     else
         # Error codes:
         #   0  success - however might say "The authorization agent has no keys."
@@ -492,7 +515,7 @@ ssh_l() {
             #   The authorization agent has one key:
             #   id_dsa_2048_a: 2048-bit dsa, agriffis@alpha.zk3.dec.com, Fri Jul 25 2003 10:53:49 -0400
             # Since we don't have a fingerprint, just get the filenames *shrug*
-            echo "$sl_mylist" | awk 'NR>1{sub(":.*", ""); print}' | xargs
+            echo "$sl_mylist" | sed '2,$s/:.*//' | xargs
         fi
         return $sl_retval
     fi
@@ -500,16 +523,22 @@ ssh_l() {
 
 # synopsis: ssh_f filename
 # Return finger print for a keyfile
-# Requires $openssh
+# Requires $openssh and $sunssh
 ssh_f() {
     sf_filename="$1"
-    if $openssh; then
+    if $openssh || $sunssh; then
         if [ ! -f "$sf_filename.pub" ]; then
             warn "$sf_filename.pub missing; can't tell if $sf_filename is loaded"
             return 1
         fi
         sf_fing=`ssh-keygen -l -f "$sf_filename.pub"` || return 1
-        echo "$sf_fing" | cut -f2 -d' '
+        if $sunssh; then
+            # md5 1024 00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00 /home/barney/.ssh/id_dsa(DSA)
+            echo "$sf_fing" | cut -f3 -d' '
+        else
+            # 1024 00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00 /home/barney/.ssh/id_dsa (DSA)
+            echo "$sf_fing" | cut -f2 -d' '
+        fi
     else
         # can't get fingerprint for ssh2 so use filename *shrug*
         basename "$sf_filename"
@@ -768,7 +797,7 @@ trap 'droplock' 0 1 15          # drop the lock on exit
 
 setagents                       # verify/set $agentsopt
 verifykeydir                    # sets up $keydir
-wantagent ssh && testssh        # sets $openssh
+wantagent ssh && testssh        # sets $openssh and $sunssh
 getuser                         # sets $me
 
 # --stop: kill the existing ssh-agent(s) and quit
@@ -821,7 +850,9 @@ fi
 # minutes and OpenSSH uses seconds
 if [ -n "$timeout" ] && wantagent ssh; then
     ssh_timeout=$timeout
-    $openssh && ssh_timeout=`expr $ssh_timeout \* 60`
+    if $openssh || $sunssh; then
+        ssh_timeout=`expr $ssh_timeout \* 60`
+    fi
     ssh_timeout="-t ${ssh_timeout}"
 fi
 
