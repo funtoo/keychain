@@ -3,6 +3,10 @@ Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 
 RELEASE NOTES (See "ChangeLog" for more info):
 
+Keychain 2.2.0 is a complete rewrite with a lot of compatibility and
+speed fixes.  Additionally it provides --timeout for carpaski and
+others interested in this feature.
+
 Keychain 2.0.3 contains some fixes for color issues and a grep -i option for
 cygwin.  
 

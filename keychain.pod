@@ -1,0 +1,144 @@
+=head1 NAME
+
+keychain - re-use ssh-agent between logins
+
+=head1 SYNOPSIS
+
+S<keychain [ -hkQqV ] [ --clear --help --ignore-missing --noask>
+S<--nocolor --nogui --nolock --stop --quick --quiet --version ]>
+S<[ --attempts I<num> ] [ --dir I<dirname> ]>
+S<[ --timeout I<minutes> ] [ keys... ]>
+
+=head1 DESCRIPTION
+
+keychain is a manager for ssh-agent, typically run from
+~/.bash_profile.  It allows your shells and cron jobs to share a
+single ssh-agent process.  By default, the ssh-agent started by
+keychain is long-running and will continue to run, even after you have
+logged out from the system.  If you want to change this behavior, take
+a look at the --clear and --timeout options, described below.
+
+When keychain is run, it checks for a running ssh-agent, otherwise it
+starts one.  It saves the ssh-agent environment variables to
+~/.keychain/${HOSTNAME}-sh, so that subsequent logins and
+non-interactive shells such as cron jobs can source the file and make
+passwordless ssh connections.  In addition, when keychain runs, it
+verifies that the key files specified on the command-line are known to
+ssh-agent, otherwise it loads them, prompting you for a password if
+necessary.
+
+keychain supports most UNIX-like operating systems, including Cygwin.
+It works with both Bourne-compatible and csh-compatible shells.
+
+=head1 OPTIONS
+
+=over
+
+=item B<--attempts> I<num>
+
+Try num times to add keys before giving up.  The default is 3.
+
+=item B<--clear>
+
+Delete all of ssh-agent's keys.  Typically this is used in
+.bash_profile.  The theory behind this is that keychain should assume
+that you are an intruder until proven otherwise.  However, while this
+option increases security, it still allows your cron jobs to use your
+ssh keys when you're logged out.
+
+=item B<--dir> I<dirname>
+
+Keychain will use dirname rather than $HOME/.keychain
+
+=item B<-h --help>
+
+Show help that looks remarkably like this man-page.
+
+=item B<--ignore-missing>
+
+Don't warn if some keys on the command-line can't be found.  This is
+useful for situations where you have a shared .bash_profile, but your
+keys might not be available on every machine where keychain is run.
+
+=item B<--noask>
+
+This option tells keychain do everything it normally does (ensure
+ssh-agent is running, set up the ~/.keychain/[hostname]-{c}sh files)
+except that it will not prompt you to add any of the keys you
+specified if they haven't yet been added to ssh-agent.
+
+=item B<--nocolor>
+
+Disable color hilighting for non ANSI-compatible terms.
+
+=item B<--nogui>
+
+Don't honor SSH_ASKPASS, if it is set.  This will cause ssh-add to
+prompt on the terminal instead of using a graphical program.
+
+=item B<--nolock>
+
+Don't attempt to use a lockfile while manipulating files, pids and
+keys.
+
+=item B<-k --stop>
+
+Stop all running ssh-agent processes.
+
+=item B<-Q --quick>
+
+If an ssh-agent process is running then use it.  Don't verify the list
+of keys, other than making sure it's non-empty.  This option avoids
+locking when possible so that multiple terminals can be opened
+simultaneously without waiting on each other.
+
+=item B<-q --quiet>
+
+Only print messages in case of warning, error or required
+interactivity.
+
+=item B<--timeout> I<minutes>
+
+Set a timeout in minutes on your keys.  This is conveyed to ssh-agent
+which does the actual timing out of keys since keychain doesn't run
+continuously.
+
+=item B<-V --version>
+
+Show version information.
+
+=back
+
+=head1 EXAMPLES
+
+This snippet would work in .bash_profile (for bash) or .zlogin (for zsh):
+
+    keychain id_rsa id_dsa
+    . ~/.keychain/$HOSTNAME-sh
+
+This snippet would work in other Bourne-compatible shells:
+
+    keychain id_rsa id_dsa
+    . ~/.keychain/`uname -n`-sh
+
+This snippet would work in .login (for csh or tcsh):
+
+    keychain id_rsa id_dsa
+    source $HOME/.keychain/`uname -n`-csh
+
+=head1 SEE ALSO
+
+L<ssh-agent(1)>
+
+=head1 NOTES
+
+Keychain is maintained by Aron Griffis <agriffis@gentoo.org>.  If you
+need to report a bug or request an enhancement, please do so at
+L<http://bugs.gentoo.org/> and assign to agriffis@gentoo.org
+
+Keychain was originally written by Daniel Robbins
+<drobbins@gentoo.org>, who has also written a series of three articles
+about it.  The articles can be found starting at
+L<http://www-106.ibm.com/developerworks/library/l-keyc.html>
+
+=end
