@@ -32,7 +32,8 @@ clean:
 
 tarball: all
 	mkdir keychain-$V
-	cp keychain README ChangeLog COPYING keychain.pod keychain.1 keychain-$V
+	cp keychain README ChangeLog COPYING keychain.pod keychain.1 \
+		keychain.spec keychain-$V
 	chown -R root:root keychain-$V
 	/bin/tar cjvf keychain-$V.tar.bz2 keychain-$V
 	rm -rf keychain-$V
