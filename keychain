@@ -1,0 +1,149 @@
+#!/bin/bash
+
+if [ -z "$KEYCHAIN_ADD" ]
+then
+	KEYCHAIN_ADD="ssh-add"
+fi
+
+KEYCHAIN_KEYS=""
+for x in ${*}
+do
+	if [ "${x:0:2}" != "--" ]
+	then
+		KEYCHAIN_KEYS="$KEYCHAIN_KEYS ${x}"
+	fi
+done
+
+KEYLITE="\033[35;01m"
+HILITE3="\033[34;01m"
+HILITE2="\033[32;01m"
+HILITE=${HILITE2}
+LOLITE="\033[0m"
+GREEN=$HILITE2
+CYAN="\033[36;01m"
+OFF=$LOLITE
+echo
+echo -e "${HILITE2}KeyChain 1.0; ${HILITE3}http://www.gentoo.org/projects/keychain${LOLITE}\n Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL" 
+
+if [ -n "`echo $* | grep '\-\-help'`" ]
+then
+echo -e Usage: ${CYAN}${0}${OFF} [ ${GREEN}options${OFF} ] ${CYAN}sshkey${OFF} ...
+cat <<EOHELP
+
+Description:
+
+ Keychain is an OpenSSH key manager, typically run from ~/.bash_profile.  When
+ run, it will make sure ssh-agent is running; if not, it will start ssh-agent.
+ It will redirect ssh-agent's output to ~/.ssh-agent, so that cron jobs that
+ need to use ssh-agent keys can simply source this file and make the necessary
+ passwordless ssh connections.  In addition, when keychain runs, it will check
+ with ssh-agent and make sure that the ssh RSA/DSA keys that you specified on
+ the keychain command line have actually been added to ssh-agent.  If not, you
+ are prompted for the appropriate passphrases so that they can be added by
+ keychain.
+
+ Typically, one uses keychain by adding the following to the top of their
+ ~/.bash_profile:
+
+EOHELP
+echo -e "  ${CYAN}keychain ~/.ssh/id_rsa ~/.ssh/id_dsa"
+echo -e "  source ~/.ssh-agent${OFF}"
+echo
+cat <<EOHELP
+ Keychain allows all your apps and cron jobs to use a single ssh-agent process
+ as an authentication agent.  By default, the ssh-agent started by keychain is
+ long-running and will continue to run, even after you have logged out from the
+ system.  If you'd like to tighten up security a bit, take a look at the
+EOHELP
+echo -e " ${GREEN}--clear${OFF} option, described below."
+echo
+echo Options:
+echo   
+echo -e " ${GREEN}--clear${OFF}"
+echo
+cat <<EOHELP
+ Tells keychain to delete all of ssh-agent's host keys.  Typically, This is
+ used in the ~/.bash_profile.  The theory behind this is that keychain should
+ assume that you are an intruder until proven otherwise.  However, while this
+ option increases security, it still allows your cron jobs to use your ssh keys
+ when you're logged out.
+EOHELP
+echo
+echo -e " ${GREEN}--noask${OFF}"
+echo
+cat <<EOHELP
+ This option tells keychain do everything it normally does (ensure ssh-agent is
+ running, set up the ~/.ssh-agent file) except that it will not prompt you to
+ add any of the keys you specified if they haven't yet been added to ssh-agent.
+
+EOHELP
+	exit 1
+fi
+
+
+if [ ! -e ~/.ssh-agent ]
+then
+	touch ~/.ssh-agent
+	chmod 0600 ~/.ssh-agent
+	SSH_AGENT_PID="NULL"
+	echo -e " ${HILITE}*${LOLITE} Initializing ~/.ssh-agent file"
+else
+	source ~/.ssh-agent > /dev/null
+fi
+
+match="no"
+for x in `pidof ssh-agent`
+do
+	if [ "$x" = "$SSH_AGENT_PID" ]
+	then
+		echo -e " ${HILITE}*${LOLITE} Found existing ssh-agent at PID ${x}"
+		match="yes"
+		break
+	fi
+done
+
+if [ "$match" = "no" ]
+then
+	chmod 0600 ~/.ssh-agent
+	echo -e " ${HILITE}*${LOLITE} starting new ssh-agent"
+	nohup ssh-agent > ~/.ssh-agent
+	source ~/.ssh-agent > /dev/null
+fi
+
+if [ -n "`echo $* | grep '\-\-clear'`" ]
+then
+	echo -ne " ${HILITE}*${LOLITE} "
+	$KEYCHAIN_ADD -D
+fi
+
+myavail=`$KEYCHAIN_ADD -l | cut -f2 -d " "`
+
+if [ -n "`echo $* | grep '\-\-noask'`" ]
+then
+	echo
+	exit 0
+fi
+
+for x in $KEYCHAIN_KEYS
+do
+	myid=`ssh-keygen -l -f ${x} | cut -f2 -d" "`
+	match=0
+	for y in $myavail
+	do
+		if [ "$myid" = "$y" ]
+		then
+			match=1
+		fi
+	done
+	if [ $match -ne 1 ]
+	then
+		echo -e " ${HILITE}*${LOLITE} Key: ${x} missing"
+		echo
+		$KEYCHAIN_ADD ${x}
+	echo
+else
+		echo -e " ${HILITE}*${LOLITE} Key: ${HILITE3}${x}${LOLITE}"
+	fi
+done
+echo
+
