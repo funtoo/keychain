@@ -6,7 +6,7 @@
 # Current Maintainer: Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.5.3.1
+version=2.5.3.2
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -455,6 +455,10 @@ loadagents() {
 
     # Load agent pid files
     for ql_x in "$pidf" "$pidf"-*; do
+        # Ignore some backup files
+        case "$ql_x" in
+            *~|*.bak) continue ;;
+        esac
         [ -f "$ql_x" ] && . "$ql_x"
     done
 
