@@ -4,6 +4,10 @@
 
 *keychain 1.4 (17 Sep 2001)
 
+  20 Sep 2001; David Hull <hull@paracel.com>:
+  "touch $foo" to ">$foo" optimization and other "don't fork" fixes.
+  Converted ${foo#--} to a case statement for Solaris sh compatibility.
+
   20 Sep 2001;
   Try an alternate "ps" syntax if our default one fails.  This should
   give us Solaris and IRIX (sysV) compatibility without breaking BSD.

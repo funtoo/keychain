@@ -21,11 +21,13 @@ cshpidf=${HOME}/.ssh-agent-csh-${hostname}
 for x in ${*}
 do
 	# if it's not an --option, add it to our list of keys
-	test=${x#--}
-	if [ "$x" = "$test" ]
-	then
-		KEYCHAIN_KEYS="$KEYCHAIN_KEYS ${x}"
-	fi
+	case ${x} in
+		-*)    
+			;;
+		*)      
+			KEYCHAIN_KEYS="$KEYCHAIN_KEYS ${x}" 
+			;;
+	esac
 done
 
 # color variables won't be defined if --nocolor is present
@@ -170,9 +172,9 @@ then
 	fi
 	echo $E " ${GREEN}*${OFF} All previously running ssh-agent(s) have been stopped."
 	echo $E " ${GREEN}*${OFF} Initializing ${pidf} file..."
-	>$pidf || { echo "$0: Cannot create ${pidf}; exiting." 1>&2 && exit 1 }
+	> $pidf || { echo "$0: Cannot create ${pidf}; exiting." 1>&2; exit 1; }
 	echo $E " ${GREEN}*${OFF} Initializing ${cshpidf} file..."
-	>$cshpidf || { echo "$0: Cannot create ${cshpidf}; exiting." 1>&2 && exit 1 }
+	> $cshpidf || { echo "$0: Cannot create ${cshpidf}; exiting." 1>&2; exit 1; }
 	chmod 0600 $pidf $cshpidf
 	echo $E " ${GREEN}*${OFF} Starting new ssh-agent"
 	nohup ssh-agent -s | grep -v 'Agent pid' > $pidf
