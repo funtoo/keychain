@@ -6,7 +6,7 @@
 # Current Maintainer: Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.3.0
+version=2.3.1
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -373,21 +373,33 @@ startagent() {
     fi
 
     # Start the agent.
-    # Some versions of ssh-agent don't understand -s, which means to generate
-    # Bourne shell syntax.  So set SHELL instead
     mesg "Starting ssh-agent"
-    SHELL=/bin/sh sshout=`ssh-agent`
+    sshout=`ssh-agent`
     if [ $? != 0 ]; then
         rm -f "$pidf" "$cshpidf" 2>/dev/null
         error "Failed to start ssh-agent"
         return 1
     fi
 
-    # Add content to pidfiles
-    echo "$sshout" | grep -v 'Agent pid' >"$pidf"
+    # Add content to pidfiles.
+    # Some versions of ssh-agent don't understand -s, which means to
+    # generate Bourne shell syntax.  It appears they also ignore SHELL,
+    # according to http://bugs.gentoo.org/show_bug.cgi?id=52874
+    # So make no assumptions.
+    sshout=`echo "$sshout" | grep -v 'Agent pid'`
+    case "$sshout" in
+        setenv*)
+            echo "$sshout" >"$cshpidf"
+            echo "$sshout" | awk '{print $2"="$3" export "$2";"}' >"$pidf"
+            ;;
+        *)
+            echo "$sshout" >"$pidf"
+            echo "$sshout" | awk -F'[= ]' '{print "setenv "$1" "$2}' >"$cshpidf"
+            ;;
+    esac
+
+    # Hey the agent should be started now... load it up!
     loadagent
-    echo "setenv $ssh_auth_sock_name $ssh_auth_sock" >"$cshpidf"
-    echo "setenv $ssh_agent_pid_name $ssh_agent_pid" >>"$cshpidf"
 }
 
 # synopsis: ssh_l

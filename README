@@ -3,6 +3,12 @@ Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 
 RELEASE NOTES (See "ChangeLog" for more info):
 
+Keychain 2.3.1 fixes a problem when users are running csh, at least on
+Solaris and BSD.
+
+Keychain 2.3.0 updates the locking code to obviate the procmail
+dependency
+
 Keychain 2.2.2 fixes the generation of the -csh file, reported by Jens
 Svalgaard Kohrt in http://bugs.gentoo.org/show_bug.cgi?id=49813
 
