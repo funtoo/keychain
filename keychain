@@ -7,7 +7,7 @@
 # keychain 1.0
 
 trap "" INT
-
+export PATH="/sbin:/usr/sbin:${PATH}"
 KEYCHAIN_KEYS=""
 for x in ${*}
 do
@@ -110,9 +110,8 @@ else
 fi
 
 match="no"
-# pidof may very well not be in the user's path, so we specify its explicit
-# location.
-for x in `/sbin/pidof ssh-agent`
+#/sbin and /usr/sbin have been explicitly added to the path; we should find pidof
+for x in `pidof ssh-agent`
 do
 	if [ "$x" = "$SSH_AGENT_PID" ]
 	then
