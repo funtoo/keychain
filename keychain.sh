@@ -6,7 +6,7 @@
 # Current Maintainer: Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.5.1
+version=2.5.2
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -349,11 +349,13 @@ stopagent() {
 
         others)
             # Try to handle the case where we *will* inherit a pid
-            if [ -z "$stop_except" ] || ! kill -0 $stop_except >/dev/null 2>&1 || \
-                    [ "$inheritwhich" = local -o "$inheritwhich" = any ]; then
+            kill -0 $stop_except >/dev/null 2>&1
+            if [ -z "$stop_except" -o $? != 0 -o \
+                    "$inheritwhich" = local -o "$inheritwhich" = any ]; then
                 if [ "$inheritwhich" != none ]; then
                     eval stop_except=\$\{inherit_${stop_prog}_agent_pid\}
-                    if [ -z "$stop_except" ] || ! kill -0 $stop_except >/dev/null 2>&1; then
+                    kill -0 $stop_except >/dev/null 2>&1
+                    if [ -z "$stop_except" -o $? != 0 ]; then
                         # Handle ssh2
                         eval stop_except=\$\{inherit_${stop_prog}2_agent_pid\}
                     fi
@@ -635,6 +637,36 @@ SSH2_AGENT_PID=$inherit_ssh2_agent_pid; export SSH2_AGENT_PID;"
     loadagents
 }
 
+# synopsis: extract_fingerprints
+# Extract the fingerprints from standard input, returns space-separated list.
+# Utility routine for ssh_l and ssh_f
+extract_fingerprints() {
+    while read ef_line; do
+        case "$ef_line" in
+            *\ *\ [0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F]:*)
+                # Sun SSH spits out different things depending on the type of
+                # key.  For example:
+                #   md5 1024 00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00 /home/barney/.ssh/id_dsa(DSA)
+                #   2048 00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00 /home/barney/.ssh/id_rsa.pub
+                echo "$ef_line" | cut -f3 -d' '
+                ;;
+            *\ [0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F]:*)
+                # The more consistent OpenSSH format, we hope
+                #   1024 00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00 /home/barney/.ssh/id_dsa (DSA)
+                echo "$ef_line" | cut -f2 -d' '
+                ;;
+            *)
+                # Fall back to filename.  Note that commercial ssh is handled
+                # explicitly in ssh_l and ssh_f, so hopefully this rule will
+                # never fire.
+                warn "Can't determine fingerprint from the following line, falling back to filename"
+                mesg "$ef_line"
+                basename "$ef_line" | sed 's/[ (].*//'
+                ;;
+        esac
+    done | xargs
+}
+
 # synopsis: ssh_l
 # Return space-separated list of known fingerprints
 ssh_l() {
@@ -649,11 +681,7 @@ ssh_l() {
         #   2  can't connect to auth agent
         case $sl_retval in
             0)
-                # Output of ssh-add -l:
-                #   1024 7c:c3:e2:7e:fb:05:43:f1:8e:e6:91:0d:02:a0:f0:9f .ssh/id_dsa (DSA)
-                # Return a space-separated list of fingerprints
-                echo "$sl_mylist" | cut -f2 -d' ' | xargs
-                return 0
+                echo "$sl_mylist" | extract_fingerprints
                 ;;
             1)
                 case "$sl_mylist" in
@@ -669,11 +697,7 @@ ssh_l() {
         #   1  error
         case $sl_retval in
             0)
-                # Output of ssh-add -l:
-                #   md5 1024 7c:c3:e2:7e:fb:05:43:f1:8e:e6:91:0d:02:a0:f0:9f /home/harvey/.ssh/id_dsa(DSA)
-                # Return a space-separated list of fingerprints
-                echo "$sl_mylist" | cut -f3 -d' ' | xargs
-                return 0
+                echo "$sl_mylist" | extract_fingerprints
                 ;;
             1)
                 case "$sl_mylist" in
@@ -713,13 +737,7 @@ ssh_f() {
             return 1
         fi
         sf_fing=`ssh-keygen -l -f "$sf_filename.pub"` || return 1
-        if $sunssh; then
-            # md5 1024 00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00 /home/barney/.ssh/id_dsa(DSA)
-            echo "$sf_fing" | cut -f3 -d' '
-        else
-            # 1024 00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00 /home/barney/.ssh/id_dsa (DSA)
-            echo "$sf_fing" | cut -f2 -d' '
-        fi
+        echo "$sf_fing" | extract_fingerprints
     else
         # can't get fingerprint for ssh2 so use filename *shrug*
         basename "$sf_filename"
@@ -1067,6 +1085,7 @@ done
 # .ssh-agent file with csh-compatible syntax. lockf is the lockfile, used
 # to serialize the execution of multiple ssh-agent processes started 
 # simultaneously
+[ -z "$hostopt" ] && hostopt="${HOSTNAME}"
 [ -z "$hostopt" ] && hostopt=`uname -n 2>/dev/null || echo unknown`
 pidf="${keydir}/${hostopt}-sh"
 cshpidf="${keydir}/${hostopt}-csh"
