@@ -4,7 +4,7 @@
 # Author: Daniel Robbins <drobbins@gentoo.org>
 # $Header$
 
-version=2.0
+version=2.0.1
 
 PATH="/sbin:/usr/sbin:${PATH}:/usr/ucb"; export PATH;
 
@@ -69,7 +69,7 @@ Description:
 
  Keychain is an OpenSSH key manager, typically run from ~/.bash_profile.  When
  run, it will make sure ssh-agent is running; if not, it will start ssh-agent.
- It will redirect ssh-agent's output to ~/.keychain/sh-[hostname], so that cron
+ It will redirect ssh-agent's output to ~/.keychain/[hostname]-sh, so that cron
  jobs that need to use ssh-agent keys can simply source this file and make the
  necessary passwordless ssh connections.  In addition, when keychain runs, it
  will check with ssh-agent and make sure that the ssh RSA/DSA keys that you
@@ -82,9 +82,9 @@ Description:
 
 EOHELP
 	echo $E "  ${CYAN}keychain ~/.ssh/id_rsa ~/.ssh/id_dsa"
-	echo $E "  . ~/.keychain/sh-\${HOSTNAME}${OFF}"
+	echo $E "  . ~/.keychain/\${HOSTNAME}-sh${OFF}"
 	echo
-	echo $E "  # alt. syntax: . ~/.keychain/sh-\`uname -n\`"
+	echo $E "  # alt. syntax: . ~/.keychain/\`uname -n\`-sh"
 	echo $E "  # note the use of back-quotes (\`) rather than single-quotes (') above."
 	echo $E "  # We now include the hostname (\`uname -n\`) in the keychain filename"
 	echo $E "  # for NFS-compatibility."
@@ -93,7 +93,7 @@ EOHELP
 	echo " following to your .cshrc:"
 	echo
 	echo $E "  ${CYAN}keychain ~/.ssh/id_rsa ~/.ssh/id_dsa"
-	echo $E "  source ~/.keychain/csh-\${HOSTNAME}${OFF}"
+	echo $E "  source ~/.keychain/\${HOSTNAME}-csh${OFF}"
 	echo
 	cat <<EOHELP
  Keychain allows all your apps and cron jobs to use a single ssh-agent process
@@ -127,7 +127,7 @@ EOHELP
 	echo
 	cat <<EOHELP
  This option tells keychain do everything it normally does (ensure ssh-agent is
- running, set up the ~/.keychain/{c}sh-[hostname] files) except that it will not
+ running, set up the ~/.keychain/[hostname]-{c}sh files) except that it will not
  prompt you to add any of the keys you specified if they haven't yet been added
  to ssh-agent.
 EOHELP
@@ -202,7 +202,8 @@ if [ -f ${keydir} ]
 then
 	echo "$0: ${keydir} is a file (it should be a directory;) please fix."
 	exit 1
-elif [ ! -e ${keydir} ]
+#Solaris 9 doesn't have -e; using -d....
+elif [ ! -d ${keydir} ]
 then
 	mkdir ${keydir} || exit 1
 	chmod 0700 ${keydir}
@@ -239,28 +240,28 @@ then
 	echo $E " Copyright 2002 Gentoo Technologies, Inc.; Distributed under the GPL" 
 fi
 
+me=`whoami`
 if [ "$cygwin" = "yes" ]
 then
 	#for cygwin
-	psopts="-e -u `whoami` -f"
+	psopts="-e -u $me -f"
 elif [ "$hpux" = "yes" ]
 then	
 	#for hp-ux
-	psopts="-u `whoami` -f"
+	psopts="-u $me -f"
 else
-	#This should work under Linux, BSD, others
 	psopts="FAIL"
-	ps -u `whoami` -f  >/dev/null 2>&1
-	if [ $? -eq 0 ]
-	then
-		psopts="-u `whoami` -f"
-	else
-		ps -uxw >/dev/null 2>&1
+	#-x option needed on MacOS X, but just in case it doesn't work on other arches we have a "-u $me -f"
+	#at the end. "-uxw" works on modern Linux systems.
+	for x in "-x -u $me -f" "-uxw" "-u $me -f"
+	do
+		ps $x >/dev/null 2>&1
 		if [ $? -eq 0 ]
 		then
-			psopts="-uxw"
+			psopts="$x"
+			break
 		fi
-	fi
+	done
 	if [ "$psopts" = "FAIL" ]
 	then
 		echo "$0: unable to use \"ps\" to scan for ssh-agent processes.  Report keychain version and"
@@ -385,7 +386,7 @@ do
 	# Generate and parse verbose listing of already added keys.
 	if [ "$openssh" = "no" ]
 	then
-		myavail=`ssh-add -l 2>&1 | tail +2 - | awk '{ sub(/:.*/, ""); print }'`
+		myavail=`ssh-add -l 2>&1 | tail +2 | awk '{ sub(/:.*/, ""); print }'`
 	else
 		myavail=`ssh-add -l 2>&1 | cut -f2 -d " "`
 	fi
@@ -451,7 +452,7 @@ do
 	then
 		echo $E " ${GREEN}*${OFF} ${BLUE}${mcount}${OFF} more keys to add..."
 	fi	
-	ssh-add ${missingkeys}
+	ssh-add ${missingkeys} < /dev/null
 	if [ $? -ne 0 ]
 	then
 		myfail=`expr $myfail + 1`

@@ -2,6 +2,27 @@
 # Copyright 2002 Gentoo Technologies, Inc.; Distributed under the GPL version 2
 # Written by Daniel Robbins (drobbins@gentoo.org)
 
+* keychain 2.0.1 (24 Aug 2002)
+
+  24 Aug 2002; "--help" fixes; the keychain files were listed as sh-${HOSTNAME}
+  rather than ${HOSTNAME}-sh. Now consistent with the actual program. Thanks to
+  Christian Plessl <plessl@tik.ee.ethz.ch>, others for reporting this issue.
+
+  24 Aug 2002; cycloon <cycloon@linux-de.org>: "If you add < /dev/null when
+  adding the missingkeys via "ssh-add ${missingkeys}" (at line 454 of version
+  2.0) so that it reads: "ssh-add ${missingkeys} < /dev/null" then users can
+  use program like x11-ssh-askpass in xfree to type in their passphrase. It
+  then still works for users on shell, depending if $DISPLAY is set." Added. 
+  
+  24 Aug 2002; A fix to calling "tail" that *should* fix things for Tru64 Unix;
+  unfortunately, I have no way to test but the solution should be portable to
+  all other flavors of systems. Thanks to Mark Scarborough
+  <Mark.Scarborough@broadwing.com> for reporting the issue.
+  
+  24 Aug 2002; Changed around the psopts detection stuff so that "-x -u $me f"
+  is used; this is needed on MacOS X. Thanks to Brian Bergstrand
+  <brian@classicalguitar.net>, others for reporting this issue.
+
 * keychain 2.0 (17 Aug 2002)
 
   17 Aug 2002; (Many submitters): A fix for keychain when running on HP-UX

@@ -3,6 +3,9 @@ Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 
 RELEASE NOTES (See "ChangeLog" for more info):
 
+Keychain 2.0.1 contains Solaris, Tru64 and MacOS X fixes, "--help" fixes, and
+compatibility with x11-ssh-askpass.
+
 Keychain 2.0 contains HP-UX and Cygwin fixes (Cygwin support is now inside the
 main keychain script), and now stores keychain files in the ~/.keychain/
 directory for tidiness. New filenames too: ~/.keychain/sh-${HOSTNAME} and
