@@ -1,9 +1,9 @@
 Name:      keychain
-Version:   2.2.2
+Version:   2.3.0
 Release:   1
 Summary:   ssh-agent manager for OpenSSH and commercial SSH2
 Vendor:    Gentoo Technologies, Inc.
-Packager:  Rajiv Manglani <rajiv@gentoo.org>
+Packager:  Aron Griffis <agriffis@gentoo.org>
 URL:       http://www.gentoo.org/proj/en/keychain.xml
 Source0:   %{name}-%{version}.tar.bz2
 License:   GPL v2
@@ -40,13 +40,3 @@ rm -rf $RPM_BUILD_ROOT
      %{_bindir}/*
 %doc %{_mandir}/*/*
 %doc ChangeLog COPYING keychain.pod README
-
-%changelog
-* Mon May 03 2004 Aron Griffis <agriffis@gentoo.org>
-- Update to 2.2.2
-
-* Wed Apr 21 2004 Aron Griffis <agriffis@gentoo.org>
-- Update to 2.2.0
-
-* Wed Mar 5 2003 Rajiv Aaron Manglani <rajiv@gentoo.org>
-- Initial build.
