@@ -3,6 +3,10 @@ Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 
 RELEASE NOTES:
 
+KeyChain 1.5 contains a number of shell compatibility fixes for Solaris, IRIX,
+and various other cleanups and optimizations.  If we are not universally sh-
+compatible at this point, we are extremely close.
+
 KeyChain 1.4 *should* now be compatible with Linux, BSD, Solaris, IRIX and
 hopefully many other POSIX-like environments.  Please submit any compatibility
 patches to Daniel Robbins at drobbins@gentoo.org.

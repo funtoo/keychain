@@ -2,9 +2,20 @@
 # Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL
 # Written by Daniel Robbins (drobbins@gentoo.org)
 
+*keychain 1.5 (21 Sep 2001)
+
+  21 Sep 2001; David Hull (hull@paracel.com):
+  misc. compatibility, signal handling, cleanup fixes
+  
+  21 Sep 2001; 
+  "ps" test to find the right one for your OS.
+
+  20 Sep 2001; Marko Myllynen (myllynen@lut.fi):
+  "grep [s]sh-agent" to "grep [s]sh-agent" (zsh fix)
+
 *keychain 1.4 (20 Sep 2001)
 
-  20 Sep 2001; David Hull <hull@paracel.com>:
+  20 Sep 2001; David Hull (hull@paracel.com):
   "touch $foo" to ">$foo" optimization and other "don't fork" fixes.
   Converted ${foo#--} to a case statement for Solaris sh compatibility.
 

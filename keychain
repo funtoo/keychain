@@ -4,9 +4,9 @@
 # Author: Daniel Robbins <drobbins@gentoo.org>
 # $Header$
 
-version=1.4
+version=1.5
 
-trap "" INT || ( echo "$0: warning: trapping signal 2 instead of INT" 1>&2 && trap "" 2 )
+trap "" INT || { echo "$0: warning: trapping signal 2 instead of INT" 1>&2; trap "" 2; }
 PATH="/sbin:/usr/sbin:${PATH}"; export PATH;
 KEYCHAIN_KEYS=""
 
@@ -18,7 +18,7 @@ hostname=`uname -n`
 pidf=${HOME}/.ssh-agent-${hostname}
 cshpidf=${HOME}/.ssh-agent-csh-${hostname}
 
-for x in ${*}
+for x in ${@}
 do
 	# if it's not an --option, add it to our list of keys
 	case ${x} in
@@ -30,28 +30,48 @@ do
 	esac
 done
 
+#auto-detect whether echo -e works.
+unset BLUE GREEN OFF CYAN E
+if [ -z `echo -e` ]
+then
+	E="-e"	
+fi
+
 # color variables won't be defined if --nocolor is present
 if [ -z "`echo $* | grep '\-\-nocolor'`" ]
 then
-	E="-e"
 	BLUE="\033[34;01m"
 	GREEN="\033[32;01m"
 	OFF="\033[0m"
 	CYAN="\033[01m"
-else
-	unset BLUE GREEN OFF CYAN E
 fi
 
 echo
-echo $E "${GREEN}KeyChain ${version}; ${BLUE}http://www.gentoo.org/projects/keychain${OFF}\n Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL" 
+echo $E "${GREEN}KeyChain ${version}; ${BLUE}http://www.gentoo.org/projects/keychain${OFF}"
+echo $E " Copyright 2001 Gentoo Technologies, Inc.; Distributed under the GPL" 
 
 #This should work under Linux, BSD, others
-mypids=`ps uxw | grep [s]sh-agent | awk '{print $2}'` > /dev/null 2>&1
-if [ $? -ne 0 ]
+psopts="FAIL"
+ps uxw >/dev/null 2>&1
+if [ $? -eq 0 ]
 then
-	#compensate for Solaris, IRIX (SysV)
-	mypids=`ps -u $USER -f | grep [s]sh-agent | awk '{print $2}'` > /dev/null 2>&1
+	psopts="uxw"
+else
+	ps -u `whoami` -f >/dev/null 2>&1
+	if [ $? -eq 0 ]
+	then
+		psopts="-u `whoami` -f"
+	fi
 fi
+if [ "$psopts" = "FAIL" ]
+then
+	echo $0: unable to use \"ps\" to scan for ssh-agent processes.  Report KeyChain version and
+	echo system configuration to drobbins@gentoo.org.
+	exit 1
+fi
+
+
+mypids=`ps $psopts 2>/dev/null | grep "[s]sh-agent" | awk '{print $2}'` > /dev/null 2>&1
 
 if [ -n "`echo $* | grep '\-\-stop'`" ]
 then
@@ -185,7 +205,7 @@ fi
 
 if [ -n "`echo $* | grep '\-\-clear'`" ]
 then
-	echo -ne " ${GREEN}*${OFF} "
+	echo -n $E " ${GREEN}*${OFF} "
 	ssh-add -D
 fi
 
