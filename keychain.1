@@ -4,8 +4,16 @@ keychain \- a program designed to keep ssh-agent processes alive across multiple
 .SH "SYNOPSIS"
 .BI "keychain [" options "] [" keys... ]
 .SH "DESCRIPTION"
-.BR Keychain(1) 
-is an OpenSSH key manager, typically run from ~/.bash_profile.  When run, it will make sure ssh-agent is running; if not, it will start ssh-agent.  It will redirect ssh-agent's output to ~/.keychain/[hostname]-sh, so that cron jobs that need to use ssh-agent keys can simply source this file and make the necessary passwordless ssh connections.  In addition, when keychain runs, it will check with ssh-agent and make sure that the ssh RSA/DSA keys that you specified on the keychain command line have actually been added to ssh-agent.  If not, you are prompted for the appropriate passphrases so that they can be added by keychain.
+.BR keychain (1)
+is an OpenSSH key manager, typically run from ~/.bash_profile.  When run, it 
+will make sure ssh-agent is running; if not, it will start ssh-agent.  It 
+will redirect ssh-agent's output to ~/.keychain/[hostname]-sh, so that cron 
+jobs that need to use ssh-agent keys can simply source this file and make the 
+necessary passwordless ssh connections.  In addition, when keychain runs, it 
+will check with ssh-agent and make sure that the ssh RSA/DSA keys that you 
+specified on the keychain command line have actually been added to ssh-agent.  
+If not, you are prompted for the appropriate passphrases so that they can be 
+added by keychain.
 .SH "USAGE"
 Typically, one uses keychain by adding the following to the top of their ~/.bash_profile (or ~/.zlogin, in case of zsh):
 .PP
@@ -34,7 +42,7 @@ Keychain allows all your apps and cron jobs to use a single ssh-agent process as
 Tells keychain to delete all of ssh-agent's host keys.  Typically, This is used in the ~/.bash_profile.  The theory behind this is that keychain should assume that you are an intruder until proven otherwise.  However, while this option increases security, it still allows your cron jobs to use your ssh keys when you're logged out.
 .TP
 .B "\-\-dir [directoryname]"
-Keychain will look in [directoryname] for the .keychain file, rather than your home directory.
+Keychain will look in \fB[directoryname]\fR for the .keychain file, rather than your home directory.
 .TP
 .B "\-\-noask"
 This option tells keychain do everything it normally does (ensure ssh-agent is running, set up the ~/.keychain/[hostname]-{c}sh files) except that it will not prompt you to add any of the keys you specified if they haven't yet been added to ssh-agent.
@@ -51,10 +59,11 @@ This option tells keychain to turn off verbose mode and only print error message
 On some UNIX systems, keychain conflicts with the gnome session manager, which attempts to start an ssh-agent process of its own.  This is fixed by modifying the global gnomerc file to use keychain as its ssh-agent instead of ssh-agent itself.
 .PP
 Please submit any
-.BI "keychain(1)"
-bugs to http://bugs.gentoo.org under Gentoo Hosted Projects
+.BR keychain (1)
+bugs to http://bugs.gentoo.org/ under Gentoo Hosted Projects.
 .SH "AUTHORS"
-.BI "keychain(1)"
-was written by Daniel Robbins <drobbins@gentoo.org> and is now maintained by Seth Chandler <sethbc@gentoo.org>.
+Original Author: Daniel Robbins <drobbins@gentoo.org>
+.br
+Current Maintainer: Seth Chandler <sethbc@gentoo.org>
 .SH "SEE ALSO"
-.BI "ssh-agent(1)"
+.BR ssh-agent (1)
