@@ -1,12 +1,12 @@
 #!/bin/sh
-# Copyright 1999-2004 Gentoo Foundation
+# Copyright 1999-2005 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
-# Author: Daniel Robbins <drobbins@gentoo.org>
-# Previous Maintainer: Seth Chandler <sethbc@gentoo.org>
-# Current Maintainer: Aron Griffis <agriffis@gentoo.org>
+# Originally authored by Daniel Robbins <drobbins@gentoo.org>
+# Maintained August 2002 - April 2003 by Seth Chandler <sethbc@gentoo.org>
+# Maintained April 2004 - present by Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.5.3.2
+version=2.5.4
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -42,6 +42,14 @@ CYAN="[36;01m"
 GREEN="[32;01m"
 RED="[31;01m"
 OFF="[0m"
+
+# GNU awk and sed have regex issues in a multibyte environment.  If any locale
+# variables are set, then override by setting LC_ALL
+lvars=`locale 2>/dev/null | egrep -v '="?(|POSIX|C)"?$' 2>/dev/null`
+if [ -n "$lvars$LANG$LC_ALL" ]; then
+    LC_ALL=C
+    export LC_ALL
+fi
 
 # synopsis: qprint "message"
 qprint() {
@@ -126,8 +134,7 @@ verifykeydir() {
         die "${keydir} is a file (it should be a directory)"
     # Solaris 9 doesn't have -e; using -d....
     elif [ ! -d "${keydir}" ]; then
-        mkdir "${keydir}"      || die "can't create ${keydir}"
-        chmod 0700 "${keydir}" || die "can't chmod ${keydir}"
+        ( umask 0077 && mkdir "${keydir}"; ) || die "can't create ${keydir}"
     fi
 }
 
@@ -189,10 +196,23 @@ takelock() {
         return 0
     fi
 
-    tl_faking=false
-    unset tl_oldpid
+    # Check for old-style lock; unlikely.
+    # Redirect stderr since -h might not be implemented, in which case we
+    # blunder ahead.
+    if [ -h "$olockf" ] 2>/dev/null; then
+        error "please remove old-style lock: $olockf"
+        return 1
+    fi
 
-    # Setup timer
+    # Catch the case that an existing lockfile might, for some strange reason,
+    # have the wrong permissions
+    chmod 0400 "$lockf" 2>/dev/null
+
+    tl_faking=false
+    tl_emptyonce=false
+    unset tl_oldpid tl_lastmesg
+
+    # Set up timer
     if [ $lockwait -eq 0 ]; then
         true    # don't bother to set tl_start, tl_end, tl_current
     elif tl_start=`now`; then
@@ -205,10 +225,12 @@ takelock() {
         tl_end=`expr $lockwait \* 10`
         tl_current=0
     fi
+    tl_nextmesg=$tl_current
 
     # Try to lock for $lockwait seconds
     while [ $lockwait -eq 0 -o $tl_current -lt $tl_end ]; do
-        if tl_error=`ln -s $$ "$lockf" 2>&1`; then
+
+        if tl_error=`umask 0377; echo $$ 2>&1 >"$lockf"`; then
             havelock=true
             return 0
         fi
@@ -222,37 +244,50 @@ takelock() {
             fi
         fi
 
-        # check for old-style lock; unlikely
-        if [ -f "$lockf" ]; then
-            error "please remove old-style lock: $lockf"
-            return 1
-        fi
-
         # read the lock
-        tl_pid=`readlink "$lockf" 2>/dev/null`
-        if [ -z "$tl_pid" ]; then 
-            tl_pid=`ls -l "$lockf" 2>/dev/null | awk '{print $NF}'`
-        fi
-        if [ -z "$tl_pid" ]; then
-            # lock seems to have disappeared, try again
-            continue
-        fi
+        tl_pid=`cat "$lockf" 2>/dev/null`
 
-        # test for a stale lock
-        kill -0 "$tl_pid" 2>/dev/null
-        if [ $? != 0 ]; then
-            # Avoid a race condition; another keychain might have started at
-            # this point.  If the pid is the same as the last time we
-            # checked, then go ahead and remove the stale lock.  Otherwise
-            # remember the pid and try again.
-            if [ "$tl_pid" = "$tl_oldpid" ]; then
-                warn "removing stale lock for pid $tl_pid"
-                rm -f "$lockf"
-            else
-                tl_oldpid="$tl_pid"
+        if [ -n "$tl_pid" ]; then
+            # test for a stale lock
+            kill -0 "$tl_pid" 2>/dev/null
+            if [ $? != 0 ]; then
+                # Avoid a race condition; another keychain might have started at
+                # this point.  If the pid is the same as the last time we
+                # checked, then go ahead and remove the stale lock.  Otherwise
+                # remember the pid and try again.
+                if [ "$tl_pid" = "$tl_oldpid" ]; then
+                    warn "removing stale lock for pid $tl_pid"
+                    rm -f "$lockf"
+                else
+                    tl_oldpid="$tl_pid"
+                fi
+                # try try again, no sleep required
+                continue
             fi
-            # try try again
-            continue
+
+            # don't keep the user in suspense
+            if [ $lockwait -gt 0 ]; then
+                if [ $tl_current -eq $tl_nextmesg ]; then
+                    tl_timeleft=`expr $tl_end - $tl_current`
+                    if [ $tl_timeleft -gt 0 ]; then
+                        mesg "Waiting $tl_timeleft seconds for lock, held by pid $tl_pid"
+                    fi
+                    tl_nextmesg=`expr $tl_current + 1`
+                fi
+            fi
+
+            # nb: fall through to sleep...
+
+        else # tl_pid is blank
+            if $tl_emptyonce; then
+                warn "removing empty lock file"
+                rm -f "$lockf"
+                tl_emptyonce=false
+                # give this another go-around, no sleep required
+                continue
+            fi
+            tl_emptyonce=true
+            # fall through to sleep
         fi
 
         # sleep for a bit to wait for the keychain process holding the lock
@@ -273,7 +308,8 @@ takelock() {
 # synopsis: droplock
 # Drops the lock if we're holding it.
 droplock() {
-    [ -n "$lockf" ] && rm -f "$lockf"
+    $havelock && [ -n "$lockf" ] && rm -f "$lockf"
+    exit 1
 }
 
 # synopsis: findpids [prog]
@@ -556,7 +592,7 @@ startagent() {
 
     # Init the bourne-formatted pidfile
     mesg "Initializing $start_pidf file..."
-    :> "$start_pidf" && chmod 0600 "$start_pidf"
+    ( umask 0177 && :> "$start_pidf"; )
     if [ $? != 0 ]; then
         rm -f "$start_pidf" "$start_cshpidf" 2>/dev/null
         error "can't create $start_pidf"
@@ -565,7 +601,7 @@ startagent() {
 
     # Init the csh-formatted pidfile
     mesg "Initializing $start_cshpidf file..."
-    :> "$start_cshpidf" && chmod 0600 "$start_cshpidf"
+    ( umask 0177 && :> "$start_cshpidf"; )
     if [ $? != 0 ]; then
         rm -f "$start_pidf" "$start_cshpidf" 2>/dev/null
         error "can't create $start_cshpidf"
@@ -1093,7 +1129,8 @@ done
 [ -z "$hostopt" ] && hostopt=`uname -n 2>/dev/null || echo unknown`
 pidf="${keydir}/${hostopt}-sh"
 cshpidf="${keydir}/${hostopt}-csh"
-lockf="${keydir}/${hostopt}-lock"
+olockf="${keydir}/${hostopt}-lock"
+lockf="${keydir}/${hostopt}-lockf"
 
 # Don't use color if there's no terminal on stdout
 if [ -n "$OFF" ]; then
@@ -1105,10 +1142,15 @@ versinfo
 [ "$myaction" = version ] && exit 0
 [ "$myaction" = help ] && { helpinfo; exit 0; }
 
-# Disallow ^C until we've had a chance to --clear.
-# Don't use signal names because they don't work on Cygwin.
-trap '' 2
-trap 'droplock' 0 1 15          # drop the lock on exit
+if $clearopt; then
+    # Disallow ^C until we've had a chance to --clear.
+    # Don't use signal names because they don't work on Cygwin.
+    trap '' 2
+    trap 'droplock' 0 1 15          # drop the lock on exit
+else
+    # Don't use signal names because they don't work on Cygwin.
+    trap 'droplock' 0 2 1 15        # drop the lock on exit
+fi
 
 setagents                       # verify/set $agentsopt
 verifykeydir                    # sets up $keydir
@@ -1215,8 +1257,8 @@ if $clearopt; then
             warn "--clear not supported for ${a}-agent"
         fi
     done
+    trap 'droplock' 2               # done clearing, safe to ctrl-c
 fi
-trap 'droplock' 2               # done clearing, safe to ctrl-c
 
 # --noask: "don't ask for keys", so we're all done
 $noaskopt && { qprint; exit 0; }
