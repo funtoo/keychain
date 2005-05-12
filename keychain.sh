@@ -6,7 +6,7 @@
 # Maintained April 2004 - present by Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.5.4
+version=2.5.4.1
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -309,7 +309,6 @@ takelock() {
 # Drops the lock if we're holding it.
 droplock() {
     $havelock && [ -n "$lockf" ] && rm -f "$lockf"
-    exit 1
 }
 
 # synopsis: findpids [prog]
@@ -1142,14 +1141,16 @@ versinfo
 [ "$myaction" = version ] && exit 0
 [ "$myaction" = help ] && { helpinfo; exit 0; }
 
+# Set up traps
+# Don't use signal names because they don't work on Cygwin.
 if $clearopt; then
-    # Disallow ^C until we've had a chance to --clear.
-    # Don't use signal names because they don't work on Cygwin.
-    trap '' 2
-    trap 'droplock' 0 1 15          # drop the lock on exit
+    trap '' 2   # disallow ^C until we've had a chance to --clear
+    trap 'droplock; exit 1' 1 15    # drop the lock on signal
+    trap 'droplock; exit 0' 0       # drop the lock on exit
 else
     # Don't use signal names because they don't work on Cygwin.
-    trap 'droplock' 0 2 1 15        # drop the lock on exit
+    trap 'droplock; exit 1' 1 2 15  # drop the lock on signal
+    trap 'droplock; exit 0' 0       # drop the lock on exit
 fi
 
 setagents                       # verify/set $agentsopt

@@ -3,6 +3,9 @@ Copyright 2001-2004 Gentoo Foundation; Distributed under the GPL
 
 RELEASE NOTES (See "ChangeLog" for more info):
 
+Keychain 2.5.4.1 fixes a minor bug introduced in 2.5.4 that resulted in always
+exiting with non-zero status.
+
 Keychain 2.5.4 fixes multibyte issues that could keep a running ssh-agent from
 being found.  It also changes the locking mechanism to close race conditions on
 cygwin, where symlink creation is not atomic.
