@@ -98,3 +98,7 @@ release: mypage webpage
 .PHONY: clean
 clean:
 	rm -f keychain keychain.txt keychain.1 keychain.spec
+
+.PHONY: test
+test:
+	./runtests

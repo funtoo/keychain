@@ -1,0 +1,663 @@
+#!/bin/bash
+
+001_start_ssh-agent() {
+    run_kc
+
+    [[ $kc_out == *Starting\ ssh-agent* ]] || fail "failed to start ssh-agent"
+    count ssh 1
+
+    source $keydir/$HOSTNAME-sh || fail "couldn't source $keydir/$HOSTNAME-sh"
+    kill -0 $SSH_AGENT_PID || fail "SSH_AGENT_PID does not exist"
+}
+
+002_start_gpg-agent() {
+    run_kc
+
+    [[ $kc_out == *Starting\ gpg-agent* ]] || fail "failed to start gpg-agent"
+    count gpg 1
+
+    source $keydir/$HOSTNAME-sh-gpg || fail "couldn't source $keydir/$HOSTNAME-sh-gpg"
+    IFS=: ; set -- $GPG_AGENT_INFO ; unset IFS
+    kill -0 $2 || fail "GPG_AGENT_INFO pid does not exist"
+}
+
+003_start_ssh-agent_only() {
+    run_kc --agents ssh
+
+    [[ $kc_out == *Starting\ ssh-agent* ]] || fail "failed to start ssh-agent"
+    [[ $kc_out == *Starting\ gpg-agent* ]] && fail "keychain started gpg-agent"
+    count ssh 1 
+    count gpg 0
+
+    source $keydir/$HOSTNAME-sh || fail "couldn't source $keydir/$HOSTNAME-sh"
+    kill -0 $SSH_AGENT_PID || fail "SSH_AGENT_PID does not exist"
+}
+
+004_start_gpg-agent_only() {
+    run_kc --agents gpg
+
+    [[ $kc_out == *Starting\ gpg-agent* ]] || fail "failed to start gpg-agent"
+    [[ $kc_out == *Starting\ ssh-agent* ]] && fail "keychain started ssh-agent"
+    count gpg 1
+    count ssh 0
+
+    source $keydir/$HOSTNAME-sh-gpg || fail "couldn't source $keydir/$HOSTNAME-sh-gpg"
+    IFS=: ; set -- $GPG_AGENT_INFO ; unset IFS
+    kill -0 $2 || fail "GPG_AGENT_INFO pid does not exist"
+}
+
+005_stop() {
+    gpg-agent --daemon >/dev/null
+    gpg-agent --daemon >/dev/null
+    gpg-agent --daemon >/dev/null
+    ssh-agent >/dev/null
+    ssh-agent >/dev/null
+    ssh-agent >/dev/null
+
+    local num_gpg=$(count gpg)
+    local num_ssh=$(count ssh)
+
+    run_kc
+    run_kc --stop
+
+    grep -q 'ssh-agent.*found running' <<<"$kc_out" && fail "no ssh-agent found running"
+    grep -q 'gpg-agent.*found running' <<<"$kc_out" && fail "no gpg-agent found running"
+    grep -q 'ssh-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop ssh-agent"
+    grep -q 'gpg-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop gpg-agent"
+    count gpg 0
+    count ssh 0
+}
+
+    005.1_stop_ssh-agent_only() {
+        gpg-agent --daemon >/dev/null
+        gpg-agent --daemon >/dev/null
+        gpg-agent --daemon >/dev/null
+        ssh-agent >/dev/null
+        ssh-agent >/dev/null
+        ssh-agent >/dev/null
+
+        local num_gpg=$(count gpg)
+        local num_ssh=$(count ssh)
+
+        run_kc
+        run_kc --stop --agents ssh
+
+        grep -q 'ssh-agent.*found running' <<<"$kc_out" && fail "no ssh-agent found running"
+        grep -q 'ssh-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop ssh-agent"
+        count gpg $(( num_gpg + 1 ))
+        count ssh 0
+    }
+
+    005.2_stop_gpg-agent_only() {
+        gpg-agent --daemon >/dev/null
+        gpg-agent --daemon >/dev/null
+        gpg-agent --daemon >/dev/null
+        ssh-agent >/dev/null
+        ssh-agent >/dev/null
+        ssh-agent >/dev/null
+
+        local num_gpg=$(count gpg)
+        local num_ssh=$(count ssh)
+
+        run_kc
+        run_kc --stop --agents gpg
+
+        grep -q 'gpg-agent.*found running' <<<"$kc_out" && fail "no gpg-agent found running"
+        grep -q 'gpg-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop gpg-agent"
+        count ssh $(( num_ssh + 1 ))
+        count gpg 0
+    }
+
+006_stop_all() {
+    gpg-agent --daemon >/dev/null
+    gpg-agent --daemon >/dev/null
+    gpg-agent --daemon >/dev/null
+    ssh-agent >/dev/null
+    ssh-agent >/dev/null
+    ssh-agent >/dev/null
+
+    local num_gpg=$(count gpg)
+    local num_ssh=$(count ssh)
+
+    run_kc
+    run_kc --stop all
+
+    grep -q 'ssh-agent.*found running' <<<"$kc_out" && fail "no ssh-agent found running"
+    grep -q 'gpg-agent.*found running' <<<"$kc_out" && fail "no gpg-agent found running"
+    grep -q 'ssh-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop ssh-agent"
+    grep -q 'gpg-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop gpg-agent"
+    count gpg 0
+    count ssh 0
+}
+
+    006.1_stop_all_ssh-agent_only() {
+        gpg-agent --daemon >/dev/null
+        gpg-agent --daemon >/dev/null
+        gpg-agent --daemon >/dev/null
+        ssh-agent >/dev/null
+        ssh-agent >/dev/null
+        ssh-agent >/dev/null
+
+        local num_gpg=$(count gpg)
+        local num_ssh=$(count ssh)
+
+        run_kc
+        run_kc --stop --agents ssh
+
+        grep -q 'ssh-agent.*found running' <<<"$kc_out" && fail "no ssh-agent found running"
+        grep -q 'ssh-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop ssh-agent"
+        count gpg $(( num_gpg + 1 ))
+        count ssh 0
+    }
+
+    005.2_stop_gpg-agent_only() {
+        gpg-agent --daemon >/dev/null
+        gpg-agent --daemon >/dev/null
+        gpg-agent --daemon >/dev/null
+        ssh-agent >/dev/null
+        ssh-agent >/dev/null
+        ssh-agent >/dev/null
+
+        local num_gpg=$(count gpg)
+        local num_ssh=$(count ssh)
+
+        run_kc
+        run_kc --stop --agents gpg
+
+        grep -q 'gpg-agent.*found running' <<<"$kc_out" && fail "no gpg-agent found running"
+        grep -q 'gpg-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop gpg-agent"
+        count ssh $(( num_ssh + 1 ))
+        count gpg 0
+    }
+
+007_stop_mine() {
+    gpg-agent --daemon >/dev/null
+    gpg-agent --daemon >/dev/null
+    gpg-agent --daemon >/dev/null
+    ssh-agent >/dev/null
+    ssh-agent >/dev/null
+    ssh-agent >/dev/null
+
+    local num_gpg=$(count gpg)
+    local num_ssh=$(count ssh)
+
+    run_kc
+    load
+    run_kc --stop mine
+
+    grep -q 'ssh-agent.*found running' <<<"$kc_out" && fail "no ssh-agent found running"
+    grep -q 'gpg-agent.*found running' <<<"$kc_out" && fail "no gpg-agent found running"
+    grep -q 'ssh-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop ssh-agent"
+    grep -q 'gpg-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop gpg-agent"
+    count gpg $num_gpg
+    count ssh $num_ssh
+    stopped $SSH_AGENT_PID
+    stopped $GPG_AGENT_PID
+}
+
+    007.1_stop_mine_ssh-agent_only() {
+        gpg-agent --daemon >/dev/null
+        gpg-agent --daemon >/dev/null
+        gpg-agent --daemon >/dev/null
+        ssh-agent >/dev/null
+        ssh-agent >/dev/null
+        ssh-agent >/dev/null
+
+        local num_gpg=$(count gpg)
+        local num_ssh=$(count ssh)
+
+        run_kc
+        load
+        run_kc --stop mine --agents ssh
+
+        grep -q 'ssh-agent.*found running' <<<"$kc_out" && fail "no ssh-agent found running"
+        grep -q 'ssh-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop ssh-agent"
+        count gpg $(( num_gpg + 1 ))
+        count ssh $num_ssh
+        stopped $GPG_AGENT_PID
+    }
+
+    007.2_stop_mine_gpg-agent_only() {
+        gpg-agent --daemon >/dev/null
+        gpg-agent --daemon >/dev/null
+        gpg-agent --daemon >/dev/null
+        ssh-agent >/dev/null
+        ssh-agent >/dev/null
+        ssh-agent >/dev/null
+
+        local num_gpg=$(count gpg)
+        local num_ssh=$(count ssh)
+
+        run_kc
+        load
+        run_kc --stop mine --agents gpg
+
+        grep -q 'gpg-agent.*found running' <<<"$kc_out" && fail "no gpg-agent found running"
+        grep -q 'gpg-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop gpg-agent"
+        count ssh $(( num_ssh + 1 ))
+        count gpg $num_gpg
+        stopped $SSH_AGENT_PID
+    }
+
+008_start_ssh-agent_with_one_key() {
+    run_kc ${sshkeys[0]}
+
+    [[ $kc_out == *Identity\ added* ]] || fail "failed to start ssh-agent"
+
+    source $keydir/$HOSTNAME-sh || fail "couldn't source $keydir/$HOSTNAME-sh"
+    ssh-add -l | grep -q ${sshkeys[0]##*/} || fail "ssh-agent isn't aware of ${sshkeys[0]##*/}"
+}
+
+009_start_ssh-agent_with_multiple_keys() {
+    run_kc "${sshkeys[@]}"
+
+    [[ $(grep -c Identity.added <<<"$kc_out") == ${#sshkeys[@]} ]] || fail "keychain didn't report ${#sshkeys[@]} keys"
+
+    source $keydir/$HOSTNAME-sh || fail "couldn't source $keydir/$HOSTNAME-sh"
+    for x in "${sshkeys[@]}"; do
+        ssh-add -l | grep -q ${x##*/} || fail "ssh-agent isn't aware of ${x##*/}"
+    done
+}
+
+010_start_gpg-agent_with_one_key() {
+    run_kc ${gpgkeys[0]}
+
+    [[ $? == 0 ]] || fail "keychain exited with non-zero status"
+    grep -q ${gpgkeys[0]} <<<"$kc_out" || fail "keychain didn't add the key"
+
+    source $keydir/$HOSTNAME-sh-gpg || fail "couldn't source $keydir/$HOSTNAME-sh-gpg"
+    echo | gpg --no-tty --sign --local-user "${gpgkeys[0]}" -o - >/dev/null \
+        || fail "couldn't encrypt with ${gpgkeys[0]}"
+}
+
+011_start_gpg-agent_with_multiple_keys() {
+    run_kc "${gpgkeys[@]}"
+
+    [[ $? == 0 ]] || fail "keychain exited with non-zero status"
+
+    source $keydir/$HOSTNAME-sh-gpg || fail "couldn't source $keydir/$HOSTNAME-sh-gpg"
+
+    for x in "${gpgkeys[@]}"; do
+        grep -q "$x" <<<"$kc_out" || fail "keychain didn't add $x"
+        echo | gpg --no-tty --sign --local-user "$x" -o - >/dev/null \
+            || fail "couldn't encrypt with $x"
+    done
+}
+
+012_start_keychain_with_ssh_and_gpg_keys() {
+    run_kc "${sshkeys[@]}" "${gpgkeys[@]}"
+
+    [[ $? == 0 ]] || fail "keychain exited with non-zero status"
+
+    [[ $(grep -c Identity.added <<<"$kc_out") == ${#sshkeys[@]} ]] || fail "keychain didn't report ${#sshkeys[@]} keys"
+    [[ $(grep -c gpg.key <<<"$kc_out") == ${#gpgkeys[@]} ]] || fail "keychain didn't report ${#gpgkeys[@]} keys"
+
+    source $keydir/$HOSTNAME-sh-gpg || fail "couldn't source $keydir/$HOSTNAME-sh-gpg"
+    source $keydir/$HOSTNAME-sh || fail "couldn't source $keydir/$HOSTNAME-sh"
+
+    for x in "${sshkeys[@]}"; do
+        ssh-add -l | grep -q "${x##*/}" || fail "ssh-agent doesn't know about ${x##*/}"
+    done
+    for x in "${gpgkeys[@]}"; do
+        echo | gpg --no-tty --sign --local-user "$x" -o - >/dev/null \
+            || fail "couldn't encrypt with $x"
+    done
+}
+
+013_add_a_key_to_ssh-agent() {
+    run_kc ${sshkeys[0]}
+    run_kc ${sshkeys[1]}
+
+    [[ $kc_out == *Identity\ added* ]] || fail "failed to add key"
+
+    source $keydir/$HOSTNAME-sh || fail "couldn't source $keydir/$HOSTNAME-sh"
+    ssh-add -l | grep -q ${sshkeys[1]##*/} || fail "ssh-agent isn't aware of ${sshkeys[0]##*/}"
+}
+
+014_add_a_key_to_gpg-agent() {
+    run_kc ${gpgkeys[0]}
+    run_kc ${gpgkeys[1]}
+
+    [[ $? == 0 ]] || fail "keychain exited with non-zero status"
+    grep -q ${gpgkeys[1]} <<<"$kc_out" || fail "keychain didn't add the key"
+
+    source $keydir/$HOSTNAME-sh-gpg || fail "couldn't source $keydir/$HOSTNAME-sh-gpg"
+    echo | gpg --no-tty --sign --local-user "${gpgkeys[1]}" -o - >/dev/null \
+        || fail "couldn't encrypt with ${gpgkeys[1]}"
+}
+
+015_add_a_missing_key() {
+    run_kc no_such_key
+
+    [[ $? == 0 ]] || fail "keychain exited with non-zero status"
+    grep -q 'Warning.*no_such_key' <<<"$kc_out" \
+        || fail "keychain didn't warn about no_such_key"
+}
+
+016_missing_key_with_--ignore-missing() {
+    run_kc --ignore-missing no_such_key
+
+    [[ $? == 0 ]] || fail "keychain exited with non-zero status"
+    grep -q 'Warning.*no_such_key' <<<"$kc_out" \
+        && fail "keychain warned about no_such_key"
+}
+
+017_default_inherit_ssh-agent() {
+    eval $(ssh-agent) >/dev/null
+    run_kc
+
+    [[ $kc_out == *Inheriting?ssh* ]] || fail "failed to inherit ssh-agent"
+    count ssh 1
+    kill -0 $SSH_AGENT_PID || fail "SSH_AGENT_PID has changed"
+}
+
+    017.1_inherit_local_ssh-agent() {
+        eval $(ssh-agent) >/dev/null
+        run_kc --inherit local
+
+        [[ $kc_out == *Inheriting?ssh* ]] || fail "failed to inherit ssh-agent (1)"
+        count ssh 1
+        kill -0 $SSH_AGENT_PID || fail "SSH_AGENT_PID has changed"
+
+        eval $(ssh-agent) >/dev/null
+        run_kc --inherit local
+
+        [[ $kc_out == *Inheriting?ssh* ]] || fail "failed to inherit ssh-agent (2)"
+        count ssh 2
+
+        unset SSH_AGENT_PID
+        run_kc --inherit local
+
+        [[ $kc_out == *Inheriting?ssh* ]] && fail "inherited forwarded agent"
+        count ssh 3
+    }
+
+    017.2_inherit_any_ssh-agent() {
+        eval $(ssh-agent) >/dev/null
+        old_pid=$SSH_AGENT_PID; unset SSH_AGENT_PID
+        run_kc --inherit any
+
+        [[ $kc_out == *Inheriting?ssh* ]] || fail "failed to inherit ssh-agent (1)"
+        count ssh 1
+        [[ -n $SSH_AGENT_PID ]] && fail "SSH_AGENT_PID should not be known"
+        kill -0 $old_pid || fail "agent pid has changed"
+
+        eval $(ssh-agent) >/dev/null
+        unset SSH_AGENT_PID
+        run_kc --inherit any
+
+        [[ $kc_out == *Inheriting?ssh* ]] || fail "failed to inherit ssh-agent (2)"
+        count ssh 2
+    }
+
+    017.3_inherit_local_once_ssh-agent() {
+        eval $(ssh-agent) >/dev/null
+        run_kc --inherit local-once
+
+        [[ $kc_out == *Inheriting?ssh* ]] || fail "failed to inherit ssh-agent"
+        count ssh 1
+        kill -0 $SSH_AGENT_PID || fail "SSH_AGENT_PID has changed"
+
+        eval $(ssh-agent) >/dev/null
+        run_kc --inherit local-once
+
+        [[ $kc_out == *Inheriting?ssh* ]] && fail "should not have inherited"
+        count ssh 2
+    }
+
+    017.4_inherit_any_once_ssh-agent() {
+        eval $(ssh-agent) >/dev/null
+        old_pid=$SSH_AGENT_PID; unset SSH_AGENT_PID
+        run_kc --inherit any-once
+        load
+
+        [[ $kc_out == *Inheriting?ssh* ]] || fail "failed to inherit ssh-agent (1)"
+        count ssh 1
+        [[ -n $SSH_AGENT_PID ]] && fail "SSH_AGENT_PID should not be known"
+        kill -0 $old_pid || fail "agent pid has changed"
+
+        eval $(ssh-agent) >/dev/null
+        run_kc --inherit any-once
+
+        [[ $kc_out == *Inheriting?ssh* ]] || fail "failed to inherit ssh-agent (2)"
+        count ssh 2
+
+        eval $(ssh-agent) >/dev/null
+        run_kc --inherit any-once
+
+        [[ $kc_out == *Inheriting?ssh* ]] && fail "should not have inherited"
+        count ssh 3
+    }
+
+018_noinherit_ssh-agent() {
+    eval $(ssh-agent) >/dev/null
+    run_kc --noinherit
+
+    [[ $kc_out == *Inheriting?ssh* ]] && fail "should not have inherited"
+    count ssh 2
+}
+
+019_default_inherit_gpg-agent() {
+    eval $(gpg-agent --daemon)
+    run_kc
+
+    [[ $kc_out == *Inheriting?gpg* ]] || fail "failed to inherit gpg-agent"
+    count gpg 1
+
+    info=$GPG_AGENT_INFO
+    load
+    [[ $info == "$GPG_AGENT_INFO" ]] || fail "GPG_AGENT_INFO has changed"
+}
+
+    _inherit_gpg-agent() {
+        eval $(gpg-agent --daemon) >/dev/null
+        info=$GPG_AGENT_INFO
+        run_kc "$@"
+        load
+
+        [[ $kc_out == *Inheriting?gpg* ]] || fail "failed to inherit gpg-agent (1)"
+        count gpg 1
+        [[ $info == "$GPG_AGENT_INFO" ]] || fail "GPG_AGENT_INFO has changed"
+
+        eval $(gpg-agent --daemon) >/dev/null
+        run_kc "$@"
+
+        [[ $kc_out == *Inheriting?gpg* ]] || fail "failed to inherit gpg-agent (2)"
+        count gpg 2
+
+        eval $(gpg-agent --daemon) >/dev/null
+        unset GPG_AGENT_INFO
+        run_kc "$@"
+
+        [[ $kc_out == *Inheriting?gpg* ]] && fail "should not have inherited"
+        count gpg 4
+    }
+
+    019.1_inherit_local_gpg-agent() {
+        _inherit_gpg-agent --inherit local
+    }
+
+    019.2_inherit_any_gpg-agent() {
+        _inherit_gpg-agent --inherit any
+    }
+
+    _inherit_once_gpg-agent() {
+        eval $(gpg-agent --daemon) >/dev/null
+        info=$GPG_AGENT_INFO
+        run_kc "$@"
+        load
+
+        [[ $kc_out == *Inheriting?gpg* ]] || fail "failed to inherit gpg-agent (1)"
+        count gpg 1
+        [[ $info == "$GPG_AGENT_INFO" ]] || fail "GPG_AGENT_INFO has changed"
+
+        eval $(gpg-agent --daemon) >/dev/null
+        run_kc "$@"
+
+        [[ $kc_out == *Inheriting?gpg* ]] && fail "should not have inherited"
+        count gpg 2
+    }
+
+    019.3_inherit_local_once_gpg-agent() {
+        _inherit_once_gpg-agent --inherit local-once
+    }
+
+    019.4_inherit_any_once_gpg-agent() {
+        _inherit_once_gpg-agent --inherit any-once
+    }
+
+020_noinherit_gpg-agent() {
+    eval $(gpg-agent --daemon) >/dev/null
+    run_kc --noinherit
+
+    [[ $kc_out == *Inheriting?gpg* ]] && fail "should not have inherited"
+    count gpg 2
+}
+
+021_start_with_--host() {
+    rm -f $keydir/*not_a_real_host*
+    trap "rm -f $keydir/*not_a_real_host*" 0 1 2 15
+    run_kc --host not_a_real_host
+
+    [[ $kc_out == *Starting\ ssh-agent* ]] || fail "failed to start ssh-agent"
+    count ssh 1
+
+    source $keydir/not_a_real_host-sh \
+        || fail "couldn't source $keydir/not_a_real_host-sh"
+    kill -0 $SSH_AGENT_PID || fail "SSH_AGENT_PID does not exist"
+}
+
+022_start_with_--quiet() {
+    run_kc --quiet
+
+    [[ $kc_out != '' ]] && fail "started noisily"
+    [[ $(ps x | grep -c '[s]sh-agent') == 1 ]] || fail "num of ssh-agents != 1"
+}
+
+# 023_help_with_--nocolor() {
+#     run_kc --help
+#     [[ $kc_out == *''* ]] || fail "control output was uncolored"
+# 
+#     run_kc --nocolor --help
+#     [[ $kc_out == *''* ]] && fail "output was colored"
+# }
+
+#
+# main program
+# 
+
+topdir=$PWD
+testdir=$topdir/testhome
+keydir=$testdir/.keychain
+sshdir=$testdir/.ssh
+gpgdir=$testdir/.gnupg
+sshkeys=( $sshdir/id_dsa $sshdir/id_rsa )
+sshkeys_passwd=( $sshdir/id_dsa_passwd )
+gpgkeys=( 9977A767 603C3040 )
+gpgkeys_passwd=( 4B361BC4 )
+passes=0
+total=0
+
+HOME=$testdir
+eval unset ${!SSH_*} ${!GPG_*}
+
+args=$(getopt -o dv --long debug,verbose -n "$0" -- "$@") || exit
+eval set -- "$args"
+
+opt_debug=false
+opt_verbose=false
+
+while true; do
+    case $1 in
+        -d|--debug)     opt_debug=true ; shift ;;
+        -v|--verbose)   opt_verbose=true ; shift ;;
+        --) shift ; break ;;
+        *) echo "failed to process cmdline args" >&2 ; exit 1 ;;
+    esac
+done
+
+run_kc() {
+    kc_args="$*"        # for fail()
+    kc_out=$( source "$topdir/keychain" --nogui --dir "$keydir" "$@" 2>&1; )
+    if $opt_verbose; then
+        echo
+        echo "keychain $*"
+        echo "$kc_out"
+    fi
+}
+
+count() {
+    local num=$(ps x | grep -c "[${1:0:1}]${1:1}-agent")
+    shift
+    if [[ -z $1 ]]; then
+        echo $num
+    else 
+        [[ -z $2 ]] && set -- -eq $1
+        eval \[\[ \$num $1 \$2 \]\] || fail "wrong num of ssh-agents (have $num, want $1 $2)"
+    fi
+}
+
+running() {
+    local procs=" $(ps x | sed -n '2,$p' | awk '{print $1}' | xargs) "
+    local n=1
+    for pid; do
+        [[ $procs == *" $pid "* ]] || fail "pid $pid is not running"
+    done
+}
+
+stopped() {
+    local procs=" $(ps x | sed -n '2,$p' | awk '{print $1}' | xargs) "
+    local n=1
+    for pid; do
+        [[ $procs == *" $pid "* ]] && fail "pid $pid is not stopped"
+    done
+}
+
+load() {
+    local f
+    for f in ${*:-$keydir/$HOSTNAME-sh{,-*}}; do
+        [[ -f $f ]] && source $f
+    done
+    if [[ -n $GPG_AGENT_INFO ]]; then
+        GPG_AGENT_PID=${GPG_AGENT_INFO%:*}
+        GPG_AGENT_PID=${GPG_AGENT_PID##*:}
+    fi
+}
+
+fail() {
+    if ! $opt_verbose; then
+        echo
+        echo "keychain $*"
+        echo "$kc_out"
+    fi
+    echo "fail -- $*"
+    echo
+    exit 1
+}
+
+if [[ $# -gt 0 ]]; then
+    for t; do 
+        tests=( "${tests[@]}" 
+            $(set | awk -v t="$t" '$2=="()" && $1 ~ t { print $1 }' | sort -n) )
+    done
+else
+    tests=( $(set | awk '$2=="()" && $1 ~ /^0[0-9][0-9][_\.]/ { print $1 }' | sort -n) )
+fi
+
+for t in "${tests[@]}"; do
+    run_kc --stop all >/dev/null
+    printf "%-50s " "${t##*/}:" >&2
+    ( $opt_debug && set -x; $t; true; )
+    if [[ $? == 0 ]]; then
+        (( passes++ ))
+        echo "pass" >&2
+        $opt_verbose && echo
+    fi
+    (( total++ ))
+done
+
+echo
+printf "%d of %d tests passed (%d%%)\n" \
+    $passes $total $(( 100 * passes / total ))
+
+# vim:sw=4 et:
