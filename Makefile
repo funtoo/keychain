@@ -100,5 +100,5 @@ clean:
 	rm -f keychain keychain.txt keychain.1 keychain.spec
 
 .PHONY: test
-test:
-	./runtests
+test: keychain
+	@./runtests

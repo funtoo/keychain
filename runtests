@@ -342,7 +342,22 @@
         && fail "keychain warned about no_such_key"
 }
 
-017_default_inherit_ssh-agent() {
+017_start_keychain_with_password_ssh() {
+    # create a password generator
+    askpass=$(mktemp) || fail "mktemp failed"
+    trap 'rm -f $askpass' 0 1 2 15
+    echo "echo keychain" > $askpass
+    chmod +x $askpass
+    SSH_ASKPASS=$askpass run_kc ${sshkeys_passwd[0]} </dev/null
+
+    [[ $kc_out == *Identity\ added* ]] || fail "failed to start ssh-agent"
+
+    source $keydir/$HOSTNAME-sh || fail "couldn't source $keydir/$HOSTNAME-sh"
+    ssh-add -l | grep -q ${sshkeys_passwd[0]##*/} \
+    || fail "ssh-agent isn't aware of ${sshkeys_passwd[0]##*/}"
+}
+
+030_default_inherit_ssh-agent() {
     eval $(ssh-agent) >/dev/null
     run_kc
 
@@ -351,7 +366,7 @@
     kill -0 $SSH_AGENT_PID || fail "SSH_AGENT_PID has changed"
 }
 
-    017.1_inherit_local_ssh-agent() {
+    030.1_inherit_local_ssh-agent() {
         eval $(ssh-agent) >/dev/null
         run_kc --inherit local
 
@@ -372,7 +387,7 @@
         count ssh 3
     }
 
-    017.2_inherit_any_ssh-agent() {
+    030.2_inherit_any_ssh-agent() {
         eval $(ssh-agent) >/dev/null
         old_pid=$SSH_AGENT_PID; unset SSH_AGENT_PID
         run_kc --inherit any
@@ -390,7 +405,7 @@
         count ssh 2
     }
 
-    017.3_inherit_local_once_ssh-agent() {
+    030.3_inherit_local_once_ssh-agent() {
         eval $(ssh-agent) >/dev/null
         run_kc --inherit local-once
 
@@ -405,7 +420,7 @@
         count ssh 2
     }
 
-    017.4_inherit_any_once_ssh-agent() {
+    030.4_inherit_any_once_ssh-agent() {
         eval $(ssh-agent) >/dev/null
         old_pid=$SSH_AGENT_PID; unset SSH_AGENT_PID
         run_kc --inherit any-once
@@ -429,7 +444,7 @@
         count ssh 3
     }
 
-018_noinherit_ssh-agent() {
+031_noinherit_ssh-agent() {
     eval $(ssh-agent) >/dev/null
     run_kc --noinherit
 
@@ -437,7 +452,7 @@
     count ssh 2
 }
 
-019_default_inherit_gpg-agent() {
+032_default_inherit_gpg-agent() {
     eval $(gpg-agent --daemon)
     run_kc
 
@@ -473,11 +488,11 @@
         count gpg 4
     }
 
-    019.1_inherit_local_gpg-agent() {
+    032.1_inherit_local_gpg-agent() {
         _inherit_gpg-agent --inherit local
     }
 
-    019.2_inherit_any_gpg-agent() {
+    032.2_inherit_any_gpg-agent() {
         _inherit_gpg-agent --inherit any
     }
 
@@ -498,15 +513,15 @@
         count gpg 2
     }
 
-    019.3_inherit_local_once_gpg-agent() {
+    032.3_inherit_local_once_gpg-agent() {
         _inherit_once_gpg-agent --inherit local-once
     }
 
-    019.4_inherit_any_once_gpg-agent() {
+    032.4_inherit_any_once_gpg-agent() {
         _inherit_once_gpg-agent --inherit any-once
     }
 
-020_noinherit_gpg-agent() {
+040_noinherit_gpg-agent() {
     eval $(gpg-agent --daemon) >/dev/null
     run_kc --noinherit
 
@@ -514,7 +529,7 @@
     count gpg 2
 }
 
-021_start_with_--host() {
+041_start_with_--host() {
     rm -f $keydir/*not_a_real_host*
     trap "rm -f $keydir/*not_a_real_host*" 0 1 2 15
     run_kc --host not_a_real_host
@@ -527,58 +542,30 @@
     kill -0 $SSH_AGENT_PID || fail "SSH_AGENT_PID does not exist"
 }
 
-022_start_with_--quiet() {
+042_start_with_--quiet() {
     run_kc --quiet
 
     [[ $kc_out != '' ]] && fail "started noisily"
     [[ $(ps x | grep -c '[s]sh-agent') == 1 ]] || fail "num of ssh-agents != 1"
 }
 
-# 023_help_with_--nocolor() {
-#     run_kc --help
-#     [[ $kc_out == *''* ]] || fail "control output was uncolored"
-# 
-#     run_kc --nocolor --help
-#     [[ $kc_out == *''* ]] && fail "output was colored"
-# }
+043_help_with_--nocolor() {
+    # fake out the tty check
+    tty() { command tty "$@"; true; }
+    run_kc --help
+    [[ $kc_out == *''* ]] || fail "control output was uncolored"
+
+    run_kc --nocolor --help
+    [[ $kc_out == *''* ]] && fail "output was colored"
+}
 
 #
-# main program
+# helper functions
 # 
-
-topdir=$PWD
-testdir=$topdir/testhome
-keydir=$testdir/.keychain
-sshdir=$testdir/.ssh
-gpgdir=$testdir/.gnupg
-sshkeys=( $sshdir/id_dsa $sshdir/id_rsa )
-sshkeys_passwd=( $sshdir/id_dsa_passwd )
-gpgkeys=( 9977A767 603C3040 )
-gpgkeys_passwd=( 4B361BC4 )
-passes=0
-total=0
-
-HOME=$testdir
-eval unset ${!SSH_*} ${!GPG_*}
-
-args=$(getopt -o dv --long debug,verbose -n "$0" -- "$@") || exit
-eval set -- "$args"
-
-opt_debug=false
-opt_verbose=false
-
-while true; do
-    case $1 in
-        -d|--debug)     opt_debug=true ; shift ;;
-        -v|--verbose)   opt_verbose=true ; shift ;;
-        --) shift ; break ;;
-        *) echo "failed to process cmdline args" >&2 ; exit 1 ;;
-    esac
-done
 
 run_kc() {
     kc_args="$*"        # for fail()
-    kc_out=$( source "$topdir/keychain" --nogui --dir "$keydir" "$@" 2>&1; )
+    kc_out=$( source "$topdir/keychain" --dir "$keydir" "$@" 2>&1; )
     if $opt_verbose; then
         echo
         echo "keychain $*"
@@ -635,14 +622,69 @@ fail() {
     exit 1
 }
 
+#
+# main program
+# 
+
+topdir=$PWD
+HOME=$topdir/testhome
+keydir=$HOME/.keychain
+sshdir=$HOME/.ssh
+gpgdir=$HOME/.gnupg
+sshkeys=( $sshdir/id_dsa $sshdir/id_rsa )
+sshkeys_passwd=( $sshdir/id_dsa_passwd )        # password: keychain
+gpgkeys=( 9977A767 603C3040 )
+gpgkeys_passwd=( C8919193 )                     # password: keychain
+passes=0
+total=0
+
+opt_debug=false
+opt_list=false
+opt_verbose=false
+
+args=$(getopt -o dlv --long debug,list,verbose -n "$0" -- "$@") || exit
+eval set -- "$args"
+
+while true; do
+    case $1 in
+        -d|--debug)     opt_debug=true ; shift ;;
+        -l|--list)      opt_list=true ; shift ;;
+        -v|--verbose)   opt_verbose=true ; shift ;;
+        --) shift ; break ;;
+        *) echo "failed to process cmdline args" >&2 ; exit 1 ;;
+    esac
+done
+
+tests=( $(set | awk '$2=="()" && $1 ~ /^0[0-9][0-9][_\.]/ { print $1 }' | sort -n) )
+
 if [[ $# -gt 0 ]]; then
-    for t; do 
-        tests=( "${tests[@]}" 
-            $(set | awk -v t="$t" '$2=="()" && $1 ~ t { print $1 }' | sort -n) )
+    newtests=()
+    for x; do 
+        for ((i = 0; i < ${#tests[@]}; )); do
+            if [[ ${tests[i]} == *${x}* ]]; then
+                newtests=( "${newtests[@]}" "${tests[i]}" )
+                tests=( "${tests[@]:0:i}" "${tests[@]:i+1}" )
+            else
+                let i++
+            fi
+        done
     done
-else
-    tests=( $(set | awk '$2=="()" && $1 ~ /^0[0-9][0-9][_\.]/ { print $1 }' | sort -n) )
+    tests=( "${newtests[@]}" )
+    unset newtests
 fi
+
+if $opt_list; then
+    for t in "${tests[@]}"; do
+        printf "%s\n" "$t"
+    done
+    exit 0
+fi
+
+# don't leak current settings
+eval unset ${!SSH_*} ${!GPG_*}
+
+# make sure ssh-add won't balk at the perms
+chmod -R go-rwx $sshdir $gpgdir
 
 for t in "${tests[@]}"; do
     run_kc --stop all >/dev/null
