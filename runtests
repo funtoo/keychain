@@ -348,7 +348,7 @@
     trap 'rm -f $askpass' 0 1 2 15
     echo "echo keychain" > $askpass
     chmod +x $askpass
-    SSH_ASKPASS=$askpass run_kc ${sshkeys_passwd[0]} </dev/null
+    DISPLAY=needthis SSH_ASKPASS=$askpass run_kc ${sshkeys_passwd[0]} </dev/null
 
     [[ $kc_out == *Identity\ added* ]] || fail "failed to start ssh-agent"
 
