@@ -6,7 +6,7 @@
 # Maintained April 2004 - present by Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.5.5-test1
+version=2.5.5
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
