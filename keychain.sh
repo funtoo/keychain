@@ -6,7 +6,7 @@
 # Maintained April 2004 - present by Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.5.4.1
+version=2.5.5-test1
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -36,6 +36,7 @@ unset sshkeys
 unset gpgkeys
 unset mykeys
 keydir="${HOME}/.keychain"
+unset envf
 
 BLUE="[34;01m"
 CYAN="[36;01m"
@@ -1035,6 +1036,14 @@ while [ -n "$1" ]; do
                 *)    keydir="$1/.keychain" ;;  # be backward-compatible
             esac
             ;;
+        --env)
+            shift
+            if [ -z "$1" ]; then
+                die "--env requires an argument"
+            else
+                envf="$1"
+            fi
+            ;;
         --clear)
             clearopt=true
             $quickopt && die "--quick and --clear are not compatible"
@@ -1130,6 +1139,17 @@ pidf="${keydir}/${hostopt}-sh"
 cshpidf="${keydir}/${hostopt}-csh"
 olockf="${keydir}/${hostopt}-lock"
 lockf="${keydir}/${hostopt}-lockf"
+
+# Read the env snippet (especially for things like PATH, but could modify
+# basically anything)
+if [ -z "$envf" ]; then
+    envf="${keydir}/${hostopt}-env"
+    [ -f "$envf" ] || envf="${keydir}/env"
+    [ -f "$envf" ] || unset envf
+fi
+if [ -n "$envf" ]; then
+    . "$envf"
+fi
 
 # Don't use color if there's no terminal on stdout
 if [ -n "$OFF" ]; then

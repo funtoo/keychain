@@ -63,6 +63,15 @@ ssh keys when you're logged out.
 
 Keychain will use dirname rather than $HOME/.keychain
 
+=item B<--env> I<filename>
+
+After parsing options, keychain will load additional environment
+settings from "filename".  By default, if "--env" is not given, then
+keychain will attempt to load from ~/.keychain/[hostname]-env or
+alternatively ~/.keychain/env.  The purpose of this file is to
+override settings such as PATH, in case ssh is stored in
+a non-standard place.
+
 =item B<-h --help>
 
 Show help that looks remarkably like this man-page.

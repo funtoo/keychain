@@ -40,7 +40,7 @@ keychain.txt: keychain.pod
 	pod2text keychain.pod keychain.txt
 
 keychain-$V.tar.gz: $(TARBALL_CONTENTS)
-	@case $V in *-test) \
+	@case $V in *-test*) \
 		echo "**** Version is $V, please remove -test"; \
 		exit 1 ;; \
 	esac
