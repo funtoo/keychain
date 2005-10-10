@@ -76,8 +76,8 @@ webpage:
 		s/(<date>).*?(?=<.date>)/$${1}$D/; \
 		s/(keychain-)[\d.]+(?=\.tar|\S*rpm)/$${1}$V/g; \
 		s/(<!-- begin automatic ChangeLog insertion -->).*?(?=<!-- end)/$${1}$$C/s;' \
-			~/gentoo/xml/htdocs/proj/en/keychain/index.xml
-	cd ~/gentoo/xml/htdocs/proj/en/keychain && \
+			~/g/gentoo/xml/htdocs/proj/en/keychain/index.xml
+	cd ~/g/gentoo/xml/htdocs/proj/en/keychain && \
 		cvs commit -m 'update to $V' index.xml
 
 .PHONY: mypage

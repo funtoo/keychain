@@ -6,7 +6,7 @@
 # Maintained April 2004 - present by Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.6.0
+version=2.6.1
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -37,7 +37,7 @@ unset gpgkeys
 unset mykeys
 keydir="${HOME}/.keychain"
 unset envf
-unset evalopt
+evalopt=false
 
 BLUE="[34;01m"
 CYAN="[36;01m"
