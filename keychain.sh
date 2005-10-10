@@ -6,7 +6,7 @@
 # Maintained April 2004 - present by Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.5.5
+version=2.6.0
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -37,6 +37,7 @@ unset gpgkeys
 unset mykeys
 keydir="${HOME}/.keychain"
 unset envf
+unset evalopt
 
 BLUE="[34;01m"
 CYAN="[36;01m"
@@ -80,6 +81,7 @@ error() {
 die() {
     [ -n "$1" ] && error "$*"
     qprint
+    $evalopt && { echo; echo "false;"; }
     exit 1
 }
 
@@ -482,41 +484,71 @@ inheritagents() {
     fi
 }
 
-# synopsis: loadagents
+# synopsis: catpidf_shell shell agents...
+# cat the pid files for the given agents.  This is used by loadagents and also
+# for keychain output when --eval is given.
+catpidf_shell() {
+    case "$1" in
+        *csh) cp_pidf="$cshpidf" ;;
+        *)    cp_pidf="$pidf" ;;
+    esac
+    shift
+
+    for cp_a in "$@"; do
+        case "${cp_a}" in
+            ssh) [ -f "$cp_pidf" ] && cat "$cp_pidf" ;;
+            *)   [ -f "${cp_pidf}-$cp_a" ] && cat "${cp_pidf}-$cp_a" ;;
+        esac
+        echo
+    done
+
+    return 0
+}
+
+# synopsis: catpidf agents...
+# cat the pid files for the given agents, appropriate for the current value of
+# $SHELL.  This is used for keychain output when --eval is given.
+catpidf() {
+    catpidf_shell "$SHELL" "$@"
+}
+
+# synopsis: loadagents agents...
 # Load agent variables from $pidf and copy implementation-specific environment
 # variables into generic global strings
 loadagents() {
-    unset SSH_AUTH_SOCK SSH_AGENT_PID SSH2_AUTH_SOCK SSH2_AGENT_PID
-    unset GPG_AGENT_INFO    # too bad we have to do this explicitly
+    for la_a in "$@"; do
+        case "$la_a" in
+            ssh)
+                unset SSH_AUTH_SOCK SSH_AGENT_PID SSH2_AUTH_SOCK SSH2_AGENT_PID
+                eval "`catpidf_shell sh $la_a`"
+                if [ -n "$SSH_AUTH_SOCK" ]; then
+                    ssh_auth_sock=$SSH_AUTH_SOCK
+                    ssh_agent_pid=$SSH_AGENT_PID
+                elif [ -n "$SSH2_AUTH_SOCK" ]; then
+                    ssh_auth_sock=$SSH2_AUTH_SOCK
+                    ssh_agent_pid=$SSH2_AGENT_PID
+                else
+                    unset ssh_auth_sock ssh_agent_pid
+                fi
+                ;;
 
-    # Load agent pid files
-    for ql_x in "$pidf" "$pidf"-*; do
-        # Ignore some backup files
-        case "$ql_x" in
-            *~|*.bak) continue ;;
+            gpg)
+                unset GPG_AGENT_INFO
+                eval "`catpidf_shell sh $la_a`"
+                if [ -n "$GPG_AGENT_INFO" ]; then
+                    la_IFS="$IFS"  # save current IFS
+                    IFS=':'        # set IFS to colon to separate PATH
+                    set -- $GPG_AGENT_INFO
+                    IFS="$la_IFS"  # restore IFS
+                    gpg_agent_pid=$2
+                fi
+                ;;
+
+            *)
+                eval "`catpidf_shell sh $la_a`"
+                ;;
         esac
-        [ -f "$ql_x" ] && . "$ql_x"
     done
-
-    # Copy implementation-specific environment variables into generic local
-    # variables.
-    if [ -n "$SSH_AUTH_SOCK" ]; then
-        ssh_auth_sock=$SSH_AUTH_SOCK
-        ssh_agent_pid=$SSH_AGENT_PID
-    elif [ -n "$SSH2_AUTH_SOCK" ]; then
-        ssh_auth_sock=$SSH2_AUTH_SOCK
-        ssh_agent_pid=$SSH2_AGENT_PID
-    else
-        unset ssh_auth_sock ssh_agent_pid
-    fi
-
-    if [ -n "$GPG_AGENT_INFO" ]; then
-        la_IFS="$IFS"  # save current IFS
-        IFS=':'        # set IFS to colon to separate PATH
-        set -- $GPG_AGENT_INFO
-        IFS="$la_IFS"  # restore IFS
-        gpg_agent_pid=$2
-    fi
 
     return 0
 }
@@ -674,7 +706,7 @@ SSH2_AGENT_PID=$inherit_ssh2_agent_pid; export SSH2_AGENT_PID;"
     esac
 
     # Hey the agent should be started now... load it up!
-    loadagents
+    loadagents "$start_prog"
 }
 
 # synopsis: extract_fingerprints
@@ -1028,6 +1060,10 @@ while [ -n "$1" ]; do
                 die "--attempts requires a numeric argument greater than zero"
             fi
             ;;
+        --clear)
+            clearopt=true
+            $quickopt && die "--quick and --clear are not compatible"
+            ;;
         --dir)
             shift
             case "$1" in
@@ -1044,9 +1080,8 @@ while [ -n "$1" ]; do
                 envf="$1"
             fi
             ;;
-        --clear)
-            clearopt=true
-            $quickopt && die "--quick and --clear are not compatible"
+        --eval)
+            evalopt=true
             ;;
         --host)
             shift
@@ -1115,6 +1150,7 @@ while [ -n "$1" ]; do
             ;;
         -*)
             echo "$zero: unknown option $1" >&2
+            $evalopt && { echo; echo "false;"; }
             exit 1
             ;;
         *)
@@ -1190,7 +1226,7 @@ if [ -n "$stopwhich" ]; then
     fi
     takelock || die
     if [ "$stopwhich" = mine -o "$stopwhich" = others ]; then
-        loadagents
+        loadagents $agentsopt
     fi
     for a in $agentsopt; do
         stopagent $a
@@ -1204,7 +1240,7 @@ fi
 # Note regarding locking: if we're trying to be quick, then don't take the lock.
 # It will be taken later if we discover we can't be quick.
 if $quickopt; then
-    loadagents         # sets ssh_auth_sock, ssh_agent_pid, etc
+    loadagents $agentsopt       # sets ssh_auth_sock, ssh_agent_pid, etc
     unset nagentsopt
     for a in $agentsopt; do
         needstart=true
@@ -1230,7 +1266,11 @@ if $quickopt; then
             fi
         fi
 
-        $needstart && nagentsopt="$nagentsopt $a"
+        if $needstart; then 
+            nagentsopt="$nagentsopt $a"
+        elif $evalopt; then
+            catpidf $a
+        fi
     done
     agentsopt="$nagentsopt"
 fi
@@ -1241,10 +1281,13 @@ fi
 # There are agents remaining to start, and we now know we can't be quick.  Take
 # the lock before continuing
 takelock || die
-loadagents
+loadagents $agentsopt
 unset nagentsopt
 for a in $agentsopt; do
-    startagent $a && nagentsopt="${nagentsopt+$nagentsopt }$a"
+    if startagent $a; then
+        nagentsopt="${nagentsopt+$nagentsopt }$a"
+        $evalopt && catpidf $a
+    fi
 done
 agentsopt="$nagentsopt"
 

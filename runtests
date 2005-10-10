@@ -546,7 +546,7 @@
     run_kc --quiet
 
     [[ $kc_out != '' ]] && fail "started noisily"
-    [[ $(ps x | grep -c '[s]sh-agent') == 1 ]] || fail "num of ssh-agents != 1"
+    count ssh 1
 }
 
 043_help_with_--nocolor() {
@@ -557,6 +557,53 @@
 
     run_kc --nocolor --help
     [[ $kc_out == *''* ]] && fail "output was colored"
+}
+
+050_start_ssh-agent_with_--eval() {
+    $opt_debug && set +x
+    run_kc --quiet --eval --agents ssh
+    $opt_debug && set -x
+    count ssh 1; count gpg 0
+
+    eval "$kc_out" || fail "eval failed"
+    set | grep -q '^GPG' && fail "settings contain GPG vars"
+    esettings=$(env | grep SSH | sort)
+
+    load
+    lsettings=$(env | grep SSH | sort)
+
+    [[ $esettings == "$lsettings" ]] || fail "variables don't match"
+}
+
+051_start_gpg-agent_with_--eval() {
+    $opt_debug && set +x
+    run_kc --quiet --eval --agents gpg
+    $opt_debug && set -x
+    count ssh 0; count gpg 1
+
+    eval "$kc_out" || fail "eval failed"
+    set | grep -q '^SSH' && fail "settings contain SSH vars"
+    esettings=$(env | grep GPG | sort)
+
+    load
+    lsettings=$(env | grep GPG | sort)
+
+    [[ $esettings == "$lsettings" ]] || fail "variables don't match"
+}
+
+052_start_with_--eval() {
+    $opt_debug && set +x
+    run_kc --quiet --eval
+    $opt_debug && set -x
+    count ssh 1; count gpg 1
+
+    eval "$kc_out" || fail "eval failed"
+    esettings=$(env | egrep 'GPG|SSH' | sort)
+
+    load
+    lsettings=$(env | egrep 'GPG|SSH' | sort)
+
+    [[ $esettings == "$lsettings" ]] || fail "variables don't match"
 }
 
 #

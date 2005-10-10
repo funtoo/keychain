@@ -63,6 +63,12 @@ ssh keys when you're logged out.
 
 Keychain will use dirname rather than $HOME/.keychain
 
+=item B<--eval>
+
+Keychain will print lines to be evaluated in the shell on stdout.  It
+respects the SHELL environment variable to determine if Bourne shell
+or C shell output is expected.
+
 =item B<--env> I<filename>
 
 After parsing options, keychain will load additional environment
@@ -201,45 +207,44 @@ Show version information.
 
 =head1 EXAMPLES
 
-This snippet would work in .bash_profile (for bash) or .zlogin (for
-zsh) to load two ssh keys and one gpg key:
+This snippet should work in any shell to load two ssh keys and one gpg
+key:
+
+    eval `keychain --eval id_rsa id_dsa 0123ABCD`
+
+If you have trouble with that in csh:
+
+    setenv SHELL /bin/csh
+    eval `keychain --eval id_rsa id_dsa 0123ABCD`
+
+This is equivalent for Bourne shells (including bash and zsh) but
+doesn't use keychain's --eval feature:
 
     keychain id_rsa id_dsa 0123ABCD
-	[[ -f $HOME/.keychain/$HOSTNAME-sh ]] && \
-		source $HOME/.keychain/$HOSTNAME-sh
-	[[ -f $HOME/.keychain/$HOSTNAME-sh-gpg ]] && \
-		source  $HOME/.keychain/$HOSTNAME-sh-gpg
+    [ -z "$HOSTNAME" ] && HOSTNAME=`uname -n`
+    [ -f $HOME/.keychain/$HOSTNAME-sh ] && \
+	    . $HOME/.keychain/$HOSTNAME-sh
+    [ -f $HOME/.keychain/$HOSTNAME-sh-gpg ] && \
+	    . $HOME/.keychain/$HOSTNAME-sh-gpg
 
-For other Bourne-compatible shells such as sh, you can use this in
-.profile:
-
-    keychain id_rsa id_dsa 0123ABCD
-	host=`uname -n`
-	[ -f $HOME/.keychain/$host-sh ] && \
-		. $HOME/.keychain/$host-sh
-	[ -f $HOME/.keychain/$host-sh-gpg ] && \
-		. $HOME/.keychain/$host-sh-gpg
-
-This snippet would work in .login for tcsh:
+This is equivalent for C shell (including tcsh):
 
     keychain id_rsa id_dsa 0123ABCD
-	if (-f $HOME/.keychain/$HOST-csh) then
-		source $HOME/.keychain/$HOST-csh
-	endif
-	if (-f $HOME/.keychain/$HOST-csh-gpg) then
-		source $HOME/.keychain/$HOST-csh-gpg
-	endif
+    host=`uname -n`
+    if (-f $HOME/.keychain/$host-csh) then
+	    source $HOME/.keychain/$host-csh
+    endif
+    if (-f $HOME/.keychain/$host-csh-gpg) then
+	    source $HOME/.keychain/$host-csh-gpg
+    endif
 
-This snippet would work in .login for csh:
+To load keychain variables from a script (for example from cron) and
+abort unless id_dsa is available:
 
-    keychain id_rsa id_dsa 0123ABCD
-	host=`uname -n`
-	if (-f $HOME/.keychain/$host-csh) then
-		source $HOME/.keychain/$host-csh
-	endif
-	if (-f $HOME/.keychain/$host-csh-gpg) then
-		source $HOME/.keychain/$host-csh-gpg
-	endif
+    # Load keychain variables and check for id_dsa
+    [ -z "$HOSTNAME" ] && HOSTNAME=`uname -n`
+    . $HOME/.keychain/$HOSTNAME-sh 2>/dev/null
+    ssh-add -l 2>/dev/null | grep -q id_dsa || exit 1
 
 =head1 SEE ALSO
 

@@ -48,10 +48,6 @@ keychain-$V.tar.gz: $(TARBALL_CONTENTS)
 		echo "**** Need to update the ChangeLog for version $V"; \
 		exit 1; \
 	fi
-	@if ! grep -qF 'Keychain $V ' README; then \
-		echo "**** Need to update the README for version $V"; \
-		exit 1; \
-	fi
 	mkdir keychain-$V
 	cp $(TARBALL_CONTENTS) keychain-$V
 	sudo chown -R root:root keychain-$V
