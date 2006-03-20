@@ -6,7 +6,7 @@
 # Maintained April 2004 - present by Aron Griffis <agriffis@gentoo.org>
 # $Header$
 
-version=2.6.1
+version=2.6.2
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -30,6 +30,7 @@ clearopt=false
 inheritwhich=local-once
 unset stopwhich
 unset timeout
+unset ssh_timeout
 attempts=1
 unset sshavail
 unset sshkeys
@@ -38,6 +39,8 @@ unset mykeys
 keydir="${HOME}/.keychain"
 unset envf
 evalopt=false
+confirmopt=false
+unset ssh_confirm
 
 BLUE="[34;01m"
 CYAN="[36;01m"
@@ -1064,6 +1067,9 @@ while [ -n "$1" ]; do
             clearopt=true
             $quickopt && die "--quick and --clear are not compatible"
             ;;
+        --confirm)
+            confirmopt=true
+            ;;
         --dir)
             shift
             case "$1" in
@@ -1304,6 +1310,15 @@ if [ -n "$timeout" ] && wantagent ssh; then
     ssh_timeout="-t $ssh_timeout"
 fi
 
+# --confirm translates to ssh-add -c
+if $confirmopt && wantagent ssh; then
+    if $openssh || $sunssh; then
+        ssh_confirm=-c
+    else
+        warn "--confirm only works with OpenSSH"
+    fi
+fi
+
 # --clear: remove all keys from the agent(s)
 if $clearopt; then
     for a in ${agentsopt}; do
@@ -1357,9 +1372,9 @@ if wantagent ssh; then
         if $noguiopt || [ -z "$SSH_ASKPASS" -o -z "$DISPLAY" ]; then
             unset DISPLAY       # DISPLAY="" can cause problems
             unset SSH_ASKPASS   # make sure ssh-add doesn't try SSH_ASKPASS
-            sshout=`ssh-add ${ssh_timeout} "$@"`
+            sshout=`ssh-add ${ssh_timeout} ${ssh_confirm} "$@"`
         else
-            sshout=`ssh-add ${ssh_timeout} "$@" </dev/null`
+            sshout=`ssh-add ${ssh_timeout} ${ssh_confirm} "$@" </dev/null`
         fi
         [ $? = 0 ] && break
 

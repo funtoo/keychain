@@ -3,6 +3,14 @@
 # Written by Daniel Robbins <drobbins@gentoo.org>
 # Maintained by Aron Griffis <agriffis@gentoo.org>
 
+* keychain 2.6.2 (20 Mar 2006)
+
+  20 Mar 2006; Aron Griffis <agriffis@gentoo.org>:
+  Add --confirm option and corresponding regression tests for Debian bug 296382.
+  Thanks to Liyang HU for the patch.  Also add initialization for $ssh_timeout
+  which was being inherited from the environment and add regression tests for
+  --timeout
+
 * keychain 2.6.1 (10 Oct 2005)
 
   10 Oct 2005; Aron Griffis <agriffis@gentoo.org>:

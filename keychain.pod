@@ -59,6 +59,12 @@ that you are an intruder until proven otherwise.  However, while this
 option increases security, it still allows your cron jobs to use your
 ssh keys when you're logged out.
 
+=item B<--confirm>
+
+Keys are subject to interactive confirmation by the SSH_ASKPASS
+program before being used for authentication.  See the -c option for
+ssh-add(1).
+
 =item B<--dir> I<dirname>
 
 Keychain will use dirname rather than $HOME/.keychain

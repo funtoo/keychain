@@ -606,6 +606,30 @@
     [[ $esettings == "$lsettings" ]] || fail "variables don't match"
 }
 
+060_start_with_--timeout() {
+    run_kc --timeout 2 "${sshkeys[0]}"
+    [[ $kc_out == *'Lifetime set to 120 seconds'* ]] || fail "msg not printed"
+    count ssh 1
+}
+
+061_start_with_--timeout_no_arg() {
+    run_kc "${sshkeys[0]}" --timeout
+    [[ $kc_out == *Error* ]] || fail "error message not printed"
+    count ssh 0
+}
+
+062_start_with_--timeout_bad_arg() {
+    run_kc --timeout blah "${sshkeys[0]}"
+    [[ $kc_out == *Error* ]] || fail "error message not printed"
+    count ssh 0
+}
+
+070_start_with_--confirm() {
+    run_kc --confirm "${sshkeys[0]}"
+    [[ $kc_out == *'The user has to confirm each use of the key'* ]] || fail "msg not printed"
+    count ssh 1
+}
+
 #
 # helper functions
 # 
