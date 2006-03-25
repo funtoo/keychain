@@ -4,7 +4,7 @@
 # Originally authored by Daniel Robbins <drobbins@gentoo.org>
 # Maintained August 2002 - April 2003 by Seth Chandler <sethbc@gentoo.org>
 # Maintained April 2004 - present by Aron Griffis <agriffis@gentoo.org>
-# $Header$
+# $Id: keychain.sh 88 2006-03-25 04:33:34Z agriffis $
 
 version=2.6.2
 
