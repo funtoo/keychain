@@ -4,9 +4,9 @@
 # Originally authored by Daniel Robbins <drobbins@gentoo.org>
 # Maintained August 2002 - April 2003 by Seth Chandler <sethbc@gentoo.org>
 # Maintained April 2004 - present by Aron Griffis <agriffis@gentoo.org>
-# $Id: keychain.sh 88 2006-03-25 04:33:34Z agriffis $
+# $Id: keychain.sh 89 2006-09-07 20:02:42Z agriffis $
 
-version=2.6.2
+version=2.6.3
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -431,9 +431,9 @@ stopagent() {
     # remove pid files if keychain-controlled 
     if [ "$stopwhich" != others ]; then
         if [ "$stop_prog" != ssh ]; then
-            rm -f "${pidf}-$stop_prog" "${cshpidf}-$stop_prog" 2>/dev/null
+            rm -f "${pidf}-$stop_prog" "${cshpidf}-$stop_prog" "${fishpidf}-$stop_prog" 2>/dev/null
         else
-            rm -f "${pidf}" "${cshpidf}" 2>/dev/null
+            rm -f "${pidf}" "${cshpidf}" "${fishpidf}" 2>/dev/null
         fi
 
         eval unset ${stop_prog}_agent_pid
@@ -492,6 +492,7 @@ inheritagents() {
 # for keychain output when --eval is given.
 catpidf_shell() {
     case "$1" in
+        fish) cp_pidf="$fishpidf" ;;
         *csh) cp_pidf="$cshpidf" ;;
         *)    cp_pidf="$pidf" ;;
     esac
@@ -571,6 +572,7 @@ startagent() {
     if [ "$start_prog" = ssh ]; then
         start_pidf="$pidf"
         start_cshpidf="$cshpidf"
+        start_fishpidf="$fishpidf"
         start_pid="$ssh_agent_pid"
         if [ -n "$inherit_ssh_auth_sock" -o -n "$inherit_ssh2_auth_sock" ]; then
             if [ -n "$inherit_ssh_agent_pid" ]; then
@@ -584,6 +586,7 @@ startagent() {
     else
         start_pidf="${pidf}-$start_prog"
         start_cshpidf="${cshpidf}-$start_prog"
+        start_fishpidf="${fishpidf}-$start_prog"
         if [ "$start_prog" = gpg ]; then
             start_pid="$gpg_agent_pid"
             if [ -n "$inherit_gpg_agent_pid" ]; then
@@ -629,7 +632,7 @@ startagent() {
     mesg "Initializing $start_pidf file..."
     ( umask 0177 && :> "$start_pidf"; )
     if [ $? != 0 ]; then
-        rm -f "$start_pidf" "$start_cshpidf" 2>/dev/null
+        rm -f "$start_pidf" "$start_cshpidf" "$start_fishpidf" 2>/dev/null
         error "can't create $start_pidf"
         return 1
     fi
@@ -638,8 +641,17 @@ startagent() {
     mesg "Initializing $start_cshpidf file..."
     ( umask 0177 && :> "$start_cshpidf"; )
     if [ $? != 0 ]; then
-        rm -f "$start_pidf" "$start_cshpidf" 2>/dev/null
+        rm -f "$start_pidf" "$start_cshpidf" "$start_fishpidf" 2>/dev/null
         error "can't create $start_cshpidf"
+        return 1
+    fi
+
+    # Init the fish-formatted pidfile
+    mesg "Initializing $start_fishpidf file..."
+    ( umask 0177 && :> "$start_fishpidf"; )
+    if [ $? != 0 ]; then
+        rm -f "$start_pidf" "$start_cshpidf" "$start_fishpidf" 2>/dev/null
+        error "can't create $start_fishpidf"
         return 1
     fi
 
@@ -665,7 +677,7 @@ startagent() {
             return 1
         fi
         if [ $? != 0 ]; then
-            rm -f "$start_pidf" "$start_cshpidf" 2>/dev/null
+            rm -f "$start_pidf" "$start_cshpidf" "$start_fishpidf" 2>/dev/null
             error "Failed to start ${start_prog}-agent"
             return 1
         fi
@@ -705,6 +717,7 @@ SSH2_AGENT_PID=$inherit_ssh2_agent_pid; export SSH2_AGENT_PID;"
         *)
             echo "$start_out" >"$start_pidf"
             echo "$start_out" | sed 's/;.*/;/' | sed 's/=/ /' | sed 's/^/setenv /' >"$start_cshpidf"
+            echo "$start_out" | sed 's/;.*/;/' | sed 's/^\(.*\)=\(.*\);/set -e \1; and set -x -U \1 \2/' >"$start_fishpidf"
             ;;
     esac
 
@@ -1172,13 +1185,15 @@ done
 #
 # pidf holds the specific name of the keychain .ssh-agent-myhostname file.
 # We use the new hostname extension for NFS compatibility. cshpidf is the
-# .ssh-agent file with csh-compatible syntax. lockf is the lockfile, used
+# .ssh-agent file with csh-compatible syntax. fishpidf is the .ssh-agent
+# file with fish-compatible syntax. lockf is the lockfile, used
 # to serialize the execution of multiple ssh-agent processes started 
 # simultaneously
 [ -z "$hostopt" ] && hostopt="${HOSTNAME}"
 [ -z "$hostopt" ] && hostopt=`uname -n 2>/dev/null || echo unknown`
 pidf="${keydir}/${hostopt}-sh"
 cshpidf="${keydir}/${hostopt}-csh"
+fishpidf="${keydir}/${hostopt}-fish"
 olockf="${keydir}/${hostopt}-lock"
 lockf="${keydir}/${hostopt}-lockf"
 

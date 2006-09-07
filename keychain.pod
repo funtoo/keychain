@@ -35,7 +35,7 @@ unavailable.  You can specifically limit keychain using the --agents
 option.
 
 keychain supports most UNIX-like operating systems, including Cygwin.
-It works with both Bourne-compatible and csh-compatible shells.
+It works with Bourne-compatible, csh-compatible and fish shells.
 
 =head1 OPTIONS
 
