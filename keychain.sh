@@ -4,9 +4,9 @@
 # Originally authored by Daniel Robbins <drobbins@gentoo.org>
 # Maintained August 2002 - April 2003 by Seth Chandler <sethbc@gentoo.org>
 # Maintained April 2004 - present by Aron Griffis <agriffis@gentoo.org>
-# $Id: keychain.sh 92 2006-09-08 20:45:14Z agriffis $
+# $Id: keychain.sh 94 2006-09-08 21:39:10Z agriffis $
 
-version=2.6.5
+version=2.6.6
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -188,6 +188,18 @@ now() {
     return 1
 }
 
+# synopsis: trylock
+# Utility for takelock()
+trylock() {
+    tl_pid=$$
+    if tl_error=`umask 0377; echo $tl_pid 2>&1 >"$lockf"`; then
+        havelock=true
+        return 0
+    else
+        return 1
+    fi
+}
+
 # synopsis: takelock
 # Attempts to get the lockfile $lockf.  If locking isn't available, just returns.
 # If locking is available but can't get the lock, exits with error.
@@ -216,11 +228,12 @@ takelock() {
 
     tl_faking=false
     tl_emptyonce=false
-    tl_removedempty=false
+    tl_emptytwice=false
+    tl_announced=false
     unset tl_oldpid tl_lastmesg
 
     # Set up timer
-    if [ $lockwait -eq 0 ]; then
+    if [ $lockwait = -1 ]; then
         true    # don't bother to set tl_start, tl_end, tl_current
     elif tl_start=`now`; then
         tl_end=`expr $tl_start + $lockwait`
@@ -234,17 +247,16 @@ takelock() {
     fi
     tl_nextmesg=$tl_current
 
-    # Try to lock for $lockwait seconds
-    while [ $lockwait -eq 0 -o $tl_current -lt $tl_end ]; do
+    # Try once initially for lockwait==0; doesn't hurt to try again immediately
+    # in the loop
+    trylock && return 0
 
-        tl_pid=$$
-        if tl_error=`umask 0377; echo $tl_pid 2>&1 >"$lockf"`; then
-            havelock=true
-            return 0
-        fi
+    # Try to lock for $lockwait seconds
+    while [ $lockwait = -1 -o $tl_current -lt $tl_end ]; do
+        trylock && return 0
 
         # advance our timer
-        if [ $lockwait -gt 0 ]; then
+        if [ $lockwait != -1 ]; then
             if $tl_faking; then
                 tl_current=`expr $tl_current + 1`
             else
@@ -274,7 +286,7 @@ takelock() {
             fi
 
             # don't keep the user in suspense
-            if [ $lockwait -gt 0 ]; then
+            if [ $lockwait != -1 ]; then
                 if [ $tl_current -eq $tl_nextmesg ]; then
                     tl_timeleft=`expr $tl_end - $tl_current`
                     if [ $tl_timeleft -gt 0 ]; then
@@ -282,17 +294,21 @@ takelock() {
                     fi
                     tl_nextmesg=`expr $tl_current + 1`
                 fi
+            else
+                $tl_announced || mesg "Waiting for lock, held by pid $tl_pid"
+                tl_announced=true
             fi
 
             # nb: fall through to sleep...
 
         # tl_pid is blank
-        elif $tl_removedempty; then
-            die "failed to remove empty lock file"
+        elif $tl_emptytwice; then
+            error "failed to remove empty lock file"
+            break
         elif $tl_emptyonce; then
             warn "removing empty lock file"
             rm -f "$lockf"
-            tl_removedempty=true
+            tl_emptytwice=true
             # give this another go-around, no sleep required
             continue
         else
@@ -1166,10 +1182,10 @@ while [ -n "$1" ]; do
             ;;
         --lockwait)
             shift
-            if [ "$1" -ge 0 ] 2>/dev/null; then
+            if [ "$1" = -1 -o "$1" -ge 0 ] 2>/dev/null; then
                 lockwait="$1"
             else
-                die "--lockwait requires an argument 0 <= n <= 50"
+                die "--lockwait requires an argument -1 <= n <= 50"
             fi
             ;;
         --quick|-Q)

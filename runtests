@@ -661,38 +661,72 @@
 }
 
 100_lock_stale() {
-    trap "rm -f $keydir/$HOSTNAME-lockf" 0 1 2 15
-    ( umask 0377; echo stale > $keydir/$HOSTNAME-lockf; )
+    lockf=$keydir/$HOSTNAME-lockf
+    trap "rm -f $lockf" 0 1 2 15
+    rm -f $lockf
+    ( umask 0377; echo stale > $lockf; )
     run_kc --lockwait 3
     [[ -f $keydir/$HOSTNAME-lockf && $(<$keydir/$HOSTNAME-lockf) == stale ]] && fail "stale lock remains"
     [[ $kc_out == *'removing stale lock'* ]] || fail "msg not printed"
 }
 
 101_lock_held() {
-    trap "rm -f $keydir/$HOSTNAME-lockf" 0 1 2 15
-    ( umask 0377; echo $$ > $keydir/$HOSTNAME-lockf; )
+    lockf=$keydir/$HOSTNAME-lockf
+    trap "rm -f $lockf" 0 1 2 15
+    rm -f $lockf
+    ( umask 0377; echo $$ > $lockf; )
     run_kc --lockwait 3
-    [[ -f $keydir/$HOSTNAME-lockf ]] || fail "lock was removed"
-    [[ $(<$keydir/$HOSTNAME-lockf) == $$ ]] || fail "lock was modified"
+    [[ -f $lockf ]] || fail "lock was removed"
+    [[ $(<$lockf) == $$ ]] || fail "lock was modified"
     [[ $kc_out == *"failed to get the lock, held by pid $$"* ]] || fail "msg not printed"
 }
 
 102_lock_empty() {
-    trap "rm -f $keydir/$HOSTNAME-lockf" 0 1 2 15
-    ( umask 0377; :> $keydir/$HOSTNAME-lockf; )
+    lockf=$keydir/$HOSTNAME-lockf
+    trap "rm -f $lockf" 0 1 2 15
+    rm -f $lockf
+    ( umask 0377; :> $lockf; )
     run_kc --lockwait 3
-    [[ -f $keydir/$HOSTNAME-lockf && ! -s $keydir/$HOSTNAME-lockf ]] && fail "empty lock remains"
+    [[ -f $lockf && ! -s $lockf ]] && fail "empty lock remains"
     [[ $kc_out == *'removing empty lock'* ]] || fail "msg not printed"
 }
 
 103_lock_empty_cant_remove() {
-    trap "unset -f rm; rm -f $keydir/$HOSTNAME-lockf" 0 1 2 15
-    ( umask 0377; :> $keydir/$HOSTNAME-lockf; )
+    lockf=$keydir/$HOSTNAME-lockf
+    trap "unset -f rm; rm -f $lockf" 0 1 2 15
+    rm -f $lockf
+    ( umask 0377; :> $lockf; )
     # fake out the rm attempt
     rm() { [[ $* == *lockf ]] || command rm "$@"; }
     run_kc --lockwait 3
-    [[ -f $keydir/$HOSTNAME-lockf ]] || fail "lock removed"
+    [[ -f $lockf ]] || fail "lock removed"
     [[ $kc_out == *'failed to remove empty lock'* ]] || fail "msg not printed"
+}
+
+104_lock_lockwait_zero() {
+    lockf=$keydir/$HOSTNAME-lockf
+    trap "rm -f $lockf" 0 1 2 15
+    rm -f $lockf
+    ( umask 0377; echo $$ > $lockf; )
+    run_kc --lockwait 0
+    [[ -f $lockf ]] || fail "lock removed"
+    [[ $kc_out == *Waiting* ]] && fail "msg == Waiting"
+    [[ $kc_out == *'failed to get the lock'* ]] || fail "msg not printed"
+}
+
+# kinda weak, doesn't check output
+105_lock_lockwait_forever() {
+    lockf=$keydir/$HOSTNAME-lockf
+    unset bgpid
+    trap "kill \$bgpid; rm -f $lockf" 0 1 2 15
+    rm -f $lockf
+    ( umask 0377; echo $$ > $lockf; )
+    run_kc --lockwait -1 &
+    bgpid=$!
+    sleep 3
+    count ssh 0
+    kill -0 $bgpid || fail "run_kc returned early"
+    [[ -f $lockf ]] || fail "lock removed"
 }
 
 #
