@@ -3,6 +3,19 @@
 # Written by Daniel Robbins <drobbins@gentoo.org>
 # Maintained by Aron Griffis <agriffis@gentoo.org>
 
+* keychain 2.6.6 (08 Sep 2006)
+
+  08 Sep 2006; Aron Griffis <agriffis@gentoo.org>:
+  Make --lockwait -1 mean forever.  Previously 0 meant forever but was
+  undocumented.  Add more locking regression tests #137981
+
+* keychain 2.6.5 (08 Sep 2006)
+
+  08 Sep 2006; Aron Griffis <agriffis@gentoo.org>:
+  Break out of loop when empty lockfile can't be removed #127471.  Add locking
+  regression tests:
+    100_lock_stale 101_lock_held 102_lock_empty 103_lock_empty_cant_remove
+
 * keychain 2.6.4 (08 Sep 2006)
 
   08 Sep 2006; Aron Griffis <agriffis@gentoo.org>:
