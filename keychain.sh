@@ -4,9 +4,9 @@
 # Originally authored by Daniel Robbins <drobbins@gentoo.org>
 # Maintained August 2002 - April 2003 by Seth Chandler <sethbc@gentoo.org>
 # Maintained April 2004 - present by Aron Griffis <agriffis@gentoo.org>
-# $Id: keychain.sh 91 2006-09-08 20:43:57Z agriffis $
+# $Id: keychain.sh 92 2006-09-08 20:45:14Z agriffis $
 
-version=2.6.4
+version=2.6.5
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
