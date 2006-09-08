@@ -135,7 +135,7 @@ want the older behavior.
 =item B<--lockwait> I<seconds>
 
 How long to wait for the lock to become available.  Defaults to 30
-seconds.
+seconds.  Zero indicates to wait forever.
 
 =item B<--noask>
 
