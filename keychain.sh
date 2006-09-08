@@ -4,7 +4,7 @@
 # Originally authored by Daniel Robbins <drobbins@gentoo.org>
 # Maintained August 2002 - April 2003 by Seth Chandler <sethbc@gentoo.org>
 # Maintained April 2004 - present by Aron Griffis <agriffis@gentoo.org>
-# $Id: keychain.sh 90 2006-09-08 19:04:29Z agriffis $
+# $Id: keychain.sh 91 2006-09-08 20:43:57Z agriffis $
 
 version=2.6.4
 
@@ -216,6 +216,7 @@ takelock() {
 
     tl_faking=false
     tl_emptyonce=false
+    tl_removedempty=false
     unset tl_oldpid tl_lastmesg
 
     # Set up timer
@@ -236,7 +237,8 @@ takelock() {
     # Try to lock for $lockwait seconds
     while [ $lockwait -eq 0 -o $tl_current -lt $tl_end ]; do
 
-        if tl_error=`umask 0377; echo $$ 2>&1 >"$lockf"`; then
+        tl_pid=$$
+        if tl_error=`umask 0377; echo $tl_pid 2>&1 >"$lockf"`; then
             havelock=true
             return 0
         fi
@@ -284,14 +286,16 @@ takelock() {
 
             # nb: fall through to sleep...
 
-        else # tl_pid is blank
-            if $tl_emptyonce; then
-                warn "removing empty lock file"
-                rm -f "$lockf"
-                tl_emptyonce=false
-                # give this another go-around, no sleep required
-                continue
-            fi
+        # tl_pid is blank
+        elif $tl_removedempty; then
+            die "failed to remove empty lock file"
+        elif $tl_emptyonce; then
+            warn "removing empty lock file"
+            rm -f "$lockf"
+            tl_removedempty=true
+            # give this another go-around, no sleep required
+            continue
+        else
             tl_emptyonce=true
             # fall through to sleep
         fi

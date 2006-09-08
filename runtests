@@ -660,6 +660,41 @@
     count ssh 1
 }
 
+100_lock_stale() {
+    trap "rm -f $keydir/$HOSTNAME-lockf" 0 1 2 15
+    ( umask 0377; echo stale > $keydir/$HOSTNAME-lockf; )
+    run_kc --lockwait 3
+    [[ -f $keydir/$HOSTNAME-lockf && $(<$keydir/$HOSTNAME-lockf) == stale ]] && fail "stale lock remains"
+    [[ $kc_out == *'removing stale lock'* ]] || fail "msg not printed"
+}
+
+101_lock_held() {
+    trap "rm -f $keydir/$HOSTNAME-lockf" 0 1 2 15
+    ( umask 0377; echo $$ > $keydir/$HOSTNAME-lockf; )
+    run_kc --lockwait 3
+    [[ -f $keydir/$HOSTNAME-lockf ]] || fail "lock was removed"
+    [[ $(<$keydir/$HOSTNAME-lockf) == $$ ]] || fail "lock was modified"
+    [[ $kc_out == *"failed to get the lock, held by pid $$"* ]] || fail "msg not printed"
+}
+
+102_lock_empty() {
+    trap "rm -f $keydir/$HOSTNAME-lockf" 0 1 2 15
+    ( umask 0377; :> $keydir/$HOSTNAME-lockf; )
+    run_kc --lockwait 3
+    [[ -f $keydir/$HOSTNAME-lockf && ! -s $keydir/$HOSTNAME-lockf ]] && fail "empty lock remains"
+    [[ $kc_out == *'removing empty lock'* ]] || fail "msg not printed"
+}
+
+103_lock_empty_cant_remove() {
+    trap "unset -f rm; rm -f $keydir/$HOSTNAME-lockf" 0 1 2 15
+    ( umask 0377; :> $keydir/$HOSTNAME-lockf; )
+    # fake out the rm attempt
+    rm() { [[ $* == *lockf ]] || command rm "$@"; }
+    run_kc --lockwait 3
+    [[ -f $keydir/$HOSTNAME-lockf ]] || fail "lock removed"
+    [[ $kc_out == *'failed to remove empty lock'* ]] || fail "msg not printed"
+}
+
 #
 # helper functions
 # 
@@ -720,7 +755,7 @@ fail() {
     fi
     echo "fail -- $*"
     echo
-    exit 1
+    exit 125
 }
 
 skip() {
@@ -761,7 +796,7 @@ while true; do
     esac
 done
 
-tests=( $(set | awk '$2=="()" && $1 ~ /^0[0-9][0-9][_\.]/ { print $1 }' | sort -n) )
+tests=( $(set | awk '$2=="()" && $1 ~ /^[0-9][0-9][0-9][_\.]/ { print $1 }' | sort -n) )
 
 if [[ $# -gt 0 ]]; then
     newtests=()
@@ -797,13 +832,19 @@ for t in "${tests[@]}"; do
     printf "%-50s " "${t##*/}:" >&2
     ( $opt_debug && set -x; $t; true; )
     case $? in
-        0)
-            (( passes++ ))
-            echo "pass" >&2
-            $opt_verbose && echo
+        125)
+            # failed, already announced.
             ;;
         126)
+            # skipped, already announced.
+            # treat this as a pass for stats
             (( passes++ ))
+            $opt_verbose && echo
+            ;;
+        *)
+            # passed, need to announce.
+            (( passes++ ))
+            echo "pass" >&2
             $opt_verbose && echo
             ;;
     esac
