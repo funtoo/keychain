@@ -3,6 +3,17 @@
 # Written by Daniel Robbins <drobbins@gentoo.org>
 # Maintained by Aron Griffis <agriffis@gentoo.org>
 
+* keychain 2.6.4 (08 Sep 2006)
+
+  08 Sep 2006; Aron Griffis <agriffis@gentoo.org>:
+  Add validinherit function so that validity of SSH_AUTH_SOCK and friends can be
+  validated from startagent rather than up front.  The advantage is that warning
+  messages aren't emitted unnecessarily when --inherit *-once.
+  Fix --eval for fish, and add new testcases: 
+    053_start_with_--eval_ksh
+    054_start_with_--eval_fish 
+    055_start_with_--eval_csh
+
 * keychain 2.6.3 (07 Sep 2006)
 
   07 Sep 2006; Aron Griffis <agriffis@gentoo.org>:

@@ -4,9 +4,9 @@
 # Originally authored by Daniel Robbins <drobbins@gentoo.org>
 # Maintained August 2002 - April 2003 by Seth Chandler <sethbc@gentoo.org>
 # Maintained April 2004 - present by Aron Griffis <agriffis@gentoo.org>
-# $Id: keychain.sh 89 2006-09-07 20:02:42Z agriffis $
+# $Id: keychain.sh 90 2006-09-08 19:04:29Z agriffis $
 
-version=2.6.3
+version=2.6.4
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -452,39 +452,62 @@ inheritagents() {
     if [ "$inheritwhich" != none ]; then
         if wantagent ssh; then
             if [ -n "$SSH_AUTH_SOCK" ]; then
-                if ls "$SSH_AUTH_SOCK" >/dev/null 2>&1; then
-                    inherit_ssh_auth_sock="$SSH_AUTH_SOCK"
-                    inherit_ssh_agent_pid="$SSH_AGENT_PID"
-                else
-                    warn "SSH_AUTH_SOCK in environment is invalid; ignoring it"
-                fi
+                inherit_ssh_auth_sock="$SSH_AUTH_SOCK"
+                inherit_ssh_agent_pid="$SSH_AGENT_PID"
             fi
 
-            if [ -z "$inherit_ssh_auth_sock" -a -n "$SSH2_AUTH_SOCK" ]; then 
-                if ls "$SSH2_AUTH_SOCK" >/dev/null 2>&1; then
-                    inherit_ssh2_auth_sock="$SSH2_AUTH_SOCK"
-                    inherit_ssh2_agent_pid="$SSH2_AGENT_PID"
-                else
-                    warn "SSH2_AUTH_SOCK in environment is invalid; ignoring it"
-                fi
+            if [ -n "$SSH2_AUTH_SOCK" ]; then 
+                inherit_ssh2_auth_sock="$SSH2_AUTH_SOCK"
+                inherit_ssh2_agent_pid="$SSH2_AGENT_PID"
             fi
         fi
 
         if wantagent gpg; then
             if [ -n "$GPG_AGENT_INFO" ]; then
-                la_IFS="$IFS"  # save current IFS
-                IFS=':'        # set IFS to colon to separate PATH
-                set -- $GPG_AGENT_INFO
-                IFS="$la_IFS"  # restore IFS
-                if kill -0 "$2" >/dev/null 2>&1; then
-                    inherit_gpg_agent_pid="$2"
-                    inherit_gpg_agent_info="$GPG_AGENT_INFO"
-                else
-                    warn "GPG_AGENT_INFO in environment is invalid; ignoring it"
-                fi
+                inherit_gpg_agent_info="$GPG_AGENT_INFO"
+                inherit_gpg_agent_pid=`echo "$GPG_AGENT_INFO" | cut -f2 -d:`
             fi
         fi
     fi
+}
+
+# synopsis: validinherit
+# Test inherit_* variables for validity
+validinherit() {
+    vi_agent="$1"
+    vi_status=0
+
+    if [ "$vi_agent" = ssh ]; then
+        if [ -n "$inherit_ssh_auth_sock" ]; then
+            ls "$inherit_ssh_auth_sock" >/dev/null 2>&1
+            if [ $? != 0 ]; then
+                warn "SSH_AUTH_SOCK in environment is invalid; ignoring it"
+                unset inherit_ssh_auth_sock inherit_ssh_agent_pid
+                vi_status=1
+            fi
+        fi
+
+        if [ -n "$inherit_ssh2_auth_sock" ]; then
+            ls "$inherit_ssh2_auth_sock" >/dev/null 2>&1
+            if [ $? != 0 ]; then
+                warn "SSH2_AUTH_SOCK in environment is invalid; ignoring it"
+                unset inherit_ssh2_auth_sock inherit_ssh2_agent_pid
+                vi_status=1
+            fi
+        fi
+
+    elif [ "$vi_agent" = gpg ]; then
+        if [ -n "$inherit_gpg_agent_pid" ]; then
+            kill -0 "$inherit_gpg_agent_pid" >/dev/null 2>&1
+            if [ $? != 0 ]; then
+                unset inherit_gpg_agent_pid inherit_gpg_agent_info
+                warn "GPG_AGENT_INFO in environment is invalid; ignoring it"
+                vi_status=1
+            fi
+        fi
+    fi
+
+    return $vi_status
 }
 
 # synopsis: catpidf_shell shell agents...
@@ -492,9 +515,9 @@ inheritagents() {
 # for keychain output when --eval is given.
 catpidf_shell() {
     case "$1" in
-        fish) cp_pidf="$fishpidf" ;;
-        *csh) cp_pidf="$cshpidf" ;;
-        *)    cp_pidf="$pidf" ;;
+        */fish|fish) cp_pidf="$fishpidf" ;;
+        *csh)        cp_pidf="$cshpidf" ;;
+        *)           cp_pidf="$pidf" ;;
     esac
     shift
 
@@ -607,17 +630,22 @@ startagent() {
     fi
 
     # Check for an existing agent
-    case "$inheritwhich: $start_mypids $start_fwdflg " in
-        any:*" $start_inherit_pid "*|local:*" $start_inherit_pid "*)
-            mesg "Inheriting ${start_prog}-agent ($start_inherit_pid)"
-            ;;
-
+    start_tester="$inheritwhich: $start_mypids $start_fwdflg "
+    case "$start_tester" in
         none:*" $start_pid "*|*-once:*" $start_pid "*)
             mesg "Found existing ${start_prog}-agent ($start_pid)"
             return 0
             ;;
 
-        *-once:*" $start_inherit_pid "*)
+        *:*" $start_inherit_pid "*)
+            # This test was postponed until now to prevent generating warnings
+            validinherit "$start_prog"
+            if [ $? != 0 ]; then
+                # inherit_* vars have been removed from the environment.  Try
+                # again now
+                startagent "$start_prog"
+                return $?
+            fi
             mesg "Inheriting ${start_prog}-agent ($start_inherit_pid)"
             ;;
 

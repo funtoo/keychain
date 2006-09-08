@@ -561,7 +561,7 @@
 
 050_start_ssh-agent_with_--eval() {
     $opt_debug && set +x
-    run_kc --quiet --eval --agents ssh
+    SHELL=/bin/bash run_kc --quiet --eval --agents ssh
     $opt_debug && set -x
     count ssh 1; count gpg 0
 
@@ -577,7 +577,7 @@
 
 051_start_gpg-agent_with_--eval() {
     $opt_debug && set +x
-    run_kc --quiet --eval --agents gpg
+    SHELL=/bin/bash run_kc --quiet --eval --agents gpg
     $opt_debug && set -x
     count ssh 0; count gpg 1
 
@@ -593,7 +593,7 @@
 
 052_start_with_--eval() {
     $opt_debug && set +x
-    run_kc --quiet --eval
+    SHELL=/bin/bash run_kc --quiet --eval
     $opt_debug && set -x
     count ssh 1; count gpg 1
 
@@ -604,6 +604,36 @@
     lsettings=$(env | egrep 'GPG|SSH' | sort)
 
     [[ $esettings == "$lsettings" ]] || fail "variables don't match"
+}
+
+053_start_with_--eval_ksh() {
+    $opt_debug && set +x
+    SHELL=/bin/ksh run_kc --quiet --eval
+    $opt_debug && set -x
+    count ssh 1; count gpg 1
+
+    type -P ksh &>/dev/null || skip "ksh not available"
+    ksh -c "$kc_out" || fail "ksh eval failed"
+}
+
+054_start_with_--eval_fish() {
+    $opt_debug && set +x
+    SHELL=/bin/fish run_kc --quiet --eval
+    $opt_debug && set -x
+    count ssh 1; count gpg 1
+
+    type -P fish &>/dev/null || skip "fish not available"
+    fish -c "$kc_out" || fail "fish eval failed"
+}
+
+055_start_with_--eval_csh() {
+    $opt_debug && set +x
+    SHELL=/bin/csh run_kc --quiet --eval
+    $opt_debug && set -x
+    count ssh 1; count gpg 1
+
+    type -P csh &>/dev/null || skip "csh not available"
+    csh -c "$kc_out" || fail "csh eval failed"
 }
 
 060_start_with_--timeout() {
@@ -693,6 +723,11 @@ fail() {
     exit 1
 }
 
+skip() {
+    echo "skip -- $*"
+    exit 126
+}
+
 #
 # main program
 # 
@@ -761,16 +796,22 @@ for t in "${tests[@]}"; do
     run_kc --stop all >/dev/null
     printf "%-50s " "${t##*/}:" >&2
     ( $opt_debug && set -x; $t; true; )
-    if [[ $? == 0 ]]; then
-        (( passes++ ))
-        echo "pass" >&2
-        $opt_verbose && echo
-    fi
+    case $? in
+        0)
+            (( passes++ ))
+            echo "pass" >&2
+            $opt_verbose && echo
+            ;;
+        126)
+            (( passes++ ))
+            $opt_verbose && echo
+            ;;
+    esac
     (( total++ ))
 done
 
 echo
-printf "%d of %d tests passed (%d%%)\n" \
+printf "%d of %d tests passed/skipped (%d%%)\n" \
     $passes $total $(( 100 * passes / total ))
 
 # vim:sw=4 et:
