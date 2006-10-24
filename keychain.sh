@@ -4,9 +4,9 @@
 # Originally authored by Daniel Robbins <drobbins@gentoo.org>
 # Maintained August 2002 - April 2003 by Seth Chandler <sethbc@gentoo.org>
 # Maintained April 2004 - present by Aron Griffis <agriffis@gentoo.org>
-# $Id: keychain.sh 96 2006-10-24 20:07:52Z agriffis $
+# $Id: keychain.sh 97 2006-10-24 22:01:32Z agriffis $
 
-version=2.6.7
+version=2.6.8
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -50,8 +50,12 @@ OFF="[0m"
 
 # GNU awk and sed have regex issues in a multibyte environment.  If any locale
 # variables are set, then override by setting LC_ALL
+unset pinentry_locale
 lvars=`locale 2>/dev/null | egrep -v '="?(|POSIX|C)"?$' 2>/dev/null`
 if [ -n "$lvars$LANG$LC_ALL" ]; then
+    # save LC_ALL so that pinentry-curses works right.  This has always worked
+    # correctly for me but peper and kloeri had problems with it.
+    pinentry_lc_all="$LC_ALL"
     LC_ALL=C
     export LC_ALL
 fi
@@ -1482,7 +1486,8 @@ if wantagent gpg; then
         set +f             # re-enable globbing
 
         for k in "$@"; do
-            echo | gpg --no-options --use-agent --no-tty --sign --local-user "$k" -o- >/dev/null 2>&1
+            echo | env LC_ALL="$pinentry_lc_all" \
+                gpg --no-options --use-agent --no-tty --sign --local-user "$k" -o- >/dev/null 2>&1
             [ $? != 0 ] && tryagain=true
         done
         $tryagain || break
