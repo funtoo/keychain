@@ -4,9 +4,9 @@
 # Originally authored by Daniel Robbins <drobbins@gentoo.org>
 # Maintained August 2002 - April 2003 by Seth Chandler <sethbc@gentoo.org>
 # Maintained April 2004 - present by Aron Griffis <agriffis@gentoo.org>
-# $Id: keychain.sh 94 2006-09-08 21:39:10Z agriffis $
+# $Id: keychain.sh 96 2006-10-24 20:07:52Z agriffis $
 
-version=2.6.6
+version=2.6.7
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -887,9 +887,6 @@ ssh_f() {
 gpg_listmissing() {
     unset glm_missing
 
-    glm_disp="$DISPLAY"
-    unset DISPLAY
-
     # Parse $gpgkeys into positional params to preserve spaces in filenames
     set -f;        # disable globbing
     glm_IFS="$IFS"  # save current IFS
@@ -901,7 +898,8 @@ gpg_listmissing() {
 
     for glm_k in "$@"; do
         # Check if this key is known to the agent.  Don't know another way...
-        if echo | gpg --use-agent --no-tty --sign --local-user "$glm_k" -o - >/dev/null 2>&1; then
+        if echo | env -i PATH="$PATH" GPG_AGENT_INFO="$GPG_AGENT_INFO" \
+                gpg --no-options --use-agent --no-tty --sign --local-user "$glm_k" -o- >/dev/null 2>&1; then
             # already know about this key
             mesg "Known gpg key: ${BLUE}${glm_k}${OFF}"
             continue
@@ -915,8 +913,6 @@ $glm_k"
             fi
         fi
     done
-
-    [ -n "$glm_disp" ] && DISPLAY="$glm_disp"
 
     echo "$glm_missing"
 }
@@ -1486,7 +1482,7 @@ if wantagent gpg; then
         set +f             # re-enable globbing
 
         for k in "$@"; do
-            echo | gpg --use-agent --no-tty --sign --local-user "$k" -o - >/dev/null 2>&1
+            echo | gpg --no-options --use-agent --no-tty --sign --local-user "$k" -o- >/dev/null 2>&1
             [ $? != 0 ] && tryagain=true
         done
         $tryagain || break
