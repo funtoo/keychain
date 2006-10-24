@@ -3,6 +3,17 @@
 # Written by Daniel Robbins <drobbins@gentoo.org>
 # Maintained by Aron Griffis <agriffis@gentoo.org>
 
+* keychain 2.6.8 (24 Oct 2006)
+
+  24 Oct 2006; Aron Griffis <agriffis@gentoo.org>:
+  Save LC_ALL for gpg invocation so that pinentry-curses works.  This affected
+  peper and kloeri, though it seems to work for me in any case.
+
+* keychain 2.6.7 (24 Oct 2006)
+
+  24 Oct 2006; Aron Griffis <agriffis@gentoo.org>:
+  Prevent gpg_listmissing from accidentally loading keys
+
 * keychain 2.6.6 (08 Sep 2006)
 
   08 Sep 2006; Aron Griffis <agriffis@gentoo.org>:
