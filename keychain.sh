@@ -4,7 +4,7 @@
 # Originally authored by Daniel Robbins <drobbins@gentoo.org>
 # Maintained August 2002 - April 2003 by Seth Chandler <sethbc@gentoo.org>
 # Maintained April 2004 - present by Aron Griffis <agriffis@gentoo.org>
-# $Id: keychain.sh 97 2006-10-24 22:01:32Z agriffis $
+# $Id: keychain.sh 99 2006-10-26 18:23:56Z agriffis $
 
 version=2.6.8
 
@@ -892,13 +892,13 @@ gpg_listmissing() {
     unset glm_missing
 
     # Parse $gpgkeys into positional params to preserve spaces in filenames
-    set -f;        # disable globbing
+    set -f          # disable globbing
     glm_IFS="$IFS"  # save current IFS
     IFS="
-"                  # set IFS to newline
+"                   # set IFS to newline
     set -- $gpgkeys
     IFS="$glm_IFS"  # restore IFS
-    set +f         # re-enable globbing
+    set +f          # re-enable globbing
 
     for glm_k in "$@"; do
         # Check if this key is known to the agent.  Don't know another way...
@@ -928,13 +928,13 @@ ssh_listmissing() {
     unset slm_missing
 
     # Parse $sshkeys into positional params to preserve spaces in filenames
-    set -f;        # disable globbing
+    set -f          # disable globbing
     slm_IFS="$IFS"  # save current IFS
     IFS="
-"                  # set IFS to newline
+"                   # set IFS to newline
     set -- $sshkeys
     IFS="$slm_IFS"  # restore IFS
-    set +f         # re-enable globbing
+    set +f          # re-enable globbing
 
     for slm_k in "$@"; do
         # Fingerprint current user-specified key
@@ -979,7 +979,7 @@ add_sshkey() {
 # Sets $sshkeys and $gpgkeys based on $mykeys
 parse_mykeys() {
     # Parse $mykeys into positional params to preserve spaces in filenames
-    set -f;        # disable globbing
+    set -f         # disable globbing
     pm_IFS="$IFS"  # save current IFS
     IFS="
 "                  # set IFS to newline
@@ -1424,13 +1424,13 @@ if wantagent ssh; then
         # Parse $sshkeys into positional params to preserve spaces in filenames.
         # This *must* happen after any calls to subroutines because pure Bourne
         # shell doesn't restore "$@" following a call.  Eeeeek!
-        set -f;            # disable globbing
-        old_IFS="$IFS"     # save current IFS
+        set -f          # disable globbing
+        old_IFS="$IFS"  # save current IFS
         IFS="
-"                          # set IFS to newline
+"                       # set IFS to newline
         set -- $sshkeys
-        IFS="$old_IFS"     # restore IFS
-        set +f             # re-enable globbing
+        IFS="$old_IFS"  # restore IFS
+        set +f          # re-enable globbing
 
         if $noguiopt || [ -z "$SSH_ASKPASS" -o -z "$DISPLAY" ]; then
             unset DISPLAY       # DISPLAY="" can cause problems
@@ -1477,13 +1477,13 @@ if wantagent gpg; then
         # Parse $gpgkeys into positional params to preserve spaces in filenames.
         # This *must* happen after any calls to subroutines because pure Bourne
         # shell doesn't restore "$@" following a call.  Eeeeek!
-        set -f;            # disable globbing
-        old_IFS="$IFS"     # save current IFS
+        set -f          # disable globbing
+        old_IFS="$IFS"  # save current IFS
         IFS="
-"                          # set IFS to newline
+"                       # set IFS to newline
         set -- $gpgkeys
-        IFS="$old_IFS"     # restore IFS
-        set +f             # re-enable globbing
+        IFS="$old_IFS"  # restore IFS
+        set +f          # re-enable globbing
 
         for k in "$@"; do
             echo | env LC_ALL="$pinentry_lc_all" \
