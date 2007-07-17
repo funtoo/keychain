@@ -1,5 +1,7 @@
-README for KeyChain; http://www.gentoo.org/projects/keychain
-Copyright 2001-2005 Gentoo Foundation; Distributed under the GPL
+README for Keychain; http://n01se.net/agriffis/keychain/
+Copyright 2001-2005 Gentoo Foundation, http://www.gentoo.org/
+Copyright 2007 Aron Griffis <agriffis@n01se.net>
+Distributed under the GPL v2
 
 REQUIREMENTS
 
@@ -16,7 +18,6 @@ install -m0755 keychain /usr/bin/keychain
 
 Keychain is now installed.  Now, look at keychain.txt or the manual
 page (they are the same) for instructions on how to use keychain.  For
-additional information on keychain, be sure to visit the Gentoo Linux
-keychain project page at:
+additional information on keychain, there is some outdated documentation at:
 
 http://www.gentoo.org/proj/en/keychain/

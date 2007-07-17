@@ -258,9 +258,9 @@ L<ssh-agent(1)>
 
 =head1 NOTES
 
-Keychain is maintained by Aron Griffis <agriffis@gentoo.org>.  If you
-need to report a bug or request an enhancement, please do so at
-L<http://bugs.gentoo.org/> and assign to agriffis@gentoo.org
+Keychain is maintained by Aron Griffis <agriffis@n01se.net>.  If you
+need to report a bug or request an enhancement, please do so by emailing me
+directly.
 
 Keychain was originally written by Daniel Robbins
 <drobbins@gentoo.org>, who has also written a series of three articles

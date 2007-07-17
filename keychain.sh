@@ -1,12 +1,12 @@
 #!/bin/sh
 # Copyright 1999-2005 Gentoo Foundation
+# Copyright 2007 Aron Griffis <agriffis@n01se.net>
 # Distributed under the terms of the GNU General Public License v2
 # Originally authored by Daniel Robbins <drobbins@gentoo.org>
 # Maintained August 2002 - April 2003 by Seth Chandler <sethbc@gentoo.org>
-# Maintained April 2004 - present by Aron Griffis <agriffis@gentoo.org>
-# $Id: keychain.sh 99 2006-10-26 18:23:56Z agriffis $
+# Maintained April 2004 - present by Aron Griffis <agriffis@n01se.net>
 
-version=2.6.8
+version=2.6.8+
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
