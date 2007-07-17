@@ -356,7 +356,7 @@ findpids() {
 
     # Try systems where we know what to do first
     case "$OSTYPE" in
-        AIX|*bsd*|*BSD*|CYGWIN|darwin*|Linux|OSF1)
+        AIX|*bsd*|*BSD*|CYGWIN|darwin*|Linux|linux-gnu|OSF1)
             fp_psout=`ps x 2>/dev/null` ;;      # BSD syntax
         HP-UX)
             fp_psout=`ps -u $me 2>/dev/null` ;; # SysV syntax
@@ -367,6 +367,8 @@ findpids() {
                 *)
                     fp_psout=`ps x 2>/dev/null` ;;      # BSD syntax
             esac ;;
+        GNU|gnu)
+            fp_psout=`ps -g 2>/dev/null` ;;     # GNU Hurd syntax
     esac
 
     # If we didn't get a match above, try a list of possibilities...
