@@ -10,7 +10,7 @@ version=2.6.8+
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
-maintainer="agriffis@gentoo.org"
+maintainer="drobbins@funtoo.org"
 zero=`basename "$0"`
 unset mesglog
 unset myaction
