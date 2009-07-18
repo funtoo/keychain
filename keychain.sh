@@ -41,6 +41,7 @@ unset envf
 evalopt=false
 confirmopt=false
 unset ssh_confirm
+unset GREP_OPTIONS
 
 BLUE="[34;01m"
 CYAN="[36;01m"
