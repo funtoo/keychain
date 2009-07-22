@@ -357,7 +357,7 @@ findpids() {
 
     # Try systems where we know what to do first
     case "$OSTYPE" in
-        AIX|*bsd*|*BSD*|CYGWIN|darwin*|Linux|linux-gnu|OSF1)
+        AIX|*bsd*|*BSD*|CYGWIN|darwin*|Linux|linux-gnu|OSF3)
             fp_psout=`ps x 2>/dev/null` ;;      # BSD syntax
         HP-UX)
             fp_psout=`ps -u $me 2>/dev/null` ;; # SysV syntax
@@ -1261,7 +1261,7 @@ fi
 
 # Don't use color if there's no terminal on stdout
 if [ -n "$OFF" ]; then
-    tty <&1 >/dev/null 2>&1 || unset BLUE CYAN GREEN OFF RED
+    test -t 0 || unset BLUE CYAN GREEN OFF RED
 fi
 
 # versinfo uses qprint, which honors --quiet
