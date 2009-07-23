@@ -15,9 +15,7 @@ keychain.1: keychain.pod keychain.sh
 		keychain.pod keychain.1
 	sed -i "s/^'br/.br/" keychain.1
 
-keychain: keychain.sh keychain.txt
-	perl -e '\
-		open P, "keychain.txt" or die "cant open keychain.txt"; \
+GENKEYCHAINPL = open P, "keychain.txt" or die "cant open keychain.txt"; \
 			while (<P>) { \
 				$$printing = 0 if /^\w/; \
 				$$printing = 1 if /^(SYNOPSIS|OPTIONS)/; \
@@ -33,7 +31,9 @@ keychain: keychain.sh keychain.txt
 			$$/ = undef; \
 			$$_ = <B>; \
 			s/INSERT_POD_OUTPUT_HERE\n/$$pod/ || die; \
-		print' >keychain
+		print
+keychain: keychain.sh keychain.txt
+	perl -e '$(GENKEYCHAINPL)' >keychain || rm -f keychain
 	chmod +x keychain
 
 keychain.txt: keychain.pod
@@ -64,10 +64,7 @@ keychain-$V-1.noarch.rpm: keychain-$V.tar.gz
 		~/redhat/SRPMS/keychain-$V-1.src.rpm .
 	rpm --addsign keychain-$V-1.noarch.rpm keychain-$V-1.src.rpm
 
-.PHONY: webpage
-webpage:
-	perl -0777i.bak -pe '\
-		BEGIN{open F, "ChangeLog"; local $$/=undef; \
+GENWEBPAGEPL = BEGIN{open F, "ChangeLog"; local $$/=undef; \
 			($$C=<F>) =~ s/^.*?\n\n//s; \
 			$$C =~ s/&/&amp;/g; \
 			$$C =~ s/</&lt;/g; \
@@ -75,8 +72,11 @@ webpage:
 		s/(<version>).*?(?=<.version>)/$${1}$V/; \
 		s/(<date>).*?(?=<.date>)/$${1}$D/; \
 		s/(keychain-)[\d.]+(?=\.tar|\S*rpm)/$${1}$V/g; \
-		s/(<!-- begin automatic ChangeLog insertion -->).*?(?=<!-- end)/$${1}$$C/s;' \
-			~/g/gentoo/xml/htdocs/proj/en/keychain/index.xml
+		s/(<!-- begin automatic ChangeLog insertion -->).*?(?=<!-- end)/$${1}$$C/s
+.PHONY: webpage
+webpage:
+	perl -0777i.bak -pe '$(GENWEBPAGEPL)' \
+		~/g/gentoo/xml/htdocs/proj/en/keychain/index.xml
 	cd ~/g/gentoo/xml/htdocs/proj/en/keychain && \
 		cvs commit -m 'update to $V' index.xml
 
