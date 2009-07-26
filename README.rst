@@ -234,5 +234,5 @@ the git repo that had been collecting in `bugs.gentoo.org`_. Daniel continues
 to maintain ``keychain`` and supporting documentation on funtoo.org, and
 plans to make regular maintenance releases of ``keychain`` as appropriate.
 
-The current release of ``keychain`` is still currently 2.6.9.
+The current release of ``keychain`` is currently 2.6.9.
 
