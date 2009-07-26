@@ -99,8 +99,16 @@ die() {
 # Display the version information
 versinfo() {
     qprint
-    qprint "${GREEN}KeyChain ${version}; ${BLUE}http://www.gentoo.org/proj/en/keychain/${OFF}"
-    qprint "Copyright 2002-2004 Gentoo Foundation; Distributed under the GPL"
+    qprint " ${GREEN}Keychain ${version}"
+    qprint " ${BLUE}http://www.funtoo.org${OFF}"
+    qprint
+    qprint " Copyright 2002-2006 Gentoo Foundation;"
+    qprint " Copyright 2007 Aron Griffis;"
+    qprint " Copyright 2009 Funtoo Technologies, LLC."
+    qprint
+    qprint " Keychain is free software: you can redistribute it and/or modify"
+    qprint " it under the terms of the GNU General Public License version 2 as"
+    qprint " published by the Free Software Foundation."
     qprint
 }
 
@@ -1266,10 +1274,9 @@ if [ -n "$OFF" ]; then
     tty <&2 >/dev/null 2>&1 || unset BLUE CYAN GREEN OFF RED
 fi
 
-# versinfo uses qprint, which honors --quiet
-versinfo
-[ "$myaction" = version ] && exit 0
-[ "$myaction" = help ] && { helpinfo; exit 0; }
+qprint #initial newline
+[ "$myaction" = version ] && { versinfo; exit 0; }
+[ "$myaction" = help ] && { versinfo; helpinfo; exit 0; }
 
 # Set up traps
 # Don't use signal names because they don't work on Cygwin.
