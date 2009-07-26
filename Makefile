@@ -1,7 +1,7 @@
 V:=$(shell /bin/sh keychain.sh --version 2>&1 | \
 	awk -F'[ ;]' '/^K/{print $$2; exit}')
 D:=$(shell date +'%d %b %Y')
-TARBALL_CONTENTS=keychain README ChangeLog COPYING keychain.pod keychain.1 \
+TARBALL_CONTENTS=keychain README.rst ChangeLog COPYING keychain.pod keychain.1 \
 				 keychain.spec
 
 all: keychain.1 keychain keychain.spec

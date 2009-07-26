@@ -1,12 +1,14 @@
 #!/bin/sh
 # Copyright 1999-2005 Gentoo Foundation
 # Copyright 2007 Aron Griffis <agriffis@n01se.net>
+# Copyright 2009-2010 Funtoo Technologies, LLC 
 # Distributed under the terms of the GNU General Public License v2
 # Originally authored by Daniel Robbins <drobbins@gentoo.org>
 # Maintained August 2002 - April 2003 by Seth Chandler <sethbc@gentoo.org>
-# Maintained April 2004 - present by Aron Griffis <agriffis@n01se.net>
+# Maintained April 2004 - July 2007 by Aron Griffis <agriffis@n01se.net>
+# Maintained July 2009 - present by Daniel Robbins <drobbins@funtoo.org>
 
-version=2.6.8+
+version=2.6.9
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 

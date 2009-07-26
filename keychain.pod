@@ -258,13 +258,9 @@ L<ssh-agent(1)>
 
 =head1 NOTES
 
-Keychain is maintained by Aron Griffis <agriffis@n01se.net>.  If you
-need to report a bug or request an enhancement, please do so by emailing me
-directly.
-
-Keychain was originally written by Daniel Robbins
-<drobbins@gentoo.org>, who has also written a series of three articles
-about it.  The articles can be found starting at
-L<http://www-106.ibm.com/developerworks/library/l-keyc.html>
+Keychain was created and is currently maintained by Daniel Robbins. If you need
+to report a bug or request an enhancement, please post to the funtoo-dev
+mailing list L<http://groups.google.com/group/funtoo-dev>. For more information
+about keychain, please visit L<http://www.funtoo.org>.
 
 =end
