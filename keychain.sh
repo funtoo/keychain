@@ -1259,9 +1259,9 @@ if [ -n "$envf" ]; then
     . "$envf"
 fi
 
-# Don't use color if there's no terminal on stdout
+# Don't use color if there's no terminal on stderr
 if [ -n "$OFF" ]; then
-    test -t 0 || unset BLUE CYAN GREEN OFF RED
+    tty <&2 >/dev/null 2>&1 || unset BLUE CYAN GREEN OFF RED
 fi
 
 # versinfo uses qprint, which honors --quiet
