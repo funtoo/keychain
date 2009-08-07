@@ -47,7 +47,7 @@ Keychain is compatible with many operating systems, including ``AIX``,
 ``*BSD``, ``Cygwin``, ``MacOS X``, ``Linux``, ``HP/UX``, ``Tru64 UNIX``,
 ``IRIX``, ``Solaris`` and ``GNU Hurd``. 
 
-.. _keychain 2.6.9 source code: /archive/keychain/keychain-2.6.9.tar.bz2
+.. _keychain 2.6.9 source code: http://www.funtoo.org/archive/keychain/keychain-2.6.9.tar.bz2
 
 Download
 --------
