@@ -80,11 +80,12 @@ Generating a Key Pair
 =====================
 
 To use RSA and DSA authentication, first you use a program called
-``ssh-keygen`` to generate a *key pair* -- two small files. One of the files is
-the *public key*.  The other small file contains the *private key*.
-``ssh-keygen`` will ask you for a passphrase, and this passphrase will be used
-to encrypt your private key. You will need to supply this passphrase to use
-your private key. If you wanted to generate a DSA key pair, you would do this::
+``ssh-keygen`` (included with OpenSSH) to generate a *key pair* -- two small
+files. One of the files is the *public key*.  The other small file contains the
+*private key*.  ``ssh-keygen`` will ask you for a passphrase, and this
+passphrase will be used to encrypt your private key. You will need to supply
+this passphrase to use your private key. If you wanted to generate a DSA key
+pair, you would do this::
 
         # ssh-keygen -t dsa
         Generating public/private dsa key pair.
