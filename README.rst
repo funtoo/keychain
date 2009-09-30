@@ -168,9 +168,10 @@ Note that when ``keychain`` runs for the first time after your local system has
 booted, you will be prompted for a passphrase for your private key file if it
 is encrypted.  But here's the nice thing about using ``keychain`` -- even if
 you are using an encrypted private key file, you will only need to enter your
-passphrase when your system first boots. After that, ``ssh-agent`` is already
-running and has your decrypted private key cached in memory. So if you open
-a new shell, you will see something like this:
+passphrase when your system first boots (or in the case of a server, when you
+first log in.) After that, ``ssh-agent`` is already running and has your
+decrypted private key cached in memory. So if you open a new shell, you will
+see something like this:
 
 .. figure:: keychain-2.png
    :alt: Keychain finds existing ssh-agent and gpg-agent, and doesn't prompt for passphrase
