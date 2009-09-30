@@ -156,19 +156,29 @@ The next time you log in or source your ``~/.bash_profile``, ``keychain`` will
 start, start ``ssh-agent`` for you if it has not yet been started, use
 ``ssh-add`` to add your ``id_dsa`` private key file to ``ssh-agent``, and set
 up your shell environment so that ``ssh`` will be able to find ``ssh-agent``.
-If ``ssh-agent`` is already running, ``keychain`` will ensure that all your
-private keys have been added to ``ssh-agent`` and then set up your environment
-so that ``ssh`` can find the already-running ``ssh-agent``.
+If ``ssh-agent`` is already running, ``keychain`` will ensure that your ``id_dsa`` 
+private key has been added to ``ssh-agent`` and then set up your environment
+so that ``ssh`` can find the already-running ``ssh-agent``. It will look 
+something like this:
+
+.. figure:: keychain-1.png
+   :alt: Keychain starts for the first time after login
 
 Note that when ``keychain`` runs for the first time after your local system has
 booted, you will be prompted for a passphrase for your private key file if it
 is encrypted.  But here's the nice thing about using ``keychain`` -- even if
 you are using an encrypted private key file, you will only need to enter your
 passphrase when your system first boots. After that, ``ssh-agent`` is already
-running and has your decrypted private key cached in memory.
+running and has your decrypted private key cached in memory. So if you open
+a new shell, you will see something like this:
+
+.. figure:: keychain-2.png
+   :alt: Keychain finds existing ssh-agent and gpg-agent, and doesn't prompt for passphrase
 
 This means that you can now ``ssh`` to your heart's content, without supplying
-a passphrase. You can also execute batch ``cron`` jobs and scripts that need
+a passphrase. 
+
+You can also execute batch ``cron`` jobs and scripts that need
 to use ``ssh`` or ``scp``, and they can take advantage of passwordless RSA/DSA
 authentication as well. To do this, you would add the following line to 
 the top of a bash script::
@@ -180,6 +190,39 @@ passphrase if one is needed. Since it is not running interactively, it is
 better for the script to fail if the decrypted private key isn't cached in
 memory via ``ssh-agent``.
 
+Keychain Options
+================
+
+In the images above, you will note that ``keychain`` starts ``ssh-agent``, but also
+starts ``gpg-agent``. Modern versions of ``keychain`` also support caching decrypted
+GPG keys via use of ``gpg-agent``, and will start ``gpg-agent`` by default if it
+is available on your system. To avoid this behavior and only start ``ssh-agent``,
+modify your ``~/.bash_profile`` as follows::
+
+        eval `keychain --agents ssh --eval id_dsa` || exit 1
+
+The additional ``--agents ssh`` option tells ``keychain`` just to manage ``ssh-agent``,
+and ignore ``gpg-agent`` even if it is available.
+
+Sometimes, it might be necessary to flush all cached keys in memory. To do
+this, type::
+
+        keychain --clear
+
+Any agent(s) will continue to run. If you want to stop all agents, which will
+also of course cause your keys/identities to be flushed from memory, you can do
+this as follows::
+
+        keychain -k all
+
+If you have other agents running under your user account, you can also tell
+``keychain`` to just stop only the agents that ``keychain`` started::
+
+        keychain -k mine
+
+Please consult the ``keychain`` man page or (in 2.6.10+) type ``keychain --help
+| less`` for full documentation of all ``keychain`` command-line options.
+
 Learning More
 =============
 
@@ -188,7 +231,7 @@ default shell, such as most Linux systems and Mac OS X.
 
 To learn more about the many things that ``keychain`` can do, including
 alternate shell support, consult the keychain man page, or type ``keychain
---help`` for a full list of command options.
+--help | less`` for a full list of command options.
 
 I also recommend you read my original series of articles about `OpenSSH`_ that
 I wrote for IBM developerWorks, called ``OpenSSH Key Management``.  Please note
