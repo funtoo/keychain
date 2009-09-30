@@ -9,6 +9,21 @@
 # Rewritten by Aron Griffis <agriffis@n01se.net>
 # Currently maintained by Daniel Robbins <drobbins@funtoo.org>
 
+  This last one hasn't been committed yet:
+
+  30 Sep 2009; Daniel Robbins <drobbins@funtoo.org>: MacOS X/BSD improvements:
+  fix sed call in Makefile for MacOS X and presumably other *BSD environments,
+  Rename COPYING to COPYING.txt, slight COPYING.txt formatting changes to
+  allow license to display more cleanly from MacOS X .pkg automated install.
+  Fixed POD errors (removed '=end').
+
+  29 Sep 2009; Daniel Robbins <drobbins@funtoo.org>: disable "Identity added"
+  messages when --quiet is specified (Gentoo bug #250328, thanks to Richard
+  Laager,) --help will print output to stdout (Gentoo bug #196060, thanks to
+  Elan Ruusamäe,) output cleanup and colorization changes - moving away from
+  blue and over to cyan as it displays better terminals with black background.
+  Also some additional colorization. Version bump to 2.6.10.
+
 * keychain 2.6.9 (26 Jul 2009)
 
   26 Jul 2009; Daniel Robbins <drobbins@funtoo.org>: Close Gentoo bug 222953

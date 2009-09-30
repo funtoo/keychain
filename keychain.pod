@@ -86,7 +86,8 @@ a non-standard place.
 
 =item B<-h --help>
 
-Show help that looks remarkably like this man-page.
+Show help that looks remarkably like this man-page. As of 2.6.10,
+help is sent to stdout so it can be easily piped to a pager.
 
 =item B<--host> I<name>
 
@@ -196,8 +197,8 @@ simultaneously without waiting on each other.
 
 =item B<-q --quiet>
 
-Only print messages in case of warning, error or required
-interactivity.
+Only print messages in case of warning, error or required interactivity. As of
+version 2.6.10, this also suppresses "Identities added" messages for ssh-agent.
 
 =item B<--timeout> I<minutes>
 

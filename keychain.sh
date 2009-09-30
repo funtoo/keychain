@@ -8,7 +8,7 @@
 # Maintained April 2004 - July 2007 by Aron Griffis <agriffis@n01se.net>
 # Maintained July 2009 - present by Daniel Robbins <drobbins@funtoo.org>
 
-version=2.6.9
+version=2.6.10
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -29,6 +29,7 @@ sunssh=unknown
 quickopt=false
 quietopt=false
 clearopt=false
+color=true
 inheritwhich=local-once
 unset stopwhich
 unset timeout
@@ -47,8 +48,10 @@ unset GREP_OPTIONS
 
 BLUE="[34;01m"
 CYAN="[36;01m"
+CYANN="[36m"
 GREEN="[32;01m"
 RED="[31;01m"
+PURP="[35;01m"
 OFF="[0m"
 
 # GNU awk and sed have regex issues in a multibyte environment.  If any locale
@@ -116,7 +119,7 @@ versinfo() {
 # Display the help information. There's no really good way to use qprint for
 # this...
 helpinfo() {
-    cat >&2 <<EOHELP
+    cat >&1 <<EOHELP
 INSERT_POD_OUTPUT_HERE
 EOHELP
 }
@@ -422,7 +425,7 @@ stopagent() {
     case "$stopwhich" in
         all)
             kill $stop_mypids >/dev/null 2>&1
-            mesg "All $me's $stop_prog-agent(s) ($stop_mypids) are now stopped"
+            mesg "All ${CYANN}$me${OFF}'s $stop_prog-agents stopped: ${CYANN}$stop_mypids${OFF}"
             ;;
 
         others)
@@ -670,7 +673,7 @@ startagent() {
     start_tester="$inheritwhich: $start_mypids $start_fwdflg "
     case "$start_tester" in
         none:*" $start_pid "*|*-once:*" $start_pid "*)
-            mesg "Found existing ${start_prog}-agent ($start_pid)"
+            mesg "Found existing ${start_prog}-agent: ${CYANN}$start_pid${OFF}"
             return 0
             ;;
 
@@ -694,7 +697,6 @@ startagent() {
     esac
 
     # Init the bourne-formatted pidfile
-    mesg "Initializing $start_pidf file..."
     ( umask 0177 && :> "$start_pidf"; )
     if [ $? != 0 ]; then
         rm -f "$start_pidf" "$start_cshpidf" "$start_fishpidf" 2>/dev/null
@@ -703,7 +705,6 @@ startagent() {
     fi
 
     # Init the csh-formatted pidfile
-    mesg "Initializing $start_cshpidf file..."
     ( umask 0177 && :> "$start_cshpidf"; )
     if [ $? != 0 ]; then
         rm -f "$start_pidf" "$start_cshpidf" "$start_fishpidf" 2>/dev/null
@@ -712,7 +713,6 @@ startagent() {
     fi
 
     # Init the fish-formatted pidfile
-    mesg "Initializing $start_fishpidf file..."
     ( umask 0177 && :> "$start_fishpidf"; )
     if [ $? != 0 ]; then
         rm -f "$start_pidf" "$start_cshpidf" "$start_fishpidf" 2>/dev/null
@@ -726,7 +726,7 @@ startagent() {
 
         # Start the agent.
         # Branch again since the agents start differently
-        mesg "Starting ${start_prog}-agent"
+        mesg "Starting ${start_prog}-agent..."
         if [ "$start_prog" = ssh ]; then
             start_out=`ssh-agent`
         elif [ "$start_prog" = gpg ]; then
@@ -918,7 +918,7 @@ gpg_listmissing() {
         if echo | env -i PATH="$PATH" GPG_AGENT_INFO="$GPG_AGENT_INFO" \
                 gpg --no-options --use-agent --no-tty --sign --local-user "$glm_k" -o- >/dev/null 2>&1; then
             # already know about this key
-            mesg "Known gpg key: ${BLUE}${glm_k}${OFF}"
+            mesg "Known gpg key: ${CYANN}${glm_k}${OFF}"
             continue
         else
             # need to add this key
@@ -957,7 +957,7 @@ ssh_listmissing() {
         case " $sshavail " in
             *" $slm_finger "*)
                 # already know about this key
-                mesg "Known ssh key: ${BLUE}${slm_k}${OFF}"
+                mesg "Known ssh key: ${CYANN}${slm_k}${OFF}"
                 ;;
             *)
                 # need to add this key
@@ -1209,7 +1209,7 @@ while [ -n "$1" ]; do
             quietopt=true
             ;;
         --nocolor)
-            unset BLUE CYAN GREEN OFF RED
+            color=false
             ;;
         --timeout)
             shift
@@ -1271,12 +1271,17 @@ fi
 
 # Don't use color if there's no terminal on stderr
 if [ -n "$OFF" ]; then
-    tty <&2 >/dev/null 2>&1 || unset BLUE CYAN GREEN OFF RED
+    tty <&2 >/dev/null 2>&1 || color=false
 fi
+
+#disable color if necessary, right before our initial newline
+
+$color || unset BLUE CYAN CYANN GREEN PURP OFF RED
 
 qprint #initial newline
 [ "$myaction" = version ] && { versinfo; exit 0; }
 [ "$myaction" = help ] && { versinfo; helpinfo; exit 0; }
+mesg "${PURP}keychain ${OFF}${CYANN}${version}${OFF} ~ ${GREEN}http://www.funtoo.org${OFF}"
 
 # Set up traps
 # Don't use signal names because they don't work on Cygwin.
@@ -1333,7 +1338,7 @@ if $quickopt; then
             sshavail=`ssh_l`    # try to use existing agent
                                 # 0 = found keys, 1 = no keys, 2 = no agent
             if [ $? = 0 -o \( $? = 1 -a -z "$mykeys" \) ]; then
-                mesg "Found existing ssh-agent ($ssh_agent_pid)"
+                mesg "Found existing ssh-agent: ${CYANN}$ssh_agent_pid${OFF}"
                 needstart=false
             fi
         elif [ $a = gpg ]; then
@@ -1341,7 +1346,7 @@ if $quickopt; then
             if [ -n "$gpg_agent_pid" ]; then
                 case " `findpids gpg` " in
                     *" $gpg_agent_pid "*) 
-                        mesg "Found existing gpg-agent ($gpg_agent_pid)"
+                        mesg "Found existing gpg-agent: ${CYANN}$gpg_agent_pid${OFF}"
                         needstart=false ;;
                 esac
             fi
@@ -1431,7 +1436,7 @@ if wantagent ssh; then
     # Attempt to add the keys
     while [ -n "$sshkeys" ]; do
 
-        mesg "Adding ${BLUE}"`echo "$sshkeys" | wc -l`"${OFF} ssh key(s)..."
+        mesg "Adding ${CYANN}"`echo "$sshkeys" | wc -l`"${OFF} ssh key(s)..."
 
         # Parse $sshkeys into positional params to preserve spaces in filenames.
         # This *must* happen after any calls to subroutines because pure Bourne
@@ -1447,11 +1452,11 @@ if wantagent ssh; then
         if $noguiopt || [ -z "$SSH_ASKPASS" -o -z "$DISPLAY" ]; then
             unset DISPLAY       # DISPLAY="" can cause problems
             unset SSH_ASKPASS   # make sure ssh-add doesn't try SSH_ASKPASS
-            sshout=`ssh-add ${ssh_timeout} ${ssh_confirm} "$@"`
+            sshout=`ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1`
         else
-            sshout=`ssh-add ${ssh_timeout} ${ssh_confirm} "$@" </dev/null`
+            sshout=`ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1 </dev/null`
         fi
-        [ $? = 0 ] && break
+        [ $? = 0 ] && mesg "ssh-add: Identities added: `echo $sshkeys`" && break
 
         if [ $sshattempts = 1 ]; then
             die "Problem adding; giving up"
