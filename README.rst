@@ -194,6 +194,9 @@ memory via ``ssh-agent``.
 Keychain Options
 ================
 
+Specifying Agents
+-----------------
+
 In the images above, you will note that ``keychain`` starts ``ssh-agent``, but also
 starts ``gpg-agent``. Modern versions of ``keychain`` also support caching decrypted
 GPG keys via use of ``gpg-agent``, and will start ``gpg-agent`` by default if it
@@ -205,14 +208,30 @@ modify your ``~/.bash_profile`` as follows::
 The additional ``--agents ssh`` option tells ``keychain`` just to manage ``ssh-agent``,
 and ignore ``gpg-agent`` even if it is available.
 
+Clearing Keys
+-------------
+
 Sometimes, it might be necessary to flush all cached keys in memory. To do
 this, type::
 
         keychain --clear
 
-Any agent(s) will continue to run. If you want to stop all agents, which will
-also of course cause your keys/identities to be flushed from memory, you can do
-this as follows::
+Any agent(s) will continue to run. 
+
+Improving Security
+------------------
+
+To improve the security of ``keychain``, some people add the ``--clear`` option to
+their ``~/.bash_profile`` ``keychain`` invocation. The rationale behind this is that
+any user logging in should be assumed to be an intruder until proven otherwise. This
+means that you will need to re-enter any passphrases when you log in, but cron jobs
+will still be able to run when you log out.
+
+Stopping Agents
+---------------
+
+If you want to stop all agents, which will also of course cause your
+keys/identities to be flushed from memory, you can do this as follows::
 
         keychain -k all
 
@@ -220,9 +239,6 @@ If you have other agents running under your user account, you can also tell
 ``keychain`` to just stop only the agents that ``keychain`` started::
 
         keychain -k mine
-
-Please consult the ``keychain`` man page or (in 2.6.10+) type ``keychain --help
-| less`` for full documentation of all ``keychain`` command-line options.
 
 Learning More
 =============
