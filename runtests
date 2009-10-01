@@ -62,8 +62,8 @@
 
     grep -q 'ssh-agent.*found running' <<<"$kc_out" && fail "no ssh-agent found running"
     grep -q 'gpg-agent.*found running' <<<"$kc_out" && fail "no gpg-agent found running"
-    grep -q 'ssh-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop ssh-agent"
-    grep -q 'gpg-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop gpg-agent"
+    grep -q 'ssh-agents stopped' <<<"$kc_out" || fail "couldn't stop ssh-agent"
+    grep -q 'gpg-agents stopped' <<<"$kc_out" || fail "couldn't stop gpg-agent"
     count gpg 0
     count ssh 0
 }
@@ -83,7 +83,7 @@
         run_kc --stop --agents ssh
 
         grep -q 'ssh-agent.*found running' <<<"$kc_out" && fail "no ssh-agent found running"
-        grep -q 'ssh-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop ssh-agent"
+        grep -q 'ssh-agents stopped' <<<"$kc_out" || fail "couldn't stop ssh-agent"
         count gpg $(( num_gpg + 1 ))
         count ssh 0
     }
@@ -103,7 +103,7 @@
         run_kc --stop --agents gpg
 
         grep -q 'gpg-agent.*found running' <<<"$kc_out" && fail "no gpg-agent found running"
-        grep -q 'gpg-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop gpg-agent"
+        grep -q 'gpg-agents stopped' <<<"$kc_out" || fail "couldn't stop gpg-agent"
         count ssh $(( num_ssh + 1 ))
         count gpg 0
     }
@@ -124,8 +124,8 @@
 
     grep -q 'ssh-agent.*found running' <<<"$kc_out" && fail "no ssh-agent found running"
     grep -q 'gpg-agent.*found running' <<<"$kc_out" && fail "no gpg-agent found running"
-    grep -q 'ssh-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop ssh-agent"
-    grep -q 'gpg-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop gpg-agent"
+    grep -q 'ssh-agents stopped' <<<"$kc_out" || fail "couldn't stop ssh-agent"
+    grep -q 'gpg-agents stopped' <<<"$kc_out" || fail "couldn't stop gpg-agent"
     count gpg 0
     count ssh 0
 }
@@ -145,7 +145,7 @@
         run_kc --stop --agents ssh
 
         grep -q 'ssh-agent.*found running' <<<"$kc_out" && fail "no ssh-agent found running"
-        grep -q 'ssh-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop ssh-agent"
+        grep -q 'ssh-agents stopped' <<<"$kc_out" || fail "couldn't stop ssh-agent"
         count gpg $(( num_gpg + 1 ))
         count ssh 0
     }
@@ -165,7 +165,7 @@
         run_kc --stop --agents gpg
 
         grep -q 'gpg-agent.*found running' <<<"$kc_out" && fail "no gpg-agent found running"
-        grep -q 'gpg-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop gpg-agent"
+        grep -q 'gpg-agents stopped' <<<"$kc_out" || fail "couldn't stop gpg-agent"
         count ssh $(( num_ssh + 1 ))
         count gpg 0
     }
@@ -187,8 +187,8 @@
 
     grep -q 'ssh-agent.*found running' <<<"$kc_out" && fail "no ssh-agent found running"
     grep -q 'gpg-agent.*found running' <<<"$kc_out" && fail "no gpg-agent found running"
-    grep -q 'ssh-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop ssh-agent"
-    grep -q 'gpg-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop gpg-agent"
+    grep -q 'ssh-agents stopped' <<<"$kc_out" || fail "couldn't stop ssh-agent"
+    grep -q 'gpg-agents stopped' <<<"$kc_out" || fail "couldn't stop gpg-agent"
     count gpg $num_gpg
     count ssh $num_ssh
     stopped $SSH_AGENT_PID
@@ -211,7 +211,7 @@
         run_kc --stop mine --agents ssh
 
         grep -q 'ssh-agent.*found running' <<<"$kc_out" && fail "no ssh-agent found running"
-        grep -q 'ssh-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop ssh-agent"
+        grep -q 'ssh-agents stopped' <<<"$kc_out" || fail "couldn't stop ssh-agent"
         count gpg $(( num_gpg + 1 ))
         count ssh $num_ssh
         stopped $GPG_AGENT_PID
@@ -233,7 +233,7 @@
         run_kc --stop mine --agents gpg
 
         grep -q 'gpg-agent.*found running' <<<"$kc_out" && fail "no gpg-agent found running"
-        grep -q 'gpg-agent.*now stopped' <<<"$kc_out" || fail "couldn't stop gpg-agent"
+        grep -q 'gpg-agents stopped' <<<"$kc_out" || fail "couldn't stop gpg-agent"
         count ssh $(( num_ssh + 1 ))
         count gpg $num_gpg
         stopped $SSH_AGENT_PID
@@ -242,7 +242,7 @@
 008_start_ssh-agent_with_one_key() {
     run_kc ${sshkeys[0]}
 
-    [[ $kc_out == *Identity\ added* ]] || fail "failed to start ssh-agent"
+    [[ $kc_out == *Identities\ added* ]] || fail "failed to start ssh-agent"
 
     source $keydir/$HOSTNAME-sh || fail "couldn't source $keydir/$HOSTNAME-sh"
     ssh-add -l | grep -q ${sshkeys[0]##*/} || fail "ssh-agent isn't aware of ${sshkeys[0]##*/}"
@@ -251,7 +251,7 @@
 009_start_ssh-agent_with_multiple_keys() {
     run_kc "${sshkeys[@]}"
 
-    [[ $(grep -c Identity.added <<<"$kc_out") == ${#sshkeys[@]} ]] || fail "keychain didn't report ${#sshkeys[@]} keys"
+    [ "`count_ident "$kc_out"`" != "${#sshkeys[@]}" ] && fail "keychain didn't report ${#sshkeys[@]} keys"
 
     source $keydir/$HOSTNAME-sh || fail "couldn't source $keydir/$HOSTNAME-sh"
     for x in "${sshkeys[@]}"; do
@@ -289,8 +289,9 @@
 
     [[ $? == 0 ]] || fail "keychain exited with non-zero status"
 
-    [[ $(grep -c Identity.added <<<"$kc_out") == ${#sshkeys[@]} ]] || fail "keychain didn't report ${#sshkeys[@]} keys"
-    [[ $(grep -c gpg.key <<<"$kc_out") == ${#gpgkeys[@]} ]] || fail "keychain didn't report ${#gpgkeys[@]} keys"
+
+    [ "`count_ident "$kc_out"`" != "${#sshkeys[@]}" ] && fail "keychain didn't report ${#sshkeys[@]} ssh keys"
+    [ "`count_gpg "$kc_out"`" != "${#gpgkeys[@]}" ] && fail "keychain didn't report ${#gpgkeys[@]} gpg keys"
 
     source $keydir/$HOSTNAME-sh-gpg || fail "couldn't source $keydir/$HOSTNAME-sh-gpg"
     source $keydir/$HOSTNAME-sh || fail "couldn't source $keydir/$HOSTNAME-sh"
@@ -308,7 +309,7 @@
     run_kc ${sshkeys[0]}
     run_kc ${sshkeys[1]}
 
-    [[ $kc_out == *Identity\ added* ]] || fail "failed to add key"
+    [[ $kc_out == *Identities\ added* ]] || fail "failed to add key"
 
     source $keydir/$HOSTNAME-sh || fail "couldn't source $keydir/$HOSTNAME-sh"
     ssh-add -l | grep -q ${sshkeys[1]##*/} || fail "ssh-agent isn't aware of ${sshkeys[0]##*/}"
@@ -350,7 +351,7 @@
     chmod +x $askpass
     DISPLAY=needthis SSH_ASKPASS=$askpass run_kc ${sshkeys_passwd[0]} </dev/null
 
-    [[ $kc_out == *Identity\ added* ]] || fail "failed to start ssh-agent"
+    [[ $kc_out == *Identities\ added* ]] || fail "failed to start ssh-agent"
 
     source $keydir/$HOSTNAME-sh || fail "couldn't source $keydir/$HOSTNAME-sh"
     ssh-add -l | grep -q ${sshkeys_passwd[0]##*/} \
@@ -638,7 +639,7 @@
 
 060_start_with_--timeout() {
     run_kc --timeout 2 "${sshkeys[0]}"
-    [[ $kc_out == *'Lifetime set to 120 seconds'* ]] || fail "msg not printed"
+    [[ $kc_out == *'life=2m'* ]] || fail "msg not printed"
     count ssh 1
 }
 
@@ -656,7 +657,7 @@
 
 070_start_with_--confirm() {
     run_kc --confirm "${sshkeys[0]}"
-    [[ $kc_out == *'The user has to confirm each use of the key'* ]] || fail "msg not printed"
+    [[ $kc_out == *'confirm'* ]] || fail "msg not printed"
     count ssh 1
 }
 
@@ -732,6 +733,19 @@
 #
 # helper functions
 # 
+
+count_ident() {
+	cat << EOF | sed -n -e '/Identities.added/{s/^.*added://;p}' | wc -w
+$1
+EOF
+}
+
+count_gpg() {
+	cat << EOF | sed -n -e '/Adding.*gpg key(s)/{s/^.*key(s)://;p}' | wc -w
+$1
+EOF
+}
+
 
 run_kc() {
     kc_args="$*"        # for fail()
