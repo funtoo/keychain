@@ -203,8 +203,150 @@ now() {
     return 1
 }
 
+# synopsis: trylock
+# Utility for takelock()
+trylock() {
+    tl_pid=$$
+    if tl_error=`umask 0377; echo $tl_pid 2>&1 >"$lockf"`; then
+        havelock=true
+        return 0
+    else
+        return 1
+    fi
+}
+
+# synopsis: takelock
+# Attempts to get the lockfile $lockf.  If locking isn't available, just returns.
+# If locking is available but can't get the lock, exits with error.
 takelock() {
-	return 0
+	qprint DEBUG taking lock
+    # Check if we already have the lock.  Since this is not a threaded prog,
+    # using this global is safe
+    $havelock && return 0
+	qprint DEBUG havelock
+    # Honor --nolock
+    if $nolockopt; then
+        unset lockf
+        return 0
+    fi
+
+    # Check for old-style lock; unlikely.
+    # Redirect stderr since -h might not be implemented, in which case we
+    # blunder ahead.
+    if [ -h "$olockf" ] 2>/dev/null; then
+        error "please remove old-style lock: $olockf"
+        return 1
+    fi
+
+    # Catch the case that an existing lockfile might, for some strange reason,
+    # have the wrong permissions
+    chmod 0400 "$lockf" 2>/dev/null
+
+    tl_faking=false
+    tl_emptyonce=false
+    tl_emptytwice=false
+    tl_announced=false
+    unset tl_oldpid tl_lastmesg
+
+    # Set up timer
+    if [ $lockwait = -1 ]; then
+        true    # don't bother to set tl_start, tl_end, tl_current
+    elif tl_start=`now`; then
+        tl_end=`expr $tl_start + $lockwait`
+        tl_current=$tl_start
+    else
+        # we'll fake it the best we can
+        tl_faking=true
+        tl_start=0
+        tl_end=`expr $lockwait \* 10`
+        tl_current=0
+    fi
+    tl_nextmesg=$tl_current
+	qprint "DEBUG Got here"
+
+    # Try once initially for lockwait==0; doesn't hurt to try again immediately
+    # in the loop
+    trylock && return 0
+    qprint "DEBUG Got here 2"
+    # Try to lock for $lockwait seconds
+    while [ $lockwait = -1 -o $tl_current -lt $tl_end ]; do
+    	qprint "DEBUG IN LOOP"
+        trylock && return 0
+
+        # advance our timer
+        if [ $lockwait != -1 ]; then
+            if $tl_faking; then
+                tl_current=`expr $tl_current + 1`
+            else
+                tl_current=`now $tl_current`
+            fi
+        fi
+
+        # read the lock
+        tl_pid=`cat "$lockf" 2>/dev/null`
+
+        if [ -n "$tl_pid" ]; then
+            # test for a stale lock
+            kill -0 "$tl_pid" 2>/dev/null
+            if [ $? != 0 ]; then
+                # Avoid a race condition; another keychain might have started at
+                # this point.  If the pid is the same as the last time we
+                # checked, then go ahead and remove the stale lock.  Otherwise
+                # remember the pid and try again.
+                if [ "$tl_pid" = "$tl_oldpid" ]; then
+                    warn "removing stale lock for pid $tl_pid"
+                    rm -f "$lockf"
+                else
+                    tl_oldpid="$tl_pid"
+                fi
+                # try try again, no sleep required
+                continue
+            fi
+
+            # don't keep the user in suspense
+            if [ $lockwait != -1 ]; then
+                if [ $tl_current -eq $tl_nextmesg ]; then
+                    tl_timeleft=`expr $tl_end - $tl_current`
+                    if [ $tl_timeleft -gt 0 ]; then
+                        mesg "Waiting $tl_timeleft seconds for lock, held by pid $tl_pid"
+                    fi
+                    tl_nextmesg=`expr $tl_current + 1`
+                fi
+            else
+                $tl_announced || mesg "Waiting for lock, held by pid $tl_pid"
+                tl_announced=true
+            fi
+
+            # nb: fall through to sleep...
+
+        # tl_pid is blank
+        elif $tl_emptytwice; then
+            error "failed to remove empty lock file"
+            break
+        elif $tl_emptyonce; then
+            warn "removing empty lock file"
+            rm -f "$lockf"
+            tl_emptytwice=true
+            # give this another go-around, no sleep required
+            continue
+        else
+            tl_emptyonce=true
+            # fall through to sleep
+        fi
+
+        # sleep for a bit to wait for the keychain process holding the lock
+        sleep 0.1 >/dev/null 2>&1 && continue
+        perl -e 'select(undef, undef, undef, 0.1)' \
+            >/dev/null 2>&1 && continue
+        # adjust granularity of tl_current stepping
+        $tl_faking && tl_current=`expr $tl_current + 9`
+        sleep 1
+    done
+
+    # no luck
+    [ -n "$tl_pid" ] || unset tl_pid    # ${var+...} relies on set vs. unset
+    error "failed to get the lock${tl_pid+, held by pid $tl_pid}: $tl_error"
+    return 1
 }
 
 # synopsis: droplock
