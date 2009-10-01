@@ -4,7 +4,7 @@ D:=$(shell date +'%d %b %Y')
 TARBALL_CONTENTS=keychain README.rst ChangeLog COPYING keychain.pod keychain.1 \
 				 keychain.spec
 
-all: keychain.1 keychain keychain.spec
+all: keychain.1.gz keychain keychain.spec
 
 keychain.spec: keychain.spec.in keychain.sh
 	sed 's/KEYCHAIN_VERSION/$V/' keychain.spec.in > keychain.spec
@@ -13,7 +13,10 @@ keychain.1: keychain.pod keychain.sh
 	pod2man --name=keychain --release=$V \
 		--center='http://gentoo.org/proj/en/keychain.xml' \
 		keychain.pod keychain.1
-	sed -i "s/^'br/.br/" keychain.1
+	sed -i.orig -e "s/^'br/.br/" keychain.1
+
+keychain.1.gz: keychain.1
+	gzip -9 keychain.1
 
 GENKEYCHAINPL = open P, "keychain.txt" or die "cant open keychain.txt"; \
 			while (<P>) { \
@@ -93,7 +96,7 @@ release: mypage webpage
 
 .PHONY: clean
 clean:
-	rm -f keychain keychain.txt keychain.1 keychain.spec
+	rm -f keychain keychain.txt keychain.1 keychain.spec keychain.1.orig keychain.1.gz
 
 .PHONY: test
 test: keychain
