@@ -11,6 +11,7 @@
 }
 
 002_start_gpg-agent() {
+    which gpg-agent || skip "gpg-agent not available"
     run_kc
 
     [[ $kc_out == *Starting\ gpg-agent* ]] || fail "failed to start gpg-agent"
@@ -34,6 +35,7 @@
 }
 
 004_start_gpg-agent_only() {
+    type -P gpg-agent &>/dev/null || skip "gpg-agent not available"
     run_kc --agents gpg
 
     [[ $kc_out == *Starting\ gpg-agent* ]] || fail "failed to start gpg-agent"
@@ -47,6 +49,7 @@
 }
 
 005_stop() {
+    which gpg-agent || skip "gpg-agent not available"
     gpg-agent --daemon >/dev/null
     gpg-agent --daemon >/dev/null
     gpg-agent --daemon >/dev/null
@@ -69,6 +72,7 @@
 }
 
     005.1_stop_ssh-agent_only() {
+        which gpg-agent || skip "gpg-agent not available"
         gpg-agent --daemon >/dev/null
         gpg-agent --daemon >/dev/null
         gpg-agent --daemon >/dev/null
@@ -89,6 +93,7 @@
     }
 
     005.2_stop_gpg-agent_only() {
+        which gpg-agent || skip "gpg-agent not available"
         gpg-agent --daemon >/dev/null
         gpg-agent --daemon >/dev/null
         gpg-agent --daemon >/dev/null
@@ -109,6 +114,7 @@
     }
 
 006_stop_all() {
+    which gpg-agent || skip "gpg-agent not available"
     gpg-agent --daemon >/dev/null
     gpg-agent --daemon >/dev/null
     gpg-agent --daemon >/dev/null
@@ -131,6 +137,7 @@
 }
 
     006.1_stop_all_ssh-agent_only() {
+        which gpg-agent || skip "gpg-agent not available"
         gpg-agent --daemon >/dev/null
         gpg-agent --daemon >/dev/null
         gpg-agent --daemon >/dev/null
@@ -151,6 +158,7 @@
     }
 
     005.2_stop_gpg-agent_only() {
+        which gpg-agent || skip "gpg-agent not available"
         gpg-agent --daemon >/dev/null
         gpg-agent --daemon >/dev/null
         gpg-agent --daemon >/dev/null
@@ -171,6 +179,7 @@
     }
 
 007_stop_mine() {
+    which gpg-agent || skip "gpg-agent not available"
     gpg-agent --daemon >/dev/null
     gpg-agent --daemon >/dev/null
     gpg-agent --daemon >/dev/null
@@ -196,6 +205,7 @@
 }
 
     007.1_stop_mine_ssh-agent_only() {
+        which gpg-agent || skip "gpg-agent not available"
         gpg-agent --daemon >/dev/null
         gpg-agent --daemon >/dev/null
         gpg-agent --daemon >/dev/null
@@ -218,6 +228,7 @@
     }
 
     007.2_stop_mine_gpg-agent_only() {
+        which gpg-agent || skip "gpg-agent not available"
         gpg-agent --daemon >/dev/null
         gpg-agent --daemon >/dev/null
         gpg-agent --daemon >/dev/null
@@ -252,7 +263,6 @@
     run_kc "${sshkeys[@]}"
 
     [ "`count_ident "$kc_out"`" != "${#sshkeys[@]}" ] && fail "keychain didn't report ${#sshkeys[@]} keys"
-
     source $keydir/$HOSTNAME-sh || fail "couldn't source $keydir/$HOSTNAME-sh"
     for x in "${sshkeys[@]}"; do
         ssh-add -l | grep -q ${x##*/} || fail "ssh-agent isn't aware of ${x##*/}"
@@ -260,6 +270,7 @@
 }
 
 010_start_gpg-agent_with_one_key() {
+    type -P gpg-agent &>/dev/null || skip "gpg-agent not available"
     run_kc ${gpgkeys[0]}
 
     [[ $? == 0 ]] || fail "keychain exited with non-zero status"
@@ -271,6 +282,7 @@
 }
 
 011_start_gpg-agent_with_multiple_keys() {
+    type -P gpg-agent &>/dev/null || skip "gpg-agent not available"
     run_kc "${gpgkeys[@]}"
 
     [[ $? == 0 ]] || fail "keychain exited with non-zero status"
@@ -285,6 +297,7 @@
 }
 
 012_start_keychain_with_ssh_and_gpg_keys() {
+    type -P gpg-agent &>/dev/null || skip "gpg-agent not available"
     run_kc "${sshkeys[@]}" "${gpgkeys[@]}"
 
     [[ $? == 0 ]] || fail "keychain exited with non-zero status"
@@ -316,6 +329,7 @@
 }
 
 014_add_a_key_to_gpg-agent() {
+    type -P gpg-agent &>/dev/null || skip "gpg-agent not available"
     run_kc ${gpgkeys[0]}
     run_kc ${gpgkeys[1]}
 
@@ -345,7 +359,7 @@
 
 017_start_keychain_with_password_ssh() {
     # create a password generator
-    askpass=$(mktemp) || fail "mktemp failed"
+    askpass=$(mktemp -t tmp.XXXXXXXXXX) || fail "mktemp failed"
     trap 'rm -f $askpass' 0 1 2 15
     echo "echo keychain" > $askpass
     chmod +x $askpass
@@ -454,6 +468,7 @@
 }
 
 032_default_inherit_gpg-agent() {
+    type -P gpg-agent &>/dev/null || skip "gpg-agent not available"
     eval $(gpg-agent --daemon)
     run_kc
 
@@ -523,6 +538,7 @@
     }
 
 040_noinherit_gpg-agent() {
+    type -P gpg-agent &>/dev/null || skip "gpg-agent not available"
     eval $(gpg-agent --daemon) >/dev/null
     run_kc --noinherit
 
@@ -577,6 +593,7 @@
 }
 
 051_start_gpg-agent_with_--eval() {
+    type -P gpg-agent &>/dev/null || skip "gpg-agent not available"
     $opt_debug && set +x
     SHELL=/bin/bash run_kc --quiet --eval --agents gpg
     $opt_debug && set -x
@@ -593,6 +610,7 @@
 }
 
 052_start_with_--eval() {
+    type -P gpg-agent &>/dev/null || skip "gpg-agent not available"
     $opt_debug && set +x
     SHELL=/bin/bash run_kc --quiet --eval
     $opt_debug && set -x
@@ -603,35 +621,35 @@
 
     load
     lsettings=$(env | egrep 'GPG|SSH' | sort)
-
+    
     [[ $esettings == "$lsettings" ]] || fail "variables don't match"
 }
 
 053_start_with_--eval_ksh() {
     $opt_debug && set +x
-    SHELL=/bin/ksh run_kc --quiet --eval
+    SHELL=/bin/ksh run_kc --quiet --eval --agents ssh
     $opt_debug && set -x
-    count ssh 1; count gpg 1
+    count ssh 1; count gpg 0
 
-    type -P ksh &>/dev/null || skip "ksh not available"
+    type -P ksh >&/dev/null || skip "ksh not available"
     ksh -c "$kc_out" || fail "ksh eval failed"
 }
 
 054_start_with_--eval_fish() {
     $opt_debug && set +x
-    SHELL=/bin/fish run_kc --quiet --eval
+    SHELL=/bin/fish run_kc --quiet --eval --agents ssh
     $opt_debug && set -x
-    count ssh 1; count gpg 1
+    count ssh 1; count gpg 0
 
-    type -P fish &>/dev/null || skip "fish not available"
+    type -P fish >&/dev/null || skip "fish not available"
     fish -c "$kc_out" || fail "fish eval failed"
 }
 
 055_start_with_--eval_csh() {
     $opt_debug && set +x
-    SHELL=/bin/csh run_kc --quiet --eval
+    SHELL=/bin/csh run_kc --quiet --eval --agents ssh
     $opt_debug && set -x
-    count ssh 1; count gpg 1
+    count ssh 1; count gpg 0
 
     type -P csh &>/dev/null || skip "csh not available"
     csh -c "$kc_out" || fail "csh eval failed"
@@ -735,13 +753,13 @@
 # 
 
 count_ident() {
-	cat << EOF | sed -n -e '/Identities.added/{s/^.*added://;p}' | wc -w
+	cat << EOF | sed -n -e '/Identities.added/{s/^.*added://;p;}' | wc -w
 $1
 EOF
 }
 
 count_gpg() {
-	cat << EOF | sed -n -e '/Adding.*gpg key(s)/{s/^.*key(s)://;p}' | wc -w
+	cat << EOF | sed -n -e '/Adding.*gpg key(s)/{s/^.*key(s)://;p;}' | wc -w
 $1
 EOF
 }
@@ -758,13 +776,14 @@ run_kc() {
 }
 
 count() {
+    local ag=$1
     local num=$(ps x | grep -c "[${1:0:1}]${1:1}-agent")
     shift
     if [[ -z $1 ]]; then
         echo $num
     else 
         [[ -z $2 ]] && set -- -eq $1
-        eval \[\[ \$num $1 \$2 \]\] || fail "wrong num of ssh-agents (have $num, want $1 $2)"
+        eval \[\[ \$num $1 \$2 \]\] || fail "wrong num of ${ag}-agents (have $num, want $1 $2)"
     fi
 }
 
@@ -844,23 +863,22 @@ while true; do
     esac
 done
 
-tests=( $(set | awk '$2=="()" && $1 ~ /^[0-9][0-9][0-9][_\.]/ { print $1 }' | sort -n) )
-
-if [[ $# -gt 0 ]]; then
-    newtests=()
-    for x; do 
-        for ((i = 0; i < ${#tests[@]}; )); do
-            if [[ ${tests[i]} == *${x}* ]]; then
-                newtests=( "${newtests[@]}" "${tests[i]}" )
-                tests=( "${tests[@]:0:i}" "${tests[@]:i+1}" )
-            else
-                let i++
-            fi
-        done
-    done
-    tests=( "${newtests[@]}" )
-    unset newtests
-fi
+tests=( $(set | sed -n -e '/[0-9][0-9][0-9].*\ ()/{s/^\(.*\) ()/\1/;p;}' | sort -n ) )
+#if [[ $# -gt 0 ]]; then
+#    newtests=()
+#    for x; do 
+#        for ((i = 0; i < ${#tests[@]}; )); do
+#            if [[ ${tests[i]} == *${x}* ]]; then
+#                newtests=( "${newtests[@]}" "${tests[i]}" )
+#                tests=( "${tests[@]:0:i}" "${tests[@]:i+1}" )
+#            else
+#                let i++
+#            fi
+#        done
+#    done
+#    tests=( "${newtests[@]}" )
+#    unset newtests
+#fi
 
 if $opt_list; then
     for t in "${tests[@]}"; do
