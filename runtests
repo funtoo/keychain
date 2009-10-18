@@ -846,6 +846,8 @@ done
 
 tests=( $(set | awk '$2=="()" && $1 ~ /^[0-9][0-9][0-9][_\.]/ { print $1 }' | sort -n) )
 
+echo $tests
+
 if [[ $# -gt 0 ]]; then
     newtests=()
     for x; do 
