@@ -9,7 +9,11 @@
 # Rewritten by Aron Griffis <agriffis@n01se.net>
 # Currently maintained by Daniel Robbins <drobbins@funtoo.org>
 
-  This last one hasn't been committed yet:
+  18 Oct 2009; Daniel Robbins <drobbins@funtoo.org>: lockfile() replacement
+  from Parallels Inc. OpenVZ code, takelock() rewrite, resulting in ~100 line
+  code savings. Default lock timeout set to 5 seconds, and now keychain will try
+  to forcefully acquire the lock if the timeout aborts, rather than simply
+  failing and aborting.
 
   30 Sep 2009; Daniel Robbins <drobbins@funtoo.org>: MacOS X/BSD improvements:
   fix sed call in Makefile for MacOS X and presumably other *BSD environments,

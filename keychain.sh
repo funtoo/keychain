@@ -1,8 +1,12 @@
 #!/bin/sh
+
 # Copyright 1999-2005 Gentoo Foundation
 # Copyright 2007 Aron Griffis <agriffis@n01se.net>
 # Copyright 2009-2010 Funtoo Technologies, LLC 
+# lockfile() Copyright 2009 Parallels, Inc.
+
 # Distributed under the terms of the GNU General Public License v2
+
 # Originally authored by Daniel Robbins <drobbins@gentoo.org>
 # Maintained August 2002 - April 2003 by Seth Chandler <sethbc@gentoo.org>
 # Maintained April 2004 - July 2007 by Aron Griffis <agriffis@n01se.net>
@@ -23,7 +27,7 @@ ignoreopt=false
 noaskopt=false
 noguiopt=false
 nolockopt=false
-lockwait=30
+lockwait=5
 openssh=unknown
 sunssh=unknown
 quickopt=false
@@ -159,53 +163,53 @@ verifykeydir() {
     fi
 }
 
-# synopsis: now previous_now
-# Returns some seconds value on stdout, for timing things.  Accepts a
-# previous_now parameter which should be the last value returned.  (No data can
-# be persistent because this is called from a subshell.) If this is called less
-# than once per minute on a non-GNU system then it might skip a minute.
-now() {
-    if [ -n "$BASH_VERSION" -a "$SECONDS" -ge 0 ] 2>/dev/null; then
-        echo $SECONDS
-        return 0
-    fi
+lockfile() {
+	# This function originates from Parallels Inc.'s OpenVZ vpsreboot script
 
-    if now_seconds=`date +%s 2>/dev/null` \
-            && [ "$now_seconds" -gt 0 ] 2>/dev/null; then
-        if [ $now_seconds -lt "$1" ] 2>/dev/null; then
-            warn "time went backwards, taking countermeasures"
-            echo `expr $1 + 1`
-        else
-            echo $now_seconds
+	# Description: This function attempts to acquire the lock. If it succeeds,
+	# it returns 0. If it fails, it returns 1. This function retuns immediately
+	# and only tries to acquire the lock once. 
+
+        local tmpfile="$lockf.$$"
+
+        echo $$ >"$tmpfile" 2>/dev/null || exit
+        if ln "$tmpfile" "$lockf" 2>/dev/null; then
+                rm -f "$tmpfile"
+		havelock=true && return 0
         fi
-        return 0
-    fi
-
-    # Don't use awk -F'[: ]' here because Solaris awk can't handle it, a regex
-    # field separator needs gawk or nawk.  It's easier to simply avoid awk in
-    # this case.
-    if now_seconds=`LC_ALL=C date 2>/dev/null | sed 's/:/ /g' | xargs | cut -d' ' -f6` \
-            && [ "$now_seconds" -ge 0 ] 2>/dev/null; then
-        if [ -n "$1" ]; then
-            # how many minutes have passed previously?
-            now_mult=`expr $1 / 60`
-            if [ "$now_seconds" -lt `expr $1 % 60` ]; then
-                # another minute has passed
-                now_mult=`expr $now_mult + 1`
-            fi
-            # accumulate minutes in now_seconds
-            now_seconds=`expr 60 \* $now_mult + $now_seconds`
+        if kill -0 `cat $lockf 2>/dev/null` 2>/dev/null; then
+                rm -f "$tmpfile"
+        	return 1
+	fi
+        if ln "$tmpfile" "$lockf" 2>/dev/null; then
+                rm -f "$tmpfile"
+		havelock=true && return 0
         fi
-        echo $now_seconds
-        return 0
-    fi
-
-    return 1
+        rm -f "$tmpfile" "$lockf" && return 1
 }
 
 takelock() {
-	return 0
+	# Description: This function calls lockfile() multiple times if necessary
+	# to try to acquire the lock. It returns 0 on success and 1 on failure.
+	# Change in behavior: if timeout expires, we will forcefully acquire lock.
+
+	[ "$havelock" = "true" ] && return 0	
+	[ "$nolockopt" = "true" ] && return 0
+
+	# First attempt:
+	lockfile && return 0
+
+	local counter=0
+	mesg "Waiting $lockwait seconds for lock..."
+	while [ "$counter" -lt "$(( $lockwait * 2 ))" ]
+	do
+		lockfile && return 0
+		sleep 0.5; counter=$(( $counter + 1 ))
+	done 
+	rm -f "$lockf" && lockfile && return 0
+	return 1
 }
+
 
 # synopsis: droplock
 # Drops the lock if we're holding it.
@@ -1053,10 +1057,10 @@ while [ -n "$1" ]; do
             ;;
         --lockwait)
             shift
-            if [ "$1" = -1 -o "$1" -ge 0 ] 2>/dev/null; then
+            if [ "$1" -ge 0 ] 2>/dev/null; then
                 lockwait="$1"
             else
-                die "--lockwait requires an argument -1 <= n <= 50"
+                die "--lockwait requires an argument zero or greater."
             fi
             ;;
         --quick|-Q)

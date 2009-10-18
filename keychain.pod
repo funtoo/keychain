@@ -135,8 +135,10 @@ want the older behavior.
 
 =item B<--lockwait> I<seconds>
 
-How long to wait for the lock to become available.  Defaults to 30
-seconds.  -1 indicates to wait forever.
+How long to wait for the lock to become available.  Defaults to 5
+seconds. Specify a value of zero or more. If the lock cannot be 
+acquired within the specified number of seconds, then this keychain
+process will forcefully acquire the lock.
 
 =item B<--noask>
 
