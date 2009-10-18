@@ -9,10 +9,10 @@
 
 # Originally authored by Daniel Robbins <drobbins@gentoo.org>
 # Maintained August 2002 - April 2003 by Seth Chandler <sethbc@gentoo.org>
-# Maintained April 2004 - July 2007 by Aron Griffis <agriffis@n01se.net>
+# Maintained and rewritten April 2004 - July 2007 by Aron Griffis <agriffis@n01se.net>
 # Maintained July 2009 - present by Daniel Robbins <drobbins@funtoo.org>
 
-version=2.6.10
+version=2.7.0
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 
@@ -108,7 +108,8 @@ versinfo() {
     qprint
     qprint "   Copyright ${CYANN}2002-2006${OFF} Gentoo Foundation;"
     qprint "   Copyright ${CYANN}2007${OFF} Aron Griffis;"
-    qprint "   Copyright ${CYANN}2009-2010${OFF} Funtoo Technologies, LLC."
+    qprint "   Copyright ${CYANN}2009-2010${OFF} Funtoo Technologies, LLC;"
+    qprint "   lockfile() Copyright ${CYANN}2009${OFF} Parallels, Inc."
     qprint
     qprint " Keychain is free software: you can redistribute it and/or modify"
     qprint " it under the terms of the ${CYANN}GNU General Public License version 2${OFF} as"
