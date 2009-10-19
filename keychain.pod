@@ -129,9 +129,8 @@ agent.
 
 =back
 
-By default, keychain-2.5.0 and later will behave as if "--inherit
-local-once" is specified.  You should specify "--noinherit" if you
-want the older behavior.
+By default, keychain-2.6.10 and later will behave as if "--inherit
+all" is specified.  
 
 =item B<--lockwait> I<seconds>
 

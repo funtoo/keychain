@@ -34,7 +34,7 @@ quickopt=false
 quietopt=false
 clearopt=false
 color=true
-inheritwhich=local-once
+inheritwhich=any
 unset stopwhich
 unset timeout
 unset ssh_timeout
@@ -347,8 +347,7 @@ stopagent() {
 # Save agent variables from the environment before they get wiped out
 inheritagents() {
     # Verify these global vars are null
-    unset inherit_ssh_auth_sock inherit_ssh_agent_pid 
-    unset inherit_ssh2_auth_sock inherit_ssh2_agent_sock
+    unset inherit_ssh_auth_sock inherit_ssh_agent_pid inherit_ssh_sockname
     unset inherit_gpg_agent_info inherit_gpg_agent_pid
 
     # Save variables so we can inherit a running agent
@@ -357,14 +356,14 @@ inheritagents() {
             if [ -n "$SSH_AUTH_SOCK" ]; then
                 inherit_ssh_auth_sock="$SSH_AUTH_SOCK"
                 inherit_ssh_agent_pid="$SSH_AGENT_PID"
+		ssh_sockname=SSH
             fi
-
             if [ -n "$SSH2_AUTH_SOCK" ]; then 
-                inherit_ssh2_auth_sock="$SSH2_AUTH_SOCK"
-                inherit_ssh2_agent_pid="$SSH2_AGENT_PID"
+                inherit_ssh_auth_sock="$SSH2_AUTH_SOCK"
+                inherit_ssh_agent_pid="$SSH2_AGENT_PID"
+		ssh_sockname=SSH2
             fi
         fi
-
         if wantagent gpg; then
             if [ -n "$GPG_AGENT_INFO" ]; then
                 inherit_gpg_agent_info="$GPG_AGENT_INFO"
@@ -377,40 +376,24 @@ inheritagents() {
 # synopsis: validinherit
 # Test inherit_* variables for validity
 validinherit() {
-    vi_agent="$1"
-    vi_status=0
 
-    if [ "$vi_agent" = ssh ]; then
-        if [ -n "$inherit_ssh_auth_sock" ]; then
-            ls "$inherit_ssh_auth_sock" >/dev/null 2>&1
-            if [ $? != 0 ]; then
-                warn "SSH_AUTH_SOCK in environment is invalid; ignoring it"
-                unset inherit_ssh_auth_sock inherit_ssh_agent_pid
-                vi_status=1
-            fi
+	# Now incompatible with Solaris 9 thanks to use of -e in conditionals
+
+	if [ "$1" = ssh ] 
+	then
+		if [ -n "$inherit_ssh_auth_sock" ] && [ ! -e "$inherit_ssh_auth_sock" ]
+		then
+                	unset inherit_ssh_auth_sock inherit_ssh_agent_pid; fail=1
+            	fi
+    	elif [ "$1" = gpg ]
+	then
+        	if [ -n "$inherit_gpg_agent_pid" ] && kill -0 "$inherit_gpg_agent_pid" 2>/dev/null
+		then
+                	unset inherit_gpg_agent_pid inherit_gpg_agent_info; fail=1
+            	fi
         fi
-
-        if [ -n "$inherit_ssh2_auth_sock" ]; then
-            ls "$inherit_ssh2_auth_sock" >/dev/null 2>&1
-            if [ $? != 0 ]; then
-                warn "SSH2_AUTH_SOCK in environment is invalid; ignoring it"
-                unset inherit_ssh2_auth_sock inherit_ssh2_agent_pid
-                vi_status=1
-            fi
-        fi
-
-    elif [ "$vi_agent" = gpg ]; then
-        if [ -n "$inherit_gpg_agent_pid" ]; then
-            kill -0 "$inherit_gpg_agent_pid" >/dev/null 2>&1
-            if [ $? != 0 ]; then
-                unset inherit_gpg_agent_pid inherit_gpg_agent_info
-                warn "GPG_AGENT_INFO in environment is invalid; ignoring it"
-                vi_status=1
-            fi
-        fi
-    fi
-
-    return $vi_status
+	[ "$fail" = "1" ] && warn "$fail environment variables invalid; ignoring" && return 1
+	return 0
 }
 
 # synopsis: catpidf_shell shell agents...
@@ -500,14 +483,11 @@ startagent() {
         start_cshpidf="$cshpidf"
         start_fishpidf="$fishpidf"
         start_pid="$ssh_agent_pid"
-        if [ -n "$inherit_ssh_auth_sock" -o -n "$inherit_ssh2_auth_sock" ]; then
-            if [ -n "$inherit_ssh_agent_pid" ]; then
-                start_inherit_pid="$inherit_ssh_agent_pid"
-            elif [ -n "$inherit_ssh2_agent_pid" ]; then
-                start_inherit_pid="$inherit_ssh2_agent_pid"
-            else
+        if [ -n "$inherit_ssh_auth_sock" -a -n "$inherit_ssh_agent_pid" ]
+	then
+	  	start_inherit_pid="$inherit_ssh_agent_pid"
+	else
                 start_inherit_pid="forwarded"
-            fi
         fi
     else
         start_pidf="${pidf}-$start_prog"
@@ -611,19 +591,10 @@ startagent() {
         fi
 
     elif [ "$start_prog" = ssh -a -n "$inherit_ssh_auth_sock" ]; then
-        start_out="SSH_AUTH_SOCK=$inherit_ssh_auth_sock; export SSH_AUTH_SOCK;"
+        start_out="${ssh_sockname}_AUTH_SOCK=$inherit_ssh_auth_sock; export ${ssh_sockname}_AUTH_SOCK;"
         if [ "$inherit_ssh_agent_pid" -gt 0 ] 2>/dev/null; then
-            start_out="$start_out
-SSH_AGENT_PID=$inherit_ssh_agent_pid; export SSH_AGENT_PID;"
+            start_out="$start_out ${ssh_sockname}_AGENT_PID=$inherit_ssh_agent_pid; export ${ssh_sockname}_AGENT_PID;"
         fi
-    elif [ "$start_prog" = ssh -a -n "$inherit_ssh2_auth_sock" ]; then
-        start_out="SSH2_AUTH_SOCK=$inherit_ssh2_auth_sock; export SSH2_AUTH_SOCK;
-SSH2_AGENT_PID=$inherit_ssh2_agent_pid; export SSH2_AGENT_PID;"
-        if [ "$inherit_ssh2_agent_pid" -gt 0 ] 2>/dev/null; then
-            start_out="$start_out
-SSH2_AGENT_PID=$inherit_ssh2_agent_pid; export SSH2_AGENT_PID;"
-        fi
-    
     elif [ "$start_prog" = gpg -a -n "$inherit_gpg_agent_info" ]; then
         start_out="GPG_AGENT_INFO=$inherit_gpg_agent_info; export GPG_AGENT_INFO;"
 
@@ -922,31 +893,16 @@ in_path() {
 
     return 1
 }
-
-# synopsis: setagents
-# Check validity of agentsopt
-setagents() {
-    if [ -n "$agentsopt" ]; then
-        agentsopt=`echo "$agentsopt" | sed 's/,/ /g'`
-        unset new_agentsopt
-        for a in $agentsopt; do
-            if in_path ${a}-agent >/dev/null; then
-                new_agentsopt="${new_agentsopt+$new_agentsopt }${a}"
-            else
-                warn "can't find ${a}-agent, removing from list"
-            fi
-        done
-        agentsopt="${new_agentsopt}"
-    else
-        for a in ssh gpg; do
-            in_path ${a}-agent >/dev/null || continue
-            agentsopt="${agentsopt+$agentsopt }${a}"
-        done
-    fi
-
-    if [ -z "$agentsopt" ]; then
-        die "no agents available to start"
-    fi
+		
+detect_agents() {
+	local realopt=""
+	for a in ${agentsopt:=ssh gpg}; do
+		in_path ${a}-agent >/dev/null && realopt="${realopt} ${a}" && continue
+	done
+    	if [ -z "$realopt" ]; then
+        	die "no agents available to start"
+       	fi
+	agentsopt="$realopt"
 }
 
 # synopsis: wantagent prog
@@ -990,7 +946,7 @@ while [ -n "$1" ]; do
             ;;
         --agents)
             shift
-            agentsopt="$1"
+	    detect_agents `echo $1 | sed 's/,/ /g'`
             ;;
         --attempts)
             shift
@@ -1158,7 +1114,7 @@ else
     trap 'droplock; exit 0' 0       # drop the lock on exit
 fi
 
-setagents                       # verify/set $agentsopt
+[ -z "$agentsopt" ] && detect_agents
 verifykeydir                    # sets up $keydir
 wantagent ssh && testssh        # sets $openssh and $sunssh
 getuser                         # sets $me
