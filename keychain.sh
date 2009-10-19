@@ -376,18 +376,17 @@ inheritagents() {
 # synopsis: validinherit
 # Test inherit_* variables for validity
 validinherit() {
-
 	# Now incompatible with Solaris 9 thanks to use of -e in conditionals
-
+	local fail=0
 	if [ "$1" = ssh ] 
 	then
-		if [ -n "$inherit_ssh_auth_sock" ] && [ ! -e "$inherit_ssh_auth_sock" ]
+		if [ -n "$inherit_ssh_auth_sock" -a ! -e "$inherit_ssh_auth_sock" ]
 		then
                 	unset inherit_ssh_auth_sock inherit_ssh_agent_pid; fail=1
             	fi
     	elif [ "$1" = gpg ]
 	then
-        	if [ -n "$inherit_gpg_agent_pid" ] && kill -0 "$inherit_gpg_agent_pid" 2>/dev/null
+        	if [ -n "$inherit_gpg_agent_pid" ] && ! kill -0 "$inherit_gpg_agent_pid" 2>/dev/null
 		then
                 	unset inherit_gpg_agent_pid inherit_gpg_agent_info; fail=1
             	fi
@@ -597,9 +596,6 @@ startagent() {
         fi
     elif [ "$start_prog" = gpg -a -n "$inherit_gpg_agent_info" ]; then
         start_out="GPG_AGENT_INFO=$inherit_gpg_agent_info; export GPG_AGENT_INFO;"
-
-    else
-        die "something bad happened"    # should never be here
     fi
 
     # Add content to pidfiles.
