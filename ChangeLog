@@ -1,5 +1,5 @@
 # ChangeLog for Keychain; http://www.funtoo.org
-
+#
 # Copyright 2002-2006 Gentoo Foundation http://www.gentoo.org/
 # Copyright 2007 Aron Griffis <agriffis@n01se.net>
 # Copyright 2009-2010 Funtoo Technolgies, LLC.
@@ -12,11 +12,7 @@
 # Maintained and rewritten April 2004 - July 2007 by Aron Griffis <agriffis@n01se.net>
 # Maintained July 2009 - present by Daniel Robbins <drobbins@funtoo.org>
 
-* keychain 2.7.0 (18 Oct 2009) ??? Maybe not
-
-  18 Oct 2009; Daniel Robbins <drobbins@funtoo.org>: making "inherit all" the
-  default. Additional code size reduction. Breaking Solaris 9 compatibility
-  (I'm using "[ -e foo ]")
+* keychain 2.7.0 (18 Oct 2009)
 
   18 Oct 2009; Daniel Robbins <drobbins@funtoo.org>: lockfile() replacement
   from Parallels Inc. OpenVZ code, takelock() rewrite, resulting in ~100 line
