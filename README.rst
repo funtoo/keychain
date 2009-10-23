@@ -51,18 +51,23 @@ Keychain is compatible with many operating systems, including ``AIX``,
 .. _keychain 2.7.0 source code: http://www.funtoo.org/archive/keychain/keychain-2.7.0.tar.bz2
 .. _keychain 2.6.9 source code: http://www.funtoo.org/archive/keychain/keychain-2.6.9.tar.bz2
 
-.. _keychain 2.7.0 MacOS X package: http://www.funtoo.org/archive/keychain/keychain-2.7.0.mpkg
-.. _keychain 2.6.9 MacOS X package: http://www.funtoo.org/archive/keychain/keychain-2.6.9.mpkg
+.. _keychain 2.7.0 MacOS X package: http://www.funtoo.org/archive/keychain/keychain-2.7.0-macosx.tar.gz
+.. _keychain 2.6.9 MacOS X package: http://www.funtoo.org/archive/keychain/keychain-2.6.9-macosx.tar.gz
 
 Download
 --------
 
-- Source Code
-        - *`keychain 2.7.0 source code`_*
-        - `keychain 2.6.9 source code`_
-- Apple MacOS X Packages
-        - *`keychain 2.7.0 MacOS X package`_*
-        - `keychain 2.6.9 MacOS X package`_
+- *Source Code*
+
+  - `keychain 2.7.0 source code`_
+
+  - `keychain 2.6.9 source code`_
+
+- *Apple MacOS X Packages*
+
+  - `keychain 2.7.0 MacOS X package`_
+
+  - `keychain 2.6.9 MacOS X package`_
 
 Keychain development sources can be found in the `keychain git repository`_.
 Please use the `funtoo-dev mailing list`_ and `#funtoo irc channel`_ for
