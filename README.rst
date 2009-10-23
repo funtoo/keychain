@@ -8,7 +8,7 @@ Introduction to Keychain
         This page contains information about Keychain, an OpenSSH and
         commercial SSH2-compatible RSA/DSA key management application.
 
-:version: 2009-07-26
+:version: 2009-10-23
 :author: Daniel Robbins
 :contact: drobbins@funtoo.org
 :copyright: funtoo
@@ -39,24 +39,64 @@ allowing your scripts to take advantage of key-based logins.
 Download and Resources
 ======================
 
-The latest release of keychain is version ``2.6.9``, and was released on July
-26, 2009. The current version of keychain supports ``gpg-agent`` as well as
-``ssh-agent``.
+The latest release of keychain is version ``2.7.0``, and was released on
+October 23, 2009. The current version of keychain supports ``gpg-agent`` as
+well as ``ssh-agent``.
 
 Keychain is compatible with many operating systems, including ``AIX``,
 ``*BSD``, ``Cygwin``, ``MacOS X``, ``Linux``, ``HP/UX``, ``Tru64 UNIX``,
 ``IRIX``, ``Solaris`` and ``GNU Hurd``. 
 
+
+.. _keychain 2.7.0 source code: http://www.funtoo.org/archive/keychain/keychain-2.7.0.tar.bz2
 .. _keychain 2.6.9 source code: http://www.funtoo.org/archive/keychain/keychain-2.6.9.tar.bz2
+
+.. _keychain 2.7.0 MacOS X package: http://www.funtoo.org/archive/keychain/keychain-2.7.0.mpkg
+.. _keychain 2.6.9 MacOS X package: http://www.funtoo.org/archive/keychain/keychain-2.6.9.mpkg
 
 Download
 --------
 
-- `keychain 2.6.9 source code`_
+- Source Code
+        - *`keychain 2.7.0 source code`_*
+        - `keychain 2.6.9 source code`_
+- Apple MacOS X Packages
+        - *`keychain 2.7.0 MacOS X package`_*
+        - `keychain 2.6.9 MacOS X package`_
 
 Keychain development sources can be found in the `keychain git repository`_.
 Please use the `funtoo-dev mailing list`_ and `#funtoo irc channel`_ for
 keychain support questions as well as bug reports.
+
+Quick Setup
+===========
+
+Linux
+-----
+
+To install under Gentoo or Funtoo Linux, type ``emerge keychain``. For other
+Linux distributions, use your distribution's package manager. Then generate
+RSA/DSA keys if necessary. The quick install docs assume you have a DSA key
+pair named ``id_dsa`` and ``id_dsa.pub`` in your ``~/.ssh/`` directory.  Add
+the following to your ``~/.bash_profile``::
+
+        eval `keychain --eval --agents ssh id_dsa`
+
+If you want to take advantage of GPG functionality, ensure that GNU Privacy
+Guard is installed and omit the ``--agents ssh`` option above.
+
+Apple MacOS X
+-------------
+
+To install under MacOS X, install the MacOS X package for keychain. Assuming
+you have an ``id_dsa`` and ``id_dsa.pub`` key pair in your ``~/.ssh/``
+directory, add the following to your ``~/.bash_profile``::
+
+        eval `keychain --eval --agents ssh --inherit all id_dsa`
+
+The ``--inherit all`` option above causes keychain to inherit any ssh key
+passphrases stored in your Apple MacOS Keychain. If you would prefer for this
+to not happen, then this option can be omitted.
 
 Background
 ==========
@@ -280,12 +320,8 @@ including Seth Chandler, Mike Frysinger and Robin H. Johnson, through July 3,
 On April 21, 2004, Aron Griffis committed a major rewrite of ``keychain`` which
 was released as 2.2.0. Aron continued to actively maintain and improve
 ``keychain`` through October 2006 and the ``keychain`` 2.6.8 release. He also
-made a few commits after that date, up through mid-July, 2007.
-
-At this point, ``keychain`` had reached a point of maturity. From mid-July 2007
-through late July 2009, a period of over two years, there have been no new
-releases. However, a few little tweaks and improvements have been circulating
-around, so...
+made a few commits after that date, up through mid-July, 2007.  At this point,
+``keychain`` had reached a point of maturity. 
 
 .. _bugs.gentoo.org: http://bugs.gentoo.org
 
@@ -295,5 +331,5 @@ the git repo that had been collecting in `bugs.gentoo.org`_. Daniel continues
 to maintain ``keychain`` and supporting documentation on funtoo.org, and
 plans to make regular maintenance releases of ``keychain`` as appropriate.
 
-The current release of ``keychain`` is currently 2.6.9.
+The current release of ``keychain`` is 2.7.0.
 

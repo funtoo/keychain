@@ -12,7 +12,10 @@
 # Maintained and rewritten April 2004 - July 2007 by Aron Griffis <agriffis@n01se.net>
 # Maintained July 2009 - present by Daniel Robbins <drobbins@funtoo.org>
 
-* keychain 2.7.0 (18 Oct 2009)
+* keychain 2.7.0 (23 Oct 2009)
+
+  23 Oct 2009; Daniel Robbins <drobbins@funtoo.org>: updated README.rst with
+  2.7.0 and MacOS X package update.
 
   18 Oct 2009; Daniel Robbins <drobbins@funtoo.org>: lockfile() replacement
   from Parallels Inc. OpenVZ code, takelock() rewrite, resulting in ~100 line
