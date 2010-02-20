@@ -97,9 +97,9 @@ To install under MacOS X, install the MacOS X package for keychain. Assuming
 you have an ``id_dsa`` and ``id_dsa.pub`` key pair in your ``~/.ssh/``
 directory, add the following to your ``~/.bash_profile``::
 
-        eval `keychain --eval --agents ssh --inherit all id_dsa`
+        eval `keychain --eval --agents ssh --inherit any id_dsa`
 
-The ``--inherit all`` option above causes keychain to inherit any ssh key
+The ``--inherit any`` option above causes keychain to inherit any ssh key
 passphrases stored in your Apple MacOS Keychain. If you would prefer for this
 to not happen, then this option can be omitted.
 
