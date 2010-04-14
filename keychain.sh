@@ -767,6 +767,8 @@ ssh_f() {
 gpg_listmissing() {
     unset glm_missing
 
+    GPG_TTY=`tty`
+
     # Parse $gpgkeys into positional params to preserve spaces in filenames
     set -f          # disable globbing
     glm_IFS="$IFS"  # save current IFS
@@ -778,7 +780,7 @@ gpg_listmissing() {
 
     for glm_k in "$@"; do
         # Check if this key is known to the agent.  Don't know another way...
-        if echo | env -i PATH="$PATH" GPG_AGENT_INFO="$GPG_AGENT_INFO" \
+        if echo | env -i GPG_TTY="$GPG_TTY" PATH="$PATH" GPG_AGENT_INFO="$GPG_AGENT_INFO" \
                 gpg --no-options --use-agent --no-tty --sign --local-user "$glm_k" -o- >/dev/null 2>&1; then
             # already know about this key
             mesg "Known gpg key: ${CYANN}${glm_k}${OFF}"
