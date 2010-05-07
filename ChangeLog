@@ -14,6 +14,9 @@
 
 * keychain 2.7.1 (07 May 2010)
 
+  07 May 2010; Daniel Robbins <drobbins@funtoo.org>: Addition of a "make
+  clean" target. removal of runtests as it is currently broken.
+
   07 May 2010; Daniel Robbins <drobbins@funtoo.org>: New release process in
   Makefile and release.sh - keychain release tarball will now contain
   pre-generated keychain, keychain.1 and keychain.spec so that users do not

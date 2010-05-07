@@ -34,7 +34,8 @@ commit() {
 	git archive --format=tar --prefix=${PKG}-${VERSION}/ HEAD | tar xf - -C dist || die "git archive fail"
 	#git push || die "keychain git push failed"
 	cd dist/$PKG-$VERSION || die "pkg cd fail"
-	make clean all || die "make dist failed"
+	# tmpclean target cleans up temporary intermediate files that were produced.
+	make clean all tmpclean || die "make dist failed"
 	cd .. || die "pkg cd .. fail"
 	tar cjf $PKG-$VERSION.tar.bz2 $PKG-$VERSION || die "release tarball failed"
 	cd .. || die "pkg cd .. again fail"

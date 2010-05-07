@@ -5,9 +5,13 @@ TARBALL_CONTENTS=keychain README.rst ChangeLog COPYING keychain.pod keychain.1 \
 
 all: keychain.1 keychain keychain.spec
 
+.PHONY : tmpclean
+tmpclean:
+	rm -rf dist keychain.1.orig keychain.txt
+
 .PHONY : clean
-clean:
-	rm -rf dist keychain.1 keychain keychain.spec keychain.1.orig keychain.txt
+clean: tmpclean
+	rm -rf keychain.1 keychain keychain.spec 
 
 keychain.spec: keychain.spec.in keychain.sh
 	sed 's/KEYCHAIN_VERSION/$V/' keychain.spec.in > keychain.spec
