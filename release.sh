@@ -16,7 +16,7 @@ die() {
 }
 
 prep() {
-	rm -f dist/$PKG-$VERSION*
+	rm -rf dist/$PKG-$VERSION*
 	install -d dist/$PKG-$VERSION
 }
 
@@ -31,12 +31,13 @@ commit() {
 	# package.
 
 	#git commit -a -m "$VERSION distribution release" || die "commit failed"
-	git archive --format=tar --prefix=${PKG}-${VERSION}/ HEAD | tar xf -C dist/$PKG-$VERSION || die "git archive fail"
+	git archive --format=tar --prefix=${PKG}-${VERSION}/ HEAD | tar xf - -C dist || die "git archive fail"
 	#git push || die "keychain git push failed"
-	cd $PKG-$VERSION || die "pkg cd fail"
+	cd dist/$PKG-$VERSION || die "pkg cd fail"
 	make clean all || die "make dist failed"
 	cd .. || die "pkg cd .. fail"
 	tar cjf $PKG-$VERSION.tar.bz2 $PKG-$VERSION || die "release tarball failed"
+	cd .. || die "pkg cd .. again fail"
 }
 
 web() {
