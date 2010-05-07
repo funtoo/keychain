@@ -1,17 +1,16 @@
-V:=$(shell /bin/sh keychain.sh --version 2>&1 | \
-	awk -F'[ ;]' '/^K/{print $$2; exit}')
+V:=$(shell cat VERSION)
 D:=$(shell date +'%d %b %Y')
 TARBALL_CONTENTS=keychain README.rst ChangeLog COPYING keychain.pod keychain.1 \
 				 keychain.spec
 
-all: keychain.1.gz keychain keychain.spec
+all: keychain.1 keychain keychain.spec
 
 keychain.spec: keychain.spec.in keychain.sh
 	sed 's/KEYCHAIN_VERSION/$V/' keychain.spec.in > keychain.spec
 
 keychain.1: keychain.pod keychain.sh
 	pod2man --name=keychain --release=$V \
-		--center='http://gentoo.org/proj/en/keychain.xml' \
+		--center='http://www.funtoo.org' \
 		keychain.pod keychain.1
 	sed -i.orig -e "s/^'br/.br/" keychain.1
 
@@ -34,7 +33,9 @@ GENKEYCHAINPL = open P, "keychain.txt" or die "cant open keychain.txt"; \
 			$$/ = undef; \
 			$$_ = <B>; \
 			s/INSERT_POD_OUTPUT_HERE\n/$$pod/ || die; \
+			s/\#\#VERSION\#\#/$V/g || die; \
 		print
+
 keychain: keychain.sh keychain.txt
 	perl -e '$(GENKEYCHAINPL)' >keychain || rm -f keychain
 	chmod +x keychain
@@ -66,38 +67,3 @@ keychain-$V-1.noarch.rpm: keychain-$V.tar.gz
 	mv ~/redhat/RPMS/noarch/keychain-$V-1.noarch.rpm \
 		~/redhat/SRPMS/keychain-$V-1.src.rpm .
 	rpm --addsign keychain-$V-1.noarch.rpm keychain-$V-1.src.rpm
-
-GENWEBPAGEPL = BEGIN{open F, "ChangeLog"; local $$/=undef; \
-			($$C=<F>) =~ s/^.*?\n\n//s; \
-			$$C =~ s/&/&amp;/g; \
-			$$C =~ s/</&lt;/g; \
-			$$C =~ s/>/&gt;/g; }; \
-		s/(<version>).*?(?=<.version>)/$${1}$V/; \
-		s/(<date>).*?(?=<.date>)/$${1}$D/; \
-		s/(keychain-)[\d.]+(?=\.tar|\S*rpm)/$${1}$V/g; \
-		s/(<!-- begin automatic ChangeLog insertion -->).*?(?=<!-- end)/$${1}$$C/s
-.PHONY: webpage
-webpage:
-	perl -0777i.bak -pe '$(GENWEBPAGEPL)' \
-		~/g/gentoo/xml/htdocs/proj/en/keychain/index.xml
-	cd ~/g/gentoo/xml/htdocs/proj/en/keychain && \
-		cvs commit -m 'update to $V' index.xml
-
-.PHONY: mypage
-mypage: keychain-$V.tar.gz keychain-$V-1.noarch.rpm
-	rsync -vPe ssh keychain-$V.tar.bz2 ChangeLog \
-		keychain-$V-1.noarch.rpm keychain-$V-1.src.rpm \
-		gentoo:public_html/keychain/
-	ssh gentoo make -C public_html/keychain
-
-.PHONY: release
-release: mypage webpage
-	rsync -vPe ssh keychain-$V.tar.bz2 gentoo:/space/distfiles-local/
-
-.PHONY: clean
-clean:
-	rm -f keychain keychain.txt keychain.1 keychain.spec keychain.1.orig keychain.1.gz
-
-.PHONY: test
-test: keychain
-	@./runtests

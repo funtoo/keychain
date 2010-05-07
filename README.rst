@@ -8,7 +8,7 @@ Introduction to Keychain
         This page contains information about Keychain, an OpenSSH and
         commercial SSH2-compatible RSA/DSA key management application.
 
-:version: 2009-10-23
+:version: 2010.05.07
 :author: Daniel Robbins
 :contact: drobbins@funtoo.org
 :copyright: funtoo
@@ -39,8 +39,8 @@ allowing your scripts to take advantage of key-based logins.
 Download and Resources
 ======================
 
-The latest release of keychain is version ``2.7.0``, and was released on
-October 23, 2009. The current version of keychain supports ``gpg-agent`` as
+The latest release of keychain is version ``2.7.1``, and was released on
+May 7, 2010. The current version of keychain supports ``gpg-agent`` as
 well as ``ssh-agent``.
 
 Keychain is compatible with many operating systems, including ``AIX``,
@@ -48,8 +48,7 @@ Keychain is compatible with many operating systems, including ``AIX``,
 ``IRIX``, ``Solaris`` and ``GNU Hurd``. 
 
 
-.. _keychain 2.7.0 source code: http://www.funtoo.org/archive/keychain/keychain-2.7.0.tar.bz2
-.. _keychain 2.6.9 source code: http://www.funtoo.org/archive/keychain/keychain-2.6.9.tar.bz2
+.. _keychain 2.7.1: http://www.funtoo.org/archive/keychain/keychain-2.7.1.tar.bz2
 
 .. _keychain 2.7.0 MacOS X package: http://www.funtoo.org/archive/keychain/keychain-2.7.0-macosx.tar.gz
 .. _keychain 2.6.9 MacOS X package: http://www.funtoo.org/archive/keychain/keychain-2.6.9-macosx.tar.gz
@@ -57,11 +56,9 @@ Keychain is compatible with many operating systems, including ``AIX``,
 Download
 --------
 
-- *Source Code*
+- *Release Archive*
 
-  - `keychain 2.7.0 source code`_
-
-  - `keychain 2.6.9 source code`_
+  - `keychain 2.7.1`_
 
 - *Apple MacOS X Packages*
 
@@ -334,7 +331,5 @@ In mid-July, 2009, Daniel Robbins migrated Aron's mercurial repository to git
 and set up a new project page on funtoo.org, and made a few bug fix commits to
 the git repo that had been collecting in `bugs.gentoo.org`_. Daniel continues
 to maintain ``keychain`` and supporting documentation on funtoo.org, and
-plans to make regular maintenance releases of ``keychain`` as appropriate.
-
-The current release of ``keychain`` is 2.7.0.
+plans to make regular maintenance releases of ``keychain`` as needed.
 

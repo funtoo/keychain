@@ -12,7 +12,7 @@
 # Maintained and rewritten April 2004 - July 2007 by Aron Griffis <agriffis@n01se.net>
 # Maintained July 2009 - present by Daniel Robbins <drobbins@funtoo.org>
 
-version=2.7.0
+version=##VERSION##
 
 PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
 

@@ -12,6 +12,22 @@
 # Maintained and rewritten April 2004 - July 2007 by Aron Griffis <agriffis@n01se.net>
 # Maintained July 2009 - present by Daniel Robbins <drobbins@funtoo.org>
 
+* keychain 2.7.1 (07 May 2010)
+
+  07 May 2010; Daniel Robbins <drobbins@funtoo.org>: New release process in
+  Makefile and release.sh - keychain release tarball will now contain
+  pre-generated keychain, keychain.1 and keychain.spec so that users do not
+  need to run "make". Updated README.rst to refer to the "source code" as
+  a "release archive" since it contains both source code and ready-to-go
+  script and man page.
+
+  14 Apr 2010; Daniel Robbins <drobbins@funtoo.org>: GPG fix from Gentoo bug
+  203871; from Frederic Bathelery. This fix will fix the issue with pinentry
+  starting in the background and not showing up in the terminal.
+
+  20 Feb 2010; Daniel Robbins <drobbins@funtoo.org>: MacOS X documentation fix
+  from James Turnbull.
+
 * keychain 2.7.0 (23 Oct 2009)
 
   23 Oct 2009; Daniel Robbins <drobbins@funtoo.org>: updated README.rst with
