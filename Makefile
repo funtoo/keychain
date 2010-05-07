@@ -7,7 +7,7 @@ all: keychain.1 keychain keychain.spec
 
 .PHONY : clean
 clean:
-	rm -f keychain.1 keychain keychain.spec
+	rm -rf dist keychain.1 keychain keychain.spec keychain.1.orig keychain.txt
 
 keychain.spec: keychain.spec.in keychain.sh
 	sed 's/KEYCHAIN_VERSION/$V/' keychain.spec.in > keychain.spec
