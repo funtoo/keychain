@@ -35,7 +35,8 @@ commit() {
 	#git push || die "keychain git push failed"
 	cd dist/$PKG-$VERSION || die "pkg cd fail"
 	# tmpclean target cleans up temporary intermediate files that were produced.
-	make clean all tmpclean || die "make dist failed"
+	make clean all || die "make dist failed"
+	make tmpclean || die "make tmpclean failed"
 	cd .. || die "pkg cd .. fail"
 	tar cjf $PKG-$VERSION.tar.bz2 $PKG-$VERSION || die "release tarball failed"
 	cd .. || die "pkg cd .. again fail"
