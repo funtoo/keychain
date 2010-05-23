@@ -61,9 +61,7 @@ Download
 
 - *Apple MacOS X Packages*
 
-  - `keychain 2.7.0 MacOS X package`_
-
-  - `keychain 2.6.9 MacOS X package`_
+  - `keychain 2.7.1 MacOS X package`_
 
 Keychain development sources can be found in the `keychain git repository`_.
 Please use the `funtoo-dev mailing list`_ and `#funtoo irc channel`_ for
