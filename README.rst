@@ -50,8 +50,7 @@ Keychain is compatible with many operating systems, including ``AIX``,
 
 .. _keychain 2.7.1: http://www.funtoo.org/archive/keychain/keychain-2.7.1.tar.bz2
 
-.. _keychain 2.7.0 MacOS X package: http://www.funtoo.org/archive/keychain/keychain-2.7.0-macosx.tar.gz
-.. _keychain 2.6.9 MacOS X package: http://www.funtoo.org/archive/keychain/keychain-2.6.9-macosx.tar.gz
+.. _keychain 2.7.1 MacOS X package: http://www.funtoo.org/archive/keychain/keychain-2.7.1-macosx.tar.gz
 
 Download
 --------
