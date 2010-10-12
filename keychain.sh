@@ -748,11 +748,17 @@ ssh_l() {
 ssh_f() {
     sf_filename="$1"
     if $openssh || $sunssh; then
-        if [ ! -f "$sf_filename.pub" ]; then
+        if [ -f "$sf_filename.pub" ]; then
+            sf_pubkey="$sf_filename.pub"
+        else if [ -f "pub/$sf_filename.pub" ]; then
+            sf_pubkey="pub/$sf_filename.pub"
+        else if [ -f "pub/$sf_filename" ]; then
+            sf_pubkey="pub/$sf_filename"
+        else
             warn "$sf_filename.pub missing; can't tell if $sf_filename is loaded"
             return 1
         fi
-        sf_fing=`ssh-keygen -l -f "$sf_filename.pub"` || return 1
+        sf_fing=`ssh-keygen -l -f "$sf_pubkey"` || return 1
         echo "$sf_fing" | extract_fingerprints
     else
         # can't get fingerprint for ssh2 so use filename *shrug*
