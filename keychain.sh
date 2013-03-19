@@ -49,6 +49,7 @@ evalopt=false
 queryopt=false
 confirmopt=false
 absoluteopt=false
+systemdopt=false
 unset ssh_confirm
 unset GREP_OPTIONS
 
@@ -1098,6 +1099,9 @@ while [ -n "$1" ]; do
                 die "--timeout requires a numeric argument greater than zero"
             fi
             ;;
+        --systemd)
+            systemdopt=true
+            ;;
         --)
             shift
             IFS="
@@ -1301,6 +1305,12 @@ if $clearopt; then
         fi
     done
     trap 'droplock' 2               # done clearing, safe to ctrl-c
+fi
+
+if $systemdopt; then
+    for a in $agentsopt; do
+        systemctl --user set-environment $( catpidf_shell sh $a | cut -d\; -f1 )
+    done
 fi
 
 # --noask: "don't ask for keys", so we're all done
