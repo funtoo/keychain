@@ -47,6 +47,7 @@ keydir="${HOME}/.keychain"
 unset envf
 evalopt=false
 confirmopt=false
+absoluteopt=false
 unset ssh_confirm
 unset GREP_OPTIONS
 
@@ -1009,12 +1010,21 @@ while [ -n "$1" ]; do
         --confirm)
             confirmopt=true
             ;;
+        --absolute)
+            absoluteopt=true
+            ;;
         --dir)
             shift
             case "$1" in
                 */.*) keydir="$1" ;;
                 '')   die "--dir requires an argument" ;;
-                *)    keydir="$1/.keychain" ;;  # be backward-compatible
+                *)
+                    if $absoluteopt; then
+                        keydir="$1"
+                    else
+                        keydir="$1/.keychain" # be backward-compatible
+                    fi
+                    ;;
             esac
             ;;
         --env)
