@@ -182,6 +182,10 @@ keys.
 Kill currently running agent processes.  The following values are
 valid for "which":
 
+=item B<--systemd>
+
+Inject environment variables into the systemd --user session.
+
 =over 9
 
 =item all
