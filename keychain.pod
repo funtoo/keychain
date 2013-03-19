@@ -75,6 +75,11 @@ compatibility.
 
 Keychain will use dirname rather than $HOME/.keychain
 
+=item B<--query>
+
+Keychain will print lines in KEY=value format representing the values
+which are set by the agents.
+
 =item B<--eval>
 
 Keychain will print lines to be evaluated in the shell on stdout.  It

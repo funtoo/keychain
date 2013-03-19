@@ -48,6 +48,7 @@ unset mykeys
 keydir="${HOME}/.keychain"
 unset envf
 evalopt=false
+queryopt=false
 confirmopt=false
 absoluteopt=false
 unset ssh_confirm
@@ -1070,6 +1071,9 @@ while [ -n "$1" ]; do
         --eval)
             evalopt=true
             ;;
+        --query)
+            queryopt=true
+            ;;
         --host)
             shift
             hostopt="$1"
@@ -1281,12 +1285,17 @@ takelock || die
 loadagents $agentsopt
 unset nagentsopt
 for a in $agentsopt; do
-    if startagent $a; then
+    if $queryopt; then
+        catpidf_shell sh $a | cut -d\; -f1
+    elif startagent $a; then
         nagentsopt="${nagentsopt+$nagentsopt }$a"
         $evalopt && catpidf $a
     fi
 done
 agentsopt="$nagentsopt"
+
+# If we are just querying the services, exit.
+$queryopt && exit 0
 
 # If there are no agents remaining, then duck out now...
 [ -n "$agentsopt" ] || { qprint; exit 0; }
