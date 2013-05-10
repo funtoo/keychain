@@ -30,6 +30,8 @@ nolockopt=false
 lockwait=5
 openssh=unknown
 sunssh=unknown
+confhost=unknown
+sshconfig=false
 quickopt=false
 quietopt=false
 clearopt=false
@@ -856,6 +858,9 @@ add_sshkey() {
 # synopsis: parse_mykeys
 # Sets $sshkeys and $gpgkeys based on $mykeys
 parse_mykeys() {
+    # Possible path to the private key: if --confhost variable used.
+    pkeypath="$1"
+
     # Parse $mykeys into positional params to preserve spaces in filenames
     set -f         # disable globbing
     pm_IFS="$IFS"  # save current IFS
@@ -874,6 +879,8 @@ parse_mykeys() {
                 add_sshkey "$HOME/.ssh/$pm_k" ; continue
             elif [ -f "$HOME/.ssh2/$pm_k" ]; then
                 add_sshkey "$HOME/.ssh2/$pm_k" ; continue
+            elif [ -f "$pkeypath" ]; then
+                add_sshkey "$pkeypath"; continue
             fi
         fi
 
@@ -950,6 +957,31 @@ setagents() {
         die "no agents available to start"
     fi
 }
+
+# synopsis: confpath
+# Return private key path if found in ~/.ssh/config SSH configuration file.
+# Input: the name of the host we would like to connect to.
+confpath() {
+  declare -A keypaths
+  while IFS= read -r line; do
+     # get the Host directives
+     if [[ $line == *"Host "* ]]; then
+       host=true
+       h=$(echo $line | awk '{print $2}')
+     fi
+
+     if [[ $line == *IdentityFile* ]] && $host ; then
+       i=$(echo $line | awk '{print $2}')
+       keypaths["$h"]="$i"
+     fi
+
+  done < ~/.ssh/config 
+
+  if test "${keypaths["$1"]+isset}"; then
+    echo "${keypaths[$1]}"
+  fi
+}
+
 
 # synopsis: wantagent prog
 # Return 0 (true) or 1 (false) depending on whether prog is one of the agents in
@@ -1072,6 +1104,11 @@ while [ -n "$1" ]; do
             ;;
         --quiet|-q)
             quietopt=true
+            ;;
+        --confhost)
+            echo "$2"
+            sshconfig=true
+            confhost="$2"
             ;;
         --nocolor)
             color=false
@@ -1287,9 +1324,16 @@ fi
 # --noask: "don't ask for keys", so we're all done
 $noaskopt && { qprint; exit 0; }
 
+# If the --confhost option used, determine the path to the private key as 
+# written in the ~/.ssh/config and add it to ssh-add.
+if $sshconfig; then
+    pkeypath=$(confpath "$confhost")
+    eval pkeypath=$pkeypath
+fi
+
 # Parse $mykeys into ssh vs. gpg keys; it may be necessary in the future to
 # differentiate on the cmdline
-parse_mykeys || die
+parse_mykeys "$pkeypath" || die
 
 # Load ssh keys
 if wantagent ssh; then
