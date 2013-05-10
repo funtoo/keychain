@@ -1105,8 +1105,7 @@ while [ -n "$1" ]; do
         --quiet|-q)
             quietopt=true
             ;;
-        --confhost)
-            echo "$2"
+        --confhost|-c)
             sshconfig=true
             confhost="$2"
             ;;
