@@ -601,7 +601,7 @@ startagent() {
                 unset start_gpg_timeout
             fi
             # the 1.9.x series of gpg spews debug on stderr
-            start_out=`gpg-agent --daemon $start_gpg_timeout 2>/dev/null`
+            start_out=`gpg-agent --daemon --write-env-file $start_gpg_timeout 2>/dev/null`
         else
             error "I don't know how to start $start_prog-agent (2)"
             return 1
