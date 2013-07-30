@@ -65,9 +65,20 @@ Keys are subject to interactive confirmation by the SSH_ASKPASS
 program before being used for authentication.  See the -c option for
 ssh-add(1).
 
+=item B<--absolute>
+
+Any arguments to "--dir" are interpreted to be absolute. The default
+behavior is to append "/.keychain" to the argument for backwards
+compatibility.
+
 =item B<--dir> I<dirname>
 
 Keychain will use dirname rather than $HOME/.keychain
+
+=item B<--query>
+
+Keychain will print lines in KEY=value format representing the values
+which are set by the agents.
 
 =item B<--eval>
 
@@ -170,6 +181,10 @@ keys.
 
 Kill currently running agent processes.  The following values are
 valid for "which":
+
+=item B<--systemd>
+
+Inject environment variables into the systemd --user session.
 
 =over 9
 
