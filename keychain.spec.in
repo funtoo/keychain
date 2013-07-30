@@ -4,7 +4,7 @@ Release:   1
 Summary:   agent manager for OpenSSH, ssh.com, Sun SSH, and GnuPG
 Packager:  Daniel Robbins <drobbins@funtoo.org>
 URL:       http://www.funtoo.org 
-Source0:   %{url}%{name}-%{version}.tar.bz2
+Source0:   %{name}-%{version}.tar.bz2
 License:   GPL v2
 Group:     Applications/Internet
 BuildArch: noarch
@@ -38,4 +38,4 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root)
      %{_bindir}/*
 %doc %{_mandir}/*/*
-%doc ChangeLog COPYING keychain.pod README.rst
+%doc ChangeLog COPYING.txt keychain.pod README.rst
