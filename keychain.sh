@@ -650,7 +650,7 @@ SSH2_AGENT_PID=$inherit_ssh2_agent_pid; export SSH2_AGENT_PID;"
         *)
             echo "$start_out" >"$start_pidf"
             echo "$start_out" | sed 's/;.*/;/' | sed 's/=/ /' | sed 's/^/setenv /' >"$start_cshpidf"
-            echo "$start_out" | sed 's/;.*/;/' | sed 's/^\(.*\)=\(.*\);/set -e \1; and set -x -U \1 \2/' >"$start_fishpidf"
+            echo "$start_out" | sed 's/;.*/;/' | sed 's/^\(.*\)=\(.*\);/set -e \1; set -x -U \1 \2;/' >"$start_fishpidf"
             ;;
     esac
 
