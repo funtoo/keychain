@@ -200,7 +200,7 @@ private key has been added to ``ssh-agent`` and then set up your environment
 so that ``ssh`` can find the already-running ``ssh-agent``. It will look 
 something like this:
 
-.. figure:: keychain-1.png
+.. figure:: img/keychain-1.png
    :alt: Keychain starts for the first time after login
 
 Note that when ``keychain`` runs for the first time after your local system has
@@ -212,7 +212,7 @@ first log in.) After that, ``ssh-agent`` is already running and has your
 decrypted private key cached in memory. So if you open a new shell, you will
 see something like this:
 
-.. figure:: keychain-2.png
+.. figure:: img/keychain-2.png
    :alt: Keychain finds existing ssh-agent and gpg-agent, and doesn't prompt for passphrase
 
 This means that you can now ``ssh`` to your heart's content, without supplying
