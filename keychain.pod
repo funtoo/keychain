@@ -29,9 +29,8 @@ ssh-agent, otherwise it loads them, prompting you for a password if
 necessary.
 
 Keychain also supports gpg-agent in the same ways that ssh-agent is
-supported.  By default keychain attempts to start all available agents
-but will fall back to only gpg-agent or only ssh-agent if either is
-unavailable.  You can specifically limit keychain using the --agents
+supported.  By default keychain attempts to start ssh-agent. 
+You can modify this behavior using the --agents
 option.
 
 keychain supports most UNIX-like operating systems, including Cygwin.
@@ -43,9 +42,9 @@ It works with Bourne-compatible, csh-compatible and fish shells.
 
 =item B<--agents> I<list>
 
-Start the agents listed.  By default keychain will build the list
-automatically based on the existence of ssh-agent and/or gpg-agent on
-the system.  The list should be comma-separated, for example "gpg,ssh"
+Start the agents listed.  By default keychain will start ssh-agent
+if it is found in your path. The list should be comma-separated, 
+for example "gpg,ssh"
 
 =item B<--attempts> I<num>
 
