@@ -4,7 +4,7 @@ keychain - re-use ssh-agent and/or gpg-agent between logins
 
 =head1 SYNOPSIS
 
-S<keychain [ -hkQqV ] [ --clear --help --ignore-missing --noask>
+S<keychain [ -hkQqV ] [ --clear --confhost --help --ignore-missing --noask>
 S<--nocolor --nogui --nolock --quick --quiet --version ]>
 S<[ --agents I<list> ] [ --attempts I<num> ] [ --dir I<dirname> ]>
 S<[ --host I<name> ] [ --lockwait I<seconds> ]>
@@ -57,6 +57,13 @@ Delete all of ssh-agent's keys.  Typically this is used in
 that you are an intruder until proven otherwise.  However, while this
 option increases security, it still allows your cron jobs to use your
 ssh keys when you're logged out.
+
+=item B<--confhost>
+
+By default, keychain will look for key pairs in the ~/.ssh/ directory.
+The --confhost option will inform keychain to look in ~/.ssh/config
+for IdentityFile settings defined for particular hosts, and use these
+paths to locate keys.
 
 =item B<--confirm>
 
