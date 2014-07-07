@@ -2,7 +2,7 @@
 #
 # Copyright 2002-2006 Gentoo Foundation http://www.gentoo.org/
 # Copyright 2007 Aron Griffis <agriffis@n01se.net>
-# Copyright 2009-2010 Funtoo Technolgies, LLC.
+# Copyright 2009-2014 Funtoo Technolgies, LLC.
 # lockfile() Copyright 2009 Parallels, Inc.
 
 # Distributed under the GNU General Public License version 2
@@ -11,6 +11,27 @@
 # Maintained August 2002 - April 2003 by Seth Chandler <sethbc@gentoo.org>
 # Maintained and rewritten April 2004 - July 2007 by Aron Griffis <agriffis@n01se.net>
 # Maintained July 2009 - present by Daniel Robbins <drobbins@funtoo.org>
+
+* keychain 2.7.2_beta1 (07 July 2014) 
+
+  Various changes and updates:
+
+  Fixes for FISH from Marc Joliet.
+  
+  Keychain will default to start only ssh-agent unless GPG is explicitly
+  updated using --agents. 
+
+  Write ~/.gpg-agent-info when launching gpg-agent - fix from Thomas Spura.
+
+  Add support for injecting agents into systemd (Ben Boeckel)
+
+  Add support for --query option (Ben Boeckel)
+
+  Add --absolute flag, allowing user to set a full path without getting a
+  .keychain suffix automatically appended.
+
+  Add --confhost option to scan ~/.ssh/config file to locate private key
+  path specified there.
 
 * keychain 2.7.1 (07 May 2010)
 
