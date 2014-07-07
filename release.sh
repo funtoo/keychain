@@ -40,27 +40,14 @@ commit() {
 	cd .. || die "pkg cd .. again fail"
 }
 
-web() {
-	cp dist/$PKG-$VERSION.tar.bz2 /root/git/website/archive/$PKG/ || die "web cp failed"
-	cd /root/git/website || die "cd failed"
-	git add archive/$PKG/* || die "git add failed"
-	git commit -a -m "new $PKG $VERSION" || die "git commit failed"
-	git push || die "git push failed"
-	./install.sh || die "web update failed"
-}
-
 if [ "$1" = "prep" ]
 then
 	prep
 elif [ "$1" = "commit" ]
 then
 	commit
-elif [ "$1" = "web" ]
-then
-	web
 elif [ "$1" = "all" ]
 then
 	prep
 	commit
-	web
 fi
