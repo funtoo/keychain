@@ -12,32 +12,45 @@ S<[ --stop I<which> ] [ --timeout I<minutes> ] [ keys... ]>
 
 =head1 DESCRIPTION
 
-keychain is a manager for ssh-agent, typically run from
-~/.bash_profile.  It allows your shells and cron jobs to share a
-single ssh-agent process.  By default, the ssh-agent started by
-keychain is long-running and will continue to run, even after you have
-logged out from the system.  If you want to change this behavior, take
-a look at the --clear and --timeout options, described below.
+keychain is a manager for ssh-agent, typically run from ~/.bash_profile.  It
+allows your shells and cron jobs to easily share a single ssh-agent process.  By
+default, the ssh-agent started by keychain is long-running and will continue to
+run, even after you have logged out from the system.  If you want to change
+this behavior, take a look at the --clear and --timeout options, described
+below.
 
-When keychain is run, it checks for a running ssh-agent, otherwise it
-starts one.  It saves the ssh-agent environment variables to
-~/.keychain/${HOSTNAME}-sh, so that subsequent logins and
-non-interactive shells such as cron jobs can source the file and make
-passwordless ssh connections.  In addition, when keychain runs, it
-verifies that the key files specified on the command-line are known to
-ssh-agent, otherwise it loads them, prompting you for a password if
-necessary. Keychain expects associated public key files to exist in
-the same directory as the private key files, with a .pub extension.
-As an additional feature, if your private keys have an extension ".ext",
-keychain will look for privkey.ext.pub first, and if not found, will
-look for privkeyname.pub.
+When keychain is run, it checks for a running ssh-agent, otherwise it starts
+one.  It saves the ssh-agent environment variables to
+~/.keychain/${HOSTNAME}-sh, so that subsequent logins and non-interactive
+shells such as cron jobs can source the file and make passwordless ssh
+connections.
+
+In addition, when keychain runs, it verifies that the key files specified on
+the command-line are known to ssh-agent, otherwise it loads them, prompting you
+for a password if necessary. Typically, private key files are specified by filename
+only, without path, although it is possible to specify an absolute or relative
+path to the private key file as well. If just a private key filename is used,
+which is typical usage, keychain will look for the specified private key
+files in ~/.ssh, ~/.ssh2, or with the -c/--confhost option, inspect the
+~/.ssh/config file and use the IdentityFile option to determine the location of
+the private key. Private keys can be symlinks to the actual private key.
+
+Keychain expects associated public key files to exist in the same directory as
+the private key files, with a .pub extension.  If the private key is a symlink,
+the public key can be found alongside the symlink, or in the same directory as
+the symlink target (This capability requires the 'readlink' command to be
+available on the system.)
+
+As an additional feature, if a private key has an extension ".ext", keychain
+will look for privkey.ext.pub first, and if not found, will look for
+privkeyname.pub.
 
 Keychain also supports gpg-agent in the same ways that ssh-agent is
-supported.  By default keychain attempts to start ssh-agent. 
+supported.  By default keychain attempts to start ssh-agent only. 
 You can modify this behavior using the --agents
 option.
 
-keychain supports most UNIX-like operating systems, including Cygwin.
+Keychain supports most UNIX-like operating systems, including Cygwin.
 It works with Bourne-compatible, csh-compatible and fish shells.
 
 =head1 OPTIONS

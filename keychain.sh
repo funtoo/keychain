@@ -54,6 +54,7 @@ absoluteopt=false
 systemdopt=false
 unset ssh_confirm
 unset GREP_OPTIONS
+realpath_bin="`command -v realpath`"
 
 shopt -s extglob
 
@@ -763,16 +764,25 @@ ssh_l() {
 # Requires $openssh and $sunssh
 ssh_f() {
 	sf_filename="$1"
+	
 	if $openssh || $sunssh; then
-		if [ ! -f "$sf_filename.pub" ]; then
+		# if private key is symlink and symlink to *.pub is missing:
+		if [ -L "$sf_filename" ] && [ ! -z "$realpath_bin" ]; then
+			sf_filename="`$realpath_bin $sf_filename`"
+		fi
+		lsf_filename="$sf_filename.pub"
+		if [ ! -f "$lsf_filename" ]; then
 			# try to remove extension from private key, *then* add .pub, and see if we now find it:
-			sf_filename=`echo "$sf_filename" | sed 's/\.[^\.]*$//'`
-			if [ ! -f "$sf_filename.pub" ]; then
-				warn "$sf_filename.pub missing; cannot tell if $sf_filename is loaded"
+			if [ -L "$sf_filename" ] && [ ! -z "$realpath_bin" ]; then
+				sf_filename="`$realpath_bin $sf_filename`"
+			fi
+			lsf_filename=`echo "$sf_filename" | sed 's/\.[^\.]*$//'`.pub
+			if [ ! -f "$lsf_filename" ]; then
+				warn "Cannot find public key for $1."
 				return 1
 			fi
 		fi
-		sf_fing=`ssh-keygen -l -f "$sf_filename.pub"` || return 1
+		sf_fing=`ssh-keygen -l -f "$lsf_filename"` || return 1
 		echo "$sf_fing" | extract_fingerprints
 	else
 		# can't get fingerprint for ssh2 so use filename *shrug*
