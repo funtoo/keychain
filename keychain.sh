@@ -54,6 +54,7 @@ absoluteopt=false
 systemdopt=false
 unset ssh_confirm
 unset GREP_OPTIONS
+realpath_bin="`which realpath`"
 
 BLUE="[34;01m"
 CYAN="[36;01m"
@@ -752,6 +753,12 @@ ssh_l() {
 # Requires $openssh and $sunssh
 ssh_f() {
     sf_filename="$1"
+
+    # if private key is symlink and symlink to *.pub is missing
+	if [ ! -z "$realpath_bin" ] && [ -x "$realpath_bin" ]; then
+		sf_filename="`realpath $sf_filename`"
+	fi
+
     if $openssh || $sunssh; then
         if [ ! -f "$sf_filename.pub" ]; then
             warn "$sf_filename.pub missing; can't tell if $sf_filename is loaded"
