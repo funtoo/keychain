@@ -11,7 +11,10 @@ Introduction to Keychain
 Introduction
 ============
 
-.. _keychain FUntoo wiki page: http://www.funtoo.org/Keychain
+.. _keychain Funtoo wiki page: http://www.funtoo.org/Keychain
+
+Official documentation for ``keychain`` can be found on the `keychain Funtoo
+wiki page`.
 
 ``Keychain`` helps you to manage ssh and GPG keys in a convenient and secure
 manner. It acts as a frontend to ``ssh-agent`` and ``ssh-add``, but allows you
@@ -24,5 +27,3 @@ time your local machine is rebooted. ``Keychain`` also makes it easy for remote
 cron jobs to securely "hook in" to a long running ``ssh-agent`` process,
 allowing your scripts to take advantage of key-based logins.
 
-Official documentation for ``keychain`` can be found on the `keychain Funtoo
-wiki page`.
