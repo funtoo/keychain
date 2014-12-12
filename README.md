@@ -1,10 +1,8 @@
 Introduction to Keychain
 ========================
 
-.. _keychain Funtoo wiki page: http://www.funtoo.org/Keychain
-
 **Official documentation for Keychain can be found on [the official Keychain
-wiki page](http://www.funtoo.org/Keychain).
+wiki page](http://www.funtoo.org/Keychain).**
 
 `Keychain` helps you to manage ssh and GPG keys in a convenient and secure
 manner. It acts as a frontend to `ssh-agent` and `ssh-add`, but allows you
