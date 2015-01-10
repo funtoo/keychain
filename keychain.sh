@@ -374,6 +374,10 @@ inheritagents() {
             if [ -n "$GPG_AGENT_INFO" ]; then
                 inherit_gpg_agent_info="$GPG_AGENT_INFO"
                 inherit_gpg_agent_pid=`echo "$GPG_AGENT_INFO" | cut -f2 -d:`
+            # GnuPG v.2.1+ removes $GPG_AGENT_INFO
+            elif [ -S "${GNUPGHOME:=$HOME/.gnupg}/S.gpg-agent" ]; then
+                inherit_gpg_agent_pid=$(ps -u "$me" -o 'pid,comm' | grep gpg-agent | tr -dc '[:digit:]')
+                inherit_gpg_agent_info="$GNUPGHOME/S.gpgagent:${inherit_gpg_agent_pid}:1"
             fi
         fi
     fi
