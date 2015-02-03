@@ -679,7 +679,7 @@ extract_fingerprints() {
 				#	1024 00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00 /home/barney/.ssh/id_dsa (DSA)
 				echo "$ef_line" | cut -f2 -d' '
 				;;
-			*\ SHA256:[0-9a-zA-Z\+\/=]*|*\ MD5:[0-9a-zA-Z\+\/=]*)
+			*\ [A-Z0-9][A-Z0-9]*:[A-Za-z0-9+/][A-Za-z0-9+/]*)
 				# The new OpenSSH 6.8+ format,
 				#   1024 SHA256:mVPwvezndPv/ARoIadVY98vAC0g+P/5633yTC4d/wXE /home/barney/.ssh/id_dsa (DSA)
 				echo "$ef_line" | cut -f2 -d' '
