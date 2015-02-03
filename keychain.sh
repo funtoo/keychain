@@ -380,6 +380,13 @@ inheritagents() {
                 inherit_gpg_agent_info="$GNUPGHOME/S.gpgagent:${inherit_gpg_agent_pid}:1"
             fi
         fi
+
+        if wantagent dbus; then
+            if [ -n "$DBUS_SESSION_BUS_ADDRESS" ]; then
+                inherit_dbus_session_bus_address="$DBUS_SESSION_BUS_ADDRESS"
+                inherit_dbus_session_bus_pid="$DBUS_SESSION_BUS_PID"
+            fi
+        fi
     fi
 }
 
@@ -414,6 +421,16 @@ validinherit() {
             if [ $? != 0 ]; then
                 unset inherit_gpg_agent_pid inherit_gpg_agent_info
                 warn "GPG_AGENT_INFO in environment is invalid; ignoring it"
+                vi_status=1
+            fi
+        fi
+
+    elif [ "$vi_agent" = dbus ]; then
+        if [ -n "$inherit_dbus_session_bus_pid" ]; then
+            kill -0 "$inherit_dbus_session_bus_pid" >/dev/null 2>&1
+            if [ $? != 0 ]; then
+                unset inherit_dbus_session_bus_pid inherit_dbus_session_bus_address
+                warn "DBUS_SESSION_BUS_ADDRESS in environment is invalid; ignoring it"
                 vi_status=1
             fi
         fi
@@ -483,6 +500,15 @@ loadagents() {
                 fi
                 ;;
 
+            dbus)
+                unset DBUS_SESSION_BUS_ADDRESS DBUS_SESSION_BUS_PID
+                eval "`catpidf_shell sh $la_a`"
+                if [ -n "$DBUS_SESSION_BUS_ADDRESS" ]; then
+                    dbus_session_bus_address=$DBUS_SESSION_BUS_ADDRESS
+                    dbus_session_bus_pid=$DBUS_SESSION_BUS_PID
+                fi
+                ;;
+
             *)
                 eval "`catpidf_shell sh $la_a`"
                 ;;
@@ -526,6 +552,11 @@ startagent() {
             start_pid="$gpg_agent_pid"
             if [ -n "$inherit_gpg_agent_pid" ]; then
                 start_inherit_pid="$inherit_gpg_agent_pid"
+            fi
+        elif [ "$start_prog" = dbus ]; then
+            start_pid="$dbus_session_bus_pid"
+            if [ -n "$inherit_dbus_session_bus_pid" ]; then
+                start_inherit_pid="$inherit_dbus_session_bus_pid"
             fi
         else
             error "I don't know how to start $start_prog-agent (1)"
@@ -609,6 +640,8 @@ startagent() {
             fi
             # the 1.9.x series of gpg spews debug on stderr
             start_out=`gpg-agent --daemon --write-env-file $start_gpg_timeout 2>/dev/null`
+        elif [ "$start_prog" = dbus ]; then
+            start_out=`dbus-launch 2>/dev/null`
         else
             error "I don't know how to start $start_prog-agent (2)"
             return 1
@@ -635,6 +668,9 @@ SSH2_AGENT_PID=$inherit_ssh2_agent_pid; export SSH2_AGENT_PID;"
     
     elif [ "$start_prog" = gpg -a -n "$inherit_gpg_agent_info" ]; then
         start_out="GPG_AGENT_INFO=$inherit_gpg_agent_info; export GPG_AGENT_INFO;"
+
+    elif [ "$start_prog" = dbus -a -n "$inherit_dbus_session_bus_address" ]; then
+        start_out="DBUS_SESSION_BUS_ADDRESS=$inherit_dbus_session_bus_address; export DBUS_SESSION_BUS_ADDRESS; DBUS_SESSION_BUS_PID=$inherit_dbus_session_bus_pid; export DBUS_SESSION_BUS_PID;"
 
     else
         die "something bad happened"    # should never be here
@@ -946,7 +982,11 @@ setagents() {
         agentsopt=`echo "$agentsopt" | sed 's/,/ /g'`
         unset new_agentsopt
         for a in $agentsopt; do
-            if in_path ${a}-agent >/dev/null; then
+            suffix=-agent
+            if [ "$a" = dbus ]; then
+                suffix=-launch
+            fi
+            if in_path ${a}${suffix} >/dev/null; then
                 new_agentsopt="${new_agentsopt+$new_agentsopt }${a}"
             else
                 warn "can't find ${a}-agent, removing from list"
@@ -1270,6 +1310,16 @@ if $quickopt; then
                 case " `findpids gpg` " in
                     *" $gpg_agent_pid "*) 
                         mesg "Found existing gpg-agent: ${CYANN}$gpg_agent_pid${OFF}"
+                        needstart=false ;;
+                esac
+            fi
+        elif [ $a = dbus ]; then
+            # not much way to be quick on this
+            if [ -n "$dbus_session_bus_pid" ]; then
+                case " `findpids dbus-daemon` " in
+                    *" $dbus_session_bus_pid "*)
+                        mesg "Found existing dbus-daemon:
+                        ${CYANN}$dbus_session_bus_pid${OFF}"
                         needstart=false ;;
                 esac
             fi
