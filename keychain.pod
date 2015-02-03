@@ -33,6 +33,8 @@ supported.  By default keychain attempts to start ssh-agent.
 You can modify this behavior using the --agents
 option.
 
+Keychain can also manage dbus-daemon via dbus-launch.
+
 keychain supports most UNIX-like operating systems, including Cygwin.
 It works with Bourne-compatible, csh-compatible and fish shells.
 
@@ -44,7 +46,7 @@ It works with Bourne-compatible, csh-compatible and fish shells.
 
 Start the agents listed.  By default keychain will start ssh-agent
 if it is found in your path. The list should be comma-separated, 
-for example "gpg,ssh"
+for example "gpg,ssh,dbus"
 
 =item B<--attempts> I<num>
 
@@ -56,7 +58,8 @@ Delete all of ssh-agent's keys.  Typically this is used in
 .bash_profile.  The theory behind this is that keychain should assume
 that you are an intruder until proven otherwise.  However, while this
 option increases security, it still allows your cron jobs to use your
-ssh keys when you're logged out.
+ssh keys when you're logged out. GPG and D-Bus are killed in this mode
+(gpg-agent has no way to clear keys and dbus-daemon does not keep keys).
 
 =item B<--confhost>
 
