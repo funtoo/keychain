@@ -680,6 +680,11 @@ extract_fingerprints() {
                 #   1024 00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00 /home/barney/.ssh/id_dsa (DSA)
                 echo "$ef_line" | cut -f2 -d' '
                 ;;
+            *\ [A-Z0-9][A-Z0-9]*:[A-Za-z0-9+/][A-Za-z0-9+/]*)
+                # The base64 OpenSSH format
+                #   2048 SHA256:bL8XAcj12jzVPusrNAPogvyYAvRQtpfrORU4yOVYCjo /home/barney/.ssh/id_rsa (RSA)
+                echo "$ef_line" | cut -f2 -d' '
+                ;;
             *)
                 # Fall back to filename.  Note that commercial ssh is handled
                 # explicitly in ssh_l and ssh_f, so hopefully this rule will
