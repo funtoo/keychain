@@ -614,7 +614,7 @@ startagent() {
 			error "I don't know how to start $start_prog-agent (2)"
 			return 1
 		fi
-		if [ $? != 0 ]; then
+		if [ $? != 0 -a $? != 2 ]; then
 			rm -f "$start_pidf" "$start_cshpidf" "$start_fishpidf" 2>/dev/null
 			error "Failed to start ${start_prog}-agent"
 			return 1
