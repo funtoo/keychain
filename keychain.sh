@@ -1083,6 +1083,10 @@ while [ -n "$1" ]; do
 		--eval)
 			evalopt=true
 			;;
+		--list|-l)
+			setaction list
+			quietopt=true
+			;;
 		--query)
 			queryopt=true
 			;;
@@ -1377,59 +1381,66 @@ parse_mykeys "$pkeypath" || die
 # Load ssh keys
 if wantagent ssh; then
 	sshavail=`ssh_l`				# update sshavail now that we're locked
-	sshkeys="`ssh_listmissing`"		# cache list of missing keys, newline-separated
-	sshattempts=$attempts
-	savedisplay="$DISPLAY"
+	if [ "$myaction" = "list" ]; then
+		for key in $sshavail end; do
+			[ "$key" == "end" ] && continue
+			echo "$key"
+		done
+	else
+		sshkeys="`ssh_listmissing`"		# cache list of missing keys, newline-separated
+		sshattempts=$attempts
+		savedisplay="$DISPLAY"
 
-	# Attempt to add the keys
-	while [ -n "$sshkeys" ]; do
+		# Attempt to add the keys
+		while [ -n "$sshkeys" ]; do
 
-		mesg "Adding ${CYANN}"`echo "$sshkeys" | wc -l`"${OFF} ssh key(s): `echo $sshkeys`"
+			mesg "Adding ${CYANN}"`echo "$sshkeys" | wc -l`"${OFF} ssh key(s): `echo $sshkeys`"
 
-		# Parse $sshkeys into positional params to preserve spaces in filenames.
-		# This *must* happen after any calls to subroutines because pure Bourne
-		# shell doesn't restore "$@" following a call.	Eeeeek!
-		set -f			# disable globbing
-		old_IFS="$IFS"	# save current IFS
-		IFS="
-"						# set IFS to newline
-		set -- $sshkeys
-		IFS="$old_IFS"	# restore IFS
-		set +f			# re-enable globbing
+			# Parse $sshkeys into positional params to preserve spaces in filenames.
+			# This *must* happen after any calls to subroutines because pure Bourne
+			# shell doesn't restore "$@" following a call.	Eeeeek!
+			set -f			# disable globbing
+			old_IFS="$IFS"	# save current IFS
+			IFS="
+	"						# set IFS to newline
+			set -- $sshkeys
+			IFS="$old_IFS"	# restore IFS
+			set +f			# re-enable globbing
 
-		if $noguiopt || [ -z "$SSH_ASKPASS" -o -z "$DISPLAY" ]; then
-			unset DISPLAY		# DISPLAY="" can cause problems
-			unset SSH_ASKPASS	# make sure ssh-add doesn't try SSH_ASKPASS
-			sshout=`ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1`
-		else
-			sshout=`ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1 </dev/null`
+			if $noguiopt || [ -z "$SSH_ASKPASS" -o -z "$DISPLAY" ]; then
+				unset DISPLAY		# DISPLAY="" can cause problems
+				unset SSH_ASKPASS	# make sure ssh-add doesn't try SSH_ASKPASS
+				sshout=`ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1`
+			else
+				sshout=`ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1 </dev/null`
+			fi
+			if [ $? = 0 ] 
+		then
+			blurb=""
+			[ -n "$timeout" ] && blurb="life=${timeout}m"
+			[ -n "$timeout" ] && $confirmopt && blurb="${blurb},"
+			$confirmopt && blurb="${blurb}confirm"
+			[ -n "$blurb" ] && blurb=" (${blurb})"
+			mesg "ssh-add: Identities added: `echo $sshkeys`${blurb}"
+			break
 		fi
-		if [ $? = 0 ] 
-	then
-		blurb=""
-		[ -n "$timeout" ] && blurb="life=${timeout}m"
-		[ -n "$timeout" ] && $confirmopt && blurb="${blurb},"
-		$confirmopt && blurb="${blurb}confirm"
-		[ -n "$blurb" ] && blurb=" (${blurb})"
-		mesg "ssh-add: Identities added: `echo $sshkeys`${blurb}"
-		break
+			if [ $sshattempts = 1 ]; then
+				die "Problem adding; giving up"
+			else
+				warn "Problem adding; trying again"
+			fi
+
+			# Update the list of missing keys
+			sshavail=`ssh_l`
+			[ $? = 0 ] || die "problem running ssh-add -l"
+			sshkeys="`ssh_listmissing`"  # remember, newline-separated
+
+			# Decrement the countdown
+			sshattempts=`expr $sshattempts - 1`
+		done
+
+		[ -n "$savedisplay" ] && DISPLAY="$savedisplay"
 	fi
-		if [ $sshattempts = 1 ]; then
-			die "Problem adding; giving up"
-		else
-			warn "Problem adding; trying again"
-		fi
-
-		# Update the list of missing keys
-		sshavail=`ssh_l`
-		[ $? = 0 ] || die "problem running ssh-add -l"
-		sshkeys="`ssh_listmissing`"  # remember, newline-separated
-
-		# Decrement the countdown
-		sshattempts=`expr $sshattempts - 1`
-	done
-
-	[ -n "$savedisplay" ] && DISPLAY="$savedisplay"
 fi
 
 # Load gpg keys

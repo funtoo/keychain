@@ -4,7 +4,7 @@ keychain - re-use ssh-agent and/or gpg-agent between logins
 
 =head1 SYNOPSIS
 
-S<keychain [ -hkQqV ] [ --clear --confhost --help --ignore-missing --noask>
+S<keychain [ -hklQqV ] [ --clear --confhost --help --ignore-missing --list --noask>
 S<--nocolor --nogui --nolock --quick --quiet --version ]>
 S<[ --agents I<list> ] [ --attempts I<num> ] [ --dir I<dirname> ]>
 S<[ --host I<name> ] [ --lockwait I<seconds> ]>
@@ -149,6 +149,10 @@ agent.
 By default, keychain-2.5.0 and later will behave as if "--inherit
 local-once" is specified.  You should specify "--noinherit" if you
 want the older behavior.
+
+=item B<-l --list>
+
+List signatures of all active SSH keys, and exit, similar to "ssh-add -l".
 
 =item B<--lockwait> I<seconds>
 
