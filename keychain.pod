@@ -26,7 +26,11 @@ non-interactive shells such as cron jobs can source the file and make
 passwordless ssh connections.  In addition, when keychain runs, it
 verifies that the key files specified on the command-line are known to
 ssh-agent, otherwise it loads them, prompting you for a password if
-necessary.
+necessary. Keychain expects associated public key files to exist in
+the same directory as the private key files, with a .pub extension.
+As an additional feature, if your private keys have an extension ".ext",
+keychain will look for privkey.ext.pub first, and if not found, will
+look for privkeyname.pub.
 
 Keychain also supports gpg-agent in the same ways that ssh-agent is
 supported.  By default keychain attempts to start ssh-agent. 

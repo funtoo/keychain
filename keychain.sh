@@ -759,14 +759,18 @@ ssh_l() {
 }
 
 # synopsis: ssh_f filename
-# Return finger print for a keyfile
+# Return fingerprint for a keyfile
 # Requires $openssh and $sunssh
 ssh_f() {
 	sf_filename="$1"
 	if $openssh || $sunssh; then
 		if [ ! -f "$sf_filename.pub" ]; then
-			warn "$sf_filename.pub missing; can't tell if $sf_filename is loaded"
-			return 1
+			# try to remove extension from private key, *then* add .pub, and see if we now find it:
+			sf_filename=`echo "$sf_filename" | sed 's/\.[^\.]*$//'`
+			if [ ! -f "$sf_filename.pub" ]; then
+				warn "$sf_filename.pub missing; cannot tell if $sf_filename is loaded"
+				return 1
+			fi
 		fi
 		sf_fing=`ssh-keygen -l -f "$sf_filename.pub"` || return 1
 		echo "$sf_fing" | extract_fingerprints
