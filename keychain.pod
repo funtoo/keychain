@@ -237,10 +237,16 @@ Show version information.
 
 =head1 EXAMPLES
 
-This snippet should work in any shell to load two ssh keys and one gpg
+This snippet should work in most shells to load two ssh keys and one gpg
 key:
 
     eval `keychain --eval id_rsa id_dsa 0123ABCD`
+
+For the fish shell, use the following format:
+
+    if status --is-interactive
+        keychain --eval --quiet -Q id_rsa | source
+    end
 
 If you have trouble with that in csh:
 
