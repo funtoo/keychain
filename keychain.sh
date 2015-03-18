@@ -55,6 +55,8 @@ systemdopt=false
 unset ssh_confirm
 unset GREP_OPTIONS
 
+shopt -s extglob
+
 BLUE="[34;01m"
 CYAN="[36;01m"
 CYANN="[36m"
@@ -678,6 +680,11 @@ extract_fingerprints() {
 			*\ [0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F]:*)
 				# The more consistent OpenSSH format, we hope
 				#	1024 00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00 /home/barney/.ssh/id_dsa (DSA)
+				echo "$ef_line" | cut -f2 -d' '
+				;;
+			*\ @(SHA256|MD5):[0-9a-zA-Z\+\/=]*)
+				# The new OpenSSH 6.8+ format,
+				#   1024 SHA256:mVPwvezndPv/ARoIadVY98vAC0g+P/5633yTC4d/wXE /home/barney/.ssh/id_dsa (DSA)
 				echo "$ef_line" | cut -f2 -d' '
 				;;
 			*)
