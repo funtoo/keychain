@@ -310,6 +310,6 @@ L<ssh-agent(1)>
 =head1 NOTES
 
 Keychain was created and is currently maintained by Daniel Robbins. If you need
-to report a bug or request an enhancement, please post to the funtoo-dev
-mailing list L<http://groups.google.com/group/funtoo-dev>. For more information
-about keychain, please visit L<http://www.funtoo.org>.
+to report a bug or request an enhancement, please post to the Funtoo Linux
+bug tracker L<http://bugs.funtoo.org>.  For more information
+about keychain, please visit L<http://www.funtoo.org/Keychain>.
