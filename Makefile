@@ -40,7 +40,7 @@ GENKEYCHAINPL = open P, "keychain.txt" or die "cant open keychain.txt"; \
 		open B, "keychain.sh" or die "cant open keychain.sh"; \
 			$$/ = undef; \
 			$$_ = <B>; \
-			s/INSERT_POD_OUTPUT_HERE\n/$$pod/ || die; \
+			s/INSERT_POD_OUTPUT_HERE[\r\n]/$$pod/ || die; \
 			s/\#\#VERSION\#\#/$V/g || die; \
 		print
 
