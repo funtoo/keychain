@@ -2,7 +2,7 @@
 
 # Copyright 1999-2005 Gentoo Foundation
 # Copyright 2007 Aron Griffis <agriffis@n01se.net>
-# Copyright 2009-2015 Funtoo Technologies, LLC 
+# Copyright 2009-2015 Funtoo Technologies, LLC
 # lockfile() Copyright 2009 Parallels, Inc.
 
 # Distributed under the terms of the GNU General Public License v2
@@ -114,7 +114,7 @@ versinfo() {
 	qprint
 	qprint "   Copyright ${CYANN}2002-2006${OFF} Gentoo Foundation;"
 	qprint "   Copyright ${CYANN}2007${OFF} Aron Griffis;"
-	qprint "   Copyright ${CYANN}2009-2010${OFF} Funtoo Technologies, LLC;"
+	qprint "   Copyright ${CYANN}2009-2015${OFF} Funtoo Technologies, LLC;"
 	qprint "   lockfile() Copyright ${CYANN}2009${OFF} Parallels, Inc."
 	qprint
 	qprint " Keychain is free software: you can redistribute it and/or modify"
