@@ -202,7 +202,7 @@ takelock() {
 	# to try to acquire the lock. It returns 0 on success and 1 on failure.
 	# Change in behavior: if timeout expires, we will forcefully acquire lock.
 
-	[ "$havelock" = "true" ] && return 0	
+	[ "$havelock" = "true" ] && return 0
 	[ "$nolockopt" = "true" ] && return 0
 
 	# First attempt:
@@ -500,6 +500,7 @@ loadagents() {
 # Requires $ssh_agent_pid
 startagent() {
 	start_prog=${1-ssh}
+	start_proto=${2-${start_prog}}
 	unset start_pid
 	start_inherit_pid=none
 	start_mypids=`findpids "$start_prog"`
@@ -940,26 +941,6 @@ setaction() {
 	fi
 }
 
-# synopsis: in_path
-# Look for executables in the path
-in_path() {
-	ip_lookfor="$1"
-
-	# Parse $PATH into positional params to preserve spaces
-	ip_IFS="$IFS"  # save current IFS
-	IFS=':'		   # set IFS to colon to separate PATH
-	set -- $PATH
-	IFS="$ip_IFS"  # restore IFS
-
-	for ip_x in "$@"; do
-		[ -x "$ip_x/$ip_lookfor" ] || continue
-		echo "$ip_x/$ip_lookfor" 
-		return 0
-	done
-
-	return 1
-}
-
 # synopsis: setagents
 # Check validity of agentsopt
 setagents() {
@@ -967,7 +948,7 @@ setagents() {
 		agentsopt=`echo "$agentsopt" | sed 's/,/ /g'`
 		unset new_agentsopt
 		for a in $agentsopt; do
-			if in_path ${a}-agent >/dev/null; then
+			if command -v ${a}-agent >/dev/null; then
 				new_agentsopt="${new_agentsopt+$new_agentsopt }${a}"
 			else
 				warn "can't find ${a}-agent, removing from list"
@@ -976,7 +957,7 @@ setagents() {
 		agentsopt="${new_agentsopt}"
 	else
 		for a in ssh; do
-			in_path ${a}-agent >/dev/null || continue
+			command -v ${a}-agent >/dev/null || continue
 			agentsopt="${agentsopt+$agentsopt }${a}"
 		done
 	fi
