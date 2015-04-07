@@ -1,6 +1,6 @@
 V:=$(shell cat VERSION)
 D:=$(shell date +'%d %b %Y')
-TARBALL_CONTENTS=keychain README.rst ChangeLog COPYING keychain.pod keychain.1 \
+TARBALL_CONTENTS=keychain README.md ChangeLog COPYING.txt keychain.pod keychain.1 \
 				 keychain.spec
 
 all: keychain.1 keychain keychain.spec
@@ -40,7 +40,7 @@ GENKEYCHAINPL = open P, "keychain.txt" or die "cant open keychain.txt"; \
 		open B, "keychain.sh" or die "cant open keychain.sh"; \
 			$$/ = undef; \
 			$$_ = <B>; \
-			s/INSERT_POD_OUTPUT_HERE\n/$$pod/ || die; \
+			s/INSERT_POD_OUTPUT_HERE[\r\n]/$$pod/ || die; \
 			s/\#\#VERSION\#\#/$V/g || die; \
 		print
 

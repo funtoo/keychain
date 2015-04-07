@@ -2,7 +2,7 @@
 
 # Copyright 1999-2005 Gentoo Foundation
 # Copyright 2007 Aron Griffis <agriffis@n01se.net>
-# Copyright 2009-2015 Funtoo Technologies, LLC 
+# Copyright 2009-2015 Funtoo Technologies, LLC
 # lockfile() Copyright 2009 Parallels, Inc.
 
 # Distributed under the terms of the GNU General Public License v2
@@ -55,8 +55,6 @@ systemdopt=false
 unset ssh_confirm
 unset GREP_OPTIONS
 realpath_bin="`command -v realpath`"
-
-shopt -s extglob
 
 BLUE="[34;01m"
 CYAN="[36;01m"
@@ -116,7 +114,7 @@ versinfo() {
 	qprint
 	qprint "   Copyright ${CYANN}2002-2006${OFF} Gentoo Foundation;"
 	qprint "   Copyright ${CYANN}2007${OFF} Aron Griffis;"
-	qprint "   Copyright ${CYANN}2009-2010${OFF} Funtoo Technologies, LLC;"
+	qprint "   Copyright ${CYANN}2009-2015${OFF} Funtoo Technologies, LLC;"
 	qprint "   lockfile() Copyright ${CYANN}2009${OFF} Parallels, Inc."
 	qprint
 	qprint " Keychain is free software: you can redistribute it and/or modify"
@@ -617,7 +615,7 @@ startagent() {
 			error "I don't know how to start $start_prog-agent (2)"
 			return 1
 		fi
-		if [ $? != 0 ]; then
+		if [ $? != 0 -a $? != 2 ]; then
 			rm -f "$start_pidf" "$start_cshpidf" "$start_fishpidf" 2>/dev/null
 			error "Failed to start ${start_prog}-agent"
 			return 1
@@ -684,7 +682,7 @@ extract_fingerprints() {
 				#	1024 00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00 /home/barney/.ssh/id_dsa (DSA)
 				echo "$ef_line" | cut -f2 -d' '
 				;;
-			*\ @(SHA256|MD5):[0-9a-zA-Z\+\/=]*)
+			*\ SHA256:[0-9a-zA-Z\+\/=]*|*\ MD5:[0-9a-zA-Z\+\/=]*)
 				# The new OpenSSH 6.8+ format,
 				#   1024 SHA256:mVPwvezndPv/ARoIadVY98vAC0g+P/5633yTC4d/wXE /home/barney/.ssh/id_dsa (DSA)
 				echo "$ef_line" | cut -f2 -d' '
