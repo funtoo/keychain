@@ -968,27 +968,28 @@ setagents() {
 # synopsis: confpath
 # Return private key path if found in ~/.ssh/config SSH configuration file.
 # Input: the name of the host we would like to connect to.
+# XXX FIXME: Support the full Host and Match directives
 confpath() {
-  declare -A keypaths
-  while IFS= read -r line; do
-	 # get the Host directives
-	 if [[ $line == *"Host "* ]]; then
-	   host=true
-	   h=$(echo $line | awk '{print $2}')
-	 fi
-
-	 if [[ $line == *IdentityFile* ]] && $host ; then
-	   i=$(echo $line | awk '{print $2}')
-	   keypaths["$h"]="$i"
-	 fi
-
-  done < ~/.ssh/config 
-
-  if test "${keypaths["$1"]+isset}"; then
-	echo "${keypaths[$1]}"
-  fi
+	findhost="$1" inhost=
+	while read -r line; do
+		# get the Host directive
+		case "$line" in
+		*Host\ *)
+			set -- $line
+			inhost="$2"
+			;;
+		*IdentityFile*)
+			if [ "$inhost" = "$findhost" ]; then
+				set -- $line
+				shift
+				echo "$*"
+				# The first matching parameter is used
+				break
+			fi
+			;;
+		esac
+	done < ~/.ssh/config
 }
-
 
 # synopsis: wantagent prog
 # Return 0 (true) or 1 (false) depending on whether prog is one of the agents in
