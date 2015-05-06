@@ -969,26 +969,19 @@ setagents() {
 # Return private key path if found in ~/.ssh/config SSH configuration file.
 # Input: the name of the host we would like to connect to.
 confpath() {
-  declare -A keypaths
-  while IFS= read -r line; do
-	 # get the Host directives
-	 if [[ $line == *"Host "* ]]; then
-	   host=true
-	   h=$(echo $line | awk '{print $2}')
-	 fi
-
-	 if [[ $line == *IdentityFile* ]] && $host ; then
-	   i=$(echo $line | awk '{print $2}')
-	   keypaths["$h"]="$i"
-	 fi
-
-  done < ~/.ssh/config 
-
-  if test "${keypaths["$1"]+isset}"; then
-	echo "${keypaths[$1]}"
-  fi
+	i=""
+	h=""
+	while IFS= read -r line; do
+		# get the Host directives
+		if [[ $line == *"Host "* ]]; then
+			h=$(echo $line | awk '{print $2}')
+		fi
+		if [[ $line == *IdentityFile* ]] && [[ $h == "$1" ]]; then
+			i=$(echo $line | awk '{print $2}')
+		fi
+	done < ~/.ssh/config
+	echo $i
 }
-
 
 # synopsis: wantagent prog
 # Return 0 (true) or 1 (false) depending on whether prog is one of the agents in
@@ -1129,8 +1122,12 @@ while [ -n "$1" ]; do
 			quietopt=true
 			;;
 		--confhost|-c)
-			sshconfig=true
-			confhost="$2"
+			if [ -e ~/.ssh/config ]; then
+				sshconfig=true
+				confhost="$2"
+			else
+				warn "~/.ssh/config not found; --confhost/-c option ignored."
+			fi
 			;;
 		--nocolor)
 			color=false
@@ -1485,4 +1482,4 @@ fi
 
 qprint	# trailing newline
 
-# vim:sw=4 noexpandtab tw=80
+# vim:sw=4 noexpandtab tw=120
