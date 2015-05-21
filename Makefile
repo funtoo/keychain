@@ -1,5 +1,7 @@
 V:=$(shell cat VERSION)
 D:=$(shell date +'%d %b %Y')
+RPMDIR:=$(shell rpmbuild -E '%_rpmdir')
+SRPMDIR:=$(shell rpmbuild -E '%_srcrpmdir')
 TARBALL_CONTENTS=keychain README.md ChangeLog COPYING.txt keychain.pod keychain.1 \
 				 keychain.spec
 
@@ -62,16 +64,16 @@ keychain-$V.tar.gz: $(TARBALL_CONTENTS)
 	fi
 	mkdir keychain-$V
 	cp $(TARBALL_CONTENTS) keychain-$V
-	sudo chown -R root:root keychain-$V
 	/bin/tar cjvf keychain-$V.tar.bz2 keychain-$V
-	sudo rm -rf keychain-$V
+	rm -rf keychain-$V
 	ls -l keychain-$V.tar.bz2
 
 # Building noarch.rpm builds src.rpm at the same time.  I haven't
 # found an elegant way yet to prevent parallel builds from messing
 # this up, so all deps in the Makefile refer only to noarch.rpm
-keychain-$V-1.noarch.rpm: keychain-$V.tar.gz
+keychain-$V-1.noarch.rpm-unsigned: keychain-$V.tar.gz
 	rpmbuild -ta keychain-$V.tar.bz2
-	mv ~/redhat/RPMS/noarch/keychain-$V-1.noarch.rpm \
-		~/redhat/SRPMS/keychain-$V-1.src.rpm .
+	mv $(RPMDIR)/noarch/keychain-$V-1.noarch.rpm \
+		$(SRPMDIR)/keychain-$V-1.src.rpm .
+keychain-$V-1.noarch.rpm: keychain-$V-1.noarch.rpm-unsigned
 	rpm --addsign keychain-$V-1.noarch.rpm keychain-$V-1.src.rpm
