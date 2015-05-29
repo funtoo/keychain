@@ -14,7 +14,7 @@
 
 version=##VERSION##
 
-PATH="/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb:${PATH}"
+PATH="${PATH:-/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb}"
 
 maintainer="drobbins@funtoo.org"
 zero=`basename "$0"`
