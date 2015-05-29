@@ -12,6 +12,21 @@
 # Maintained and rewritten April 2004 - July 2007 by Aron Griffis <agriffis@n01se.net>
 # Maintained July 2009 - present by Daniel Robbins <drobbins@funtoo.org>
 
+* keychain 2.8.1 (29 May 2015)
+
+  Summary: POSIX compatibility and bug fix release.
+
+  Only set PATH to a standard value if PATH is not set. Otherwise, do not
+  modify.
+
+  Makefile Cygwin and RPM spec fixes (thanks Luke Bakken and Ricardo Silva)
+
+  Confhost fixes. Deprecate in_path. Use command -v instead.
+
+  Find_pids: Modify "ps" call to work with non-GNU ps. (Bryan Drewery)
+
+  Re-introduce POSIX compatibility (remove shopt.) (vaeth)
+
 * keychain 2.8.0 (21 Mar 2015)
 
   Support for OpenSSH 6.8 fingerprints.
