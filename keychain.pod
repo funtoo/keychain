@@ -209,10 +209,6 @@ keys.
 Kill currently running agent processes.  The following values are
 valid for "which":
 
-=item B<--systemd>
-
-Inject environment variables into the systemd --user session.
-
 =over 9
 
 =item all
@@ -231,6 +227,10 @@ behavior requires that you specify it explicitly if you want it.
 Kill keychain's agent processes, leaving other agents alone.
 
 =back
+
+=item B<--systemd>
+
+Inject environment variables into the systemd --user session.
 
 =item B<-Q --quick>
 
