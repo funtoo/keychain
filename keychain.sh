@@ -972,13 +972,17 @@ confpath() {
 	h=""
 	while IFS= read -r line; do
 		# get the Host directives
-		if [[ $line == *"Host "* ]]; then
-			h=$(echo $line | awk '{print $2}')
-		fi
-		if [[ $line == *IdentityFile* ]] && [[ $h == "$1" ]]; then
-			echo $line | awk '{print $2}'
-			break
-		fi
+		case ${line} in
+		*"Host "*)
+			h=$(echo "${line}" | awk '{print $2}')
+			;;
+		*IdentityFile*)
+			if [ "${h}" = "$1" ]; then
+				echo "${line}" | awk '{print $2}'
+				return
+			fi
+			;;
+		esac
 	done < ~/.ssh/config
 }
 
@@ -1372,7 +1376,7 @@ if wantagent ssh; then
 	sshavail=`ssh_l`				# update sshavail now that we're locked
 	if [ "$myaction" = "list" ]; then
 		for key in $sshavail end; do
-			[ "$key" == "end" ] && continue
+			[ "$key" = "end" ] && continue
 			echo "$key"
 		done
 	else
