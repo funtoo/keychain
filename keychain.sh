@@ -17,7 +17,6 @@ version=##VERSION##
 PATH="${PATH:-/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb}"
 
 maintainer="drobbins@funtoo.org"
-zero=`basename "$0"`
 unset mesglog
 unset myaction
 unset agentsopt
@@ -1155,6 +1154,7 @@ while [ -n "$1" ]; do
 			break
 			;;
 		-*)
+			zero=`basename "$0"`
 			echo "$zero: unknown option $1" >&2
 			$evalopt && { echo; echo "false;"; }
 			exit 1
