@@ -65,8 +65,7 @@ OFF="[0m"
 # GNU awk and sed have regex issues in a multibyte environment.  If any locale
 # variables are set, then override by setting LC_ALL
 unset pinentry_locale
-lvars=`locale 2>/dev/null | egrep -v '="?(|POSIX|C)"?$' 2>/dev/null`
-if [ -n "$lvars$LANG$LC_ALL" ]; then
+if [ -n "$LANG$LC_ALL" ] || [ -n "`locale 2>/dev/null | egrep -v '="?(|POSIX|C)"?$' 2>/dev/null`" ]; then
 	# save LC_ALL so that pinentry-curses works right.	This has always worked
 	# correctly for me but peper and kloeri had problems with it.
 	pinentry_lc_all="$LC_ALL"
