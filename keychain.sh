@@ -53,7 +53,6 @@ absoluteopt=false
 systemdopt=false
 unset ssh_confirm
 unset GREP_OPTIONS
-realpath_bin="`command -v realpath`"
 
 BLUE="[34;01m"
 CYAN="[36;01m"
@@ -764,6 +763,7 @@ ssh_f() {
 	sf_filename="$1"
 	
 	if $openssh || $sunssh; then
+		realpath_bin="`command -v realpath`"
 		# if private key is symlink and symlink to *.pub is missing:
 		if [ -L "$sf_filename" ] && [ ! -z "$realpath_bin" ]; then
 			sf_filename="`$realpath_bin $sf_filename`"
