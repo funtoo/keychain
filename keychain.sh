@@ -977,7 +977,7 @@ confpath() {
                 esac
                 case $line in
                     *IdentityFile*)
-                        if [[ $h = "$1" ]]; then
+                        if [ $h = "$1" ]; then
                             echo $line | awk '{print $2}'
                             break
                         fi
