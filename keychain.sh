@@ -602,7 +602,7 @@ startagent() {
 		# Branch again since the agents start differently
 		mesg "Starting ${start_prog}-agent..."
 		if [ "$start_prog" = ssh ]; then
-			start_out=`ssh-agent`
+			start_out=`ssh-agent ${ssh_timeout}`
 		elif [ "$start_prog" = gpg ]; then
 			if [ -n "${timeout}" ]; then
 				start_gpg_timeout="--default-cache-ttl `expr $timeout \* 60`"
@@ -1290,6 +1290,16 @@ fi
 # If there are no agents remaining, then bow out now...
 [ -n "$agentsopt" ] || { qprint; exit 0; }
 
+# --timeout translates almost directly to ssh-add/ssh-agent -t, but ssh.com uses
+# minutes and OpenSSH uses seconds
+if [ -n "$timeout" ] && wantagent ssh; then
+	ssh_timeout=$timeout
+	if $openssh || $sunssh; then
+		ssh_timeout=`expr $ssh_timeout \* 60`
+	fi
+	ssh_timeout="-t $ssh_timeout"
+fi
+
 # There are agents remaining to start, and we now know we can't be quick.  Take
 # the lock before continuing
 takelock || die
@@ -1310,16 +1320,6 @@ $queryopt && exit 0
 
 # If there are no agents remaining, then duck out now...
 [ -n "$agentsopt" ] || { qprint; exit 0; }
-
-# --timeout translates almost directly to ssh-add -t, but ssh.com uses
-# minutes and OpenSSH uses seconds
-if [ -n "$timeout" ] && wantagent ssh; then
-	ssh_timeout=$timeout
-	if $openssh || $sunssh; then
-		ssh_timeout=`expr $ssh_timeout \* 60`
-	fi
-	ssh_timeout="-t $ssh_timeout"
-fi
 
 # --confirm translates to ssh-add -c
 if $confirmopt && wantagent ssh; then

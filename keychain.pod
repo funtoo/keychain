@@ -246,10 +246,18 @@ version 2.6.10, this also suppresses "Identities added" messages for ssh-agent.
 
 =item B<--timeout> I<minutes>
 
-Set a timeout in minutes on your keys.  This is conveyed to ssh-agent
-which does the actual timing out of keys since keychain doesn't run
-continuously. Note that this only applies to keys loaded in the same invocation
-of keychain, and not to keys added subsequently to the started agents.
+Allows a timeout to be set for identities added to ssh-agent. When this option
+is used with a keychain invocation that starts ssh-agent itself, then keychain
+uses the appropriate ssh-agent option to set the default timeout for ssh-agent.
+The --timeout option also gets passed to ssh-add invocations, so any keys added
+to a running ssh-agent will be individually configured to have the timeout
+specified, overriding any ssh-agent default.
+
+Most users can simply use the timeout setting they desire and get the result
+they want -- with all identities having the specified timeout, whether added by
+keychain or not. More advanced users can use one invocation of keychain to set
+the default timeout, and optionally set different timeouts for keys added by
+using a subsequent invocation of keychain.
 
 =item B<-V --version>
 
