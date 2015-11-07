@@ -2,7 +2,7 @@
 #
 # Copyright 2002-2006 Gentoo Foundation http://www.gentoo.org/
 # Copyright 2007 Aron Griffis <agriffis@n01se.net>
-# Copyright 2009-2015 Funtoo Technolgies, LLC.
+# Copyright 2009-2015 Funtoo Solutions, Inc.
 # lockfile() Copyright 2009 Parallels, Inc.
 
 # Distributed under the GNU General Public License version 2
@@ -11,6 +11,21 @@
 # Maintained August 2002 - April 2003 by Seth Chandler <sethbc@gentoo.org>
 # Maintained and rewritten April 2004 - July 2007 by Aron Griffis <agriffis@n01se.net>
 # Maintained July 2009 - present by Daniel Robbins <drobbins@funtoo.org>
+
+* keychain 2.8.2 (06 Nov 2015)
+
+  Summary: Support new ssh features, bug fix release.
+
+  Support for new hash algorithms (Ben Boeckel)
+
+  Remove bashisms (Daniel Hertz)
+
+  Various optimizations (Daniel Hahler)
+
+  --timeout option now gets passed to agent, doc fixes (Andrew Bezella, Emil
+  Lundberg)
+
+  RPM, Makefile fixes (Mike Frysinger)
 
 * keychain 2.8.1 (29 May 2015)
 
