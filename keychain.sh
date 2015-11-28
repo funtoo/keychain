@@ -65,7 +65,7 @@ OFF="[0m"
 # GNU awk and sed have regex issues in a multibyte environment.  If any locale
 # variables are set, then override by setting LC_ALL
 unset pinentry_locale
-if [ -n "$LANG$LC_ALL" ] || [ -n "`locale 2>/dev/null | egrep -v '="?(|POSIX|C)"?$' 2>/dev/null`" ]; then
+if [ -n "$LANG$LC_ALL" ] || [ -n "$(locale 2>/dev/null | egrep -v '="?(|POSIX|C)"?$' 2>/dev/null)" ]; then
 	# save LC_ALL so that pinentry-curses works right.	This has always worked
 	# correctly for me but peper and kloeri had problems with it.
 	pinentry_lc_all="$LC_ALL"
@@ -136,7 +136,7 @@ testssh() {
 	# OpenSSH, Sun SSH, and ssh.com
 	openssh=false
 	sunssh=false
-	case "`ssh -V 2>&1`" in
+	case "$(ssh -V 2>&1)" in
 		*OpenSSH*) openssh=true ;;
 		*Sun?SSH*) sunssh=true ;;
 	esac
@@ -146,13 +146,13 @@ testssh() {
 # Set the global string $me
 getuser() {
 	# whoami gives euid, which might be different from USER or LOGNAME
-	me=`whoami` || die "Who are you?  whoami doesn't know..."
+	me=$(whoami) || die "Who are you?  whoami doesn't know..."
 }
 
 # synopsis: getos
 # Set the global string $OSTYPE
 getos() {
-	OSTYPE=`uname` || die 'uname failed'
+	OSTYPE=$(uname) || die 'uname failed'
 }
 
 # synopsis: verifykeydir
@@ -181,7 +181,7 @@ lockfile() {
 				rm -f "$tmpfile"
 		havelock=true && return 0
 		fi
-		if kill -0 `cat $lockf 2>/dev/null` 2>/dev/null; then
+		if kill -0 $(cat $lockf 2>/dev/null) 2>/dev/null; then
 				rm -f "$tmpfile"
 			return 1
 	fi
@@ -237,25 +237,25 @@ findpids() {
 	# Try systems where we know what to do first
 	case "$OSTYPE" in
 		AIX|*bsd*|*BSD*|CYGWIN|darwin*|Linux|linux-gnu|OSF1)
-			fp_psout=`ps x 2>/dev/null` ;;		# BSD syntax
+			fp_psout=$(ps x 2>/dev/null) ;;		# BSD syntax
 		HP-UX)
-			fp_psout=`ps -u $me 2>/dev/null` ;; # SysV syntax
+			fp_psout=$(ps -u $me 2>/dev/null) ;; # SysV syntax
 		SunOS)
-			case `uname -r` in
+			case $(uname -r) in
 				[56]*)
-					fp_psout=`ps -u $me 2>/dev/null` ;; # SysV syntax
+					fp_psout=$(ps -u $me 2>/dev/null) ;; # SysV syntax
 				*)
-					fp_psout=`ps x 2>/dev/null` ;;		# BSD syntax
+					fp_psout=$(ps x 2>/dev/null) ;;		# BSD syntax
 			esac ;;
 		GNU|gnu)
-			fp_psout=`ps -g 2>/dev/null` ;;		# GNU Hurd syntax
+			fp_psout=$(ps -g 2>/dev/null) ;;		# GNU Hurd syntax
 	esac
 
 	# If we didn't get a match above, try a list of possibilities...
 	# The first one will probably fail on systems supporting only BSD syntax.
 	if [ -z "$fp_psout" ]; then
-		fp_psout=`UNIX95=1 ps -u $me -o pid,comm 2>/dev/null | grep '^ *[0-9]'`
-		[ -z "$fp_psout" ] && fp_psout=`ps x 2>/dev/null`
+		fp_psout=$(UNIX95=1 ps -u $me -o pid,comm 2>/dev/null | grep '^ *[0-9]')
+		[ -z "$fp_psout" ] && fp_psout=$(ps x 2>/dev/null)
 	fi
 
 	# Return the list of pids; ignore case for Cygwin.
@@ -280,7 +280,7 @@ findpids() {
 stopagent() {
 	stop_prog=${1-ssh}
 	eval stop_except=\$\{${stop_prog}_agent_pid\}
-	stop_mypids=`findpids "$stop_prog"`
+	stop_mypids=$(findpids "$stop_prog")
 	[ $? = 0 ] || die
 
 	if [ -z "$stop_mypids" ]; then
@@ -371,7 +371,7 @@ inheritagents() {
 		if wantagent gpg; then
 			if [ -n "$GPG_AGENT_INFO" ]; then
 				inherit_gpg_agent_info="$GPG_AGENT_INFO"
-				inherit_gpg_agent_pid=`echo "$GPG_AGENT_INFO" | cut -f2 -d:`
+				inherit_gpg_agent_pid=$(echo "$GPG_AGENT_INFO" | cut -f2 -d:)
 			# GnuPG v.2.1+ removes $GPG_AGENT_INFO
 			elif [ -S "${GNUPGHOME:=$HOME/.gnupg}/S.gpg-agent" ]; then
 				inherit_gpg_agent_pid=$(findpids gpg)
@@ -457,7 +457,7 @@ loadagents() {
 		case "$la_a" in
 			ssh)
 				unset SSH_AUTH_SOCK SSH_AGENT_PID SSH2_AUTH_SOCK SSH2_AGENT_PID
-				eval "`catpidf_shell sh $la_a`"
+				eval "$(catpidf_shell sh $la_a)"
 				if [ -n "$SSH_AUTH_SOCK" ]; then
 					ssh_auth_sock=$SSH_AUTH_SOCK
 					ssh_agent_pid=$SSH_AGENT_PID
@@ -471,7 +471,7 @@ loadagents() {
 
 			gpg)
 				unset GPG_AGENT_INFO
-				eval "`catpidf_shell sh $la_a`"
+				eval "$(catpidf_shell sh $la_a)"
 				if [ -n "$GPG_AGENT_INFO" ]; then
 					la_IFS="$IFS"  # save current IFS
 					IFS=':'		   # set IFS to colon to separate PATH
@@ -482,7 +482,7 @@ loadagents() {
 				;;
 
 			*)
-				eval "`catpidf_shell sh $la_a`"
+				eval "$(catpidf_shell sh $la_a)"
 				;;
 		esac
 	done
@@ -498,7 +498,7 @@ startagent() {
 	start_proto=${2-${start_prog}}
 	unset start_pid
 	start_inherit_pid=none
-	start_mypids=`findpids "$start_prog"`
+	start_mypids=$(findpids "$start_prog")
 	[ $? = 0 ] || die
 
 	# Unfortunately there isn't much way to genericize this without introducing
@@ -599,15 +599,15 @@ startagent() {
 		# Branch again since the agents start differently
 		mesg "Starting ${start_prog}-agent..."
 		if [ "$start_prog" = ssh ]; then
-			start_out=`ssh-agent ${ssh_timeout}`
+			start_out=$(ssh-agent ${ssh_timeout})
 		elif [ "$start_prog" = gpg ]; then
 			if [ -n "${timeout}" ]; then
-				start_gpg_timeout="--default-cache-ttl `expr $timeout \* 60`"
+				start_gpg_timeout="--default-cache-ttl $(expr $timeout \* 60)"
 			else
 				unset start_gpg_timeout
 			fi
 			# the 1.9.x series of gpg spews debug on stderr
-			start_out=`gpg-agent --daemon --write-env-file $start_gpg_timeout 2>/dev/null`
+			start_out=$(gpg-agent --daemon --write-env-file $start_gpg_timeout 2>/dev/null)
 		else
 			error "I don't know how to start $start_prog-agent (2)"
 			return 1
@@ -644,7 +644,7 @@ SSH2_AGENT_PID=$inherit_ssh2_agent_pid; export SSH2_AGENT_PID;"
 	# generate Bourne shell syntax.  It appears they also ignore SHELL,
 	# according to http://bugs.gentoo.org/show_bug.cgi?id=52874
 	# So make no assumptions.
-	start_out=`echo "$start_out" | grep -v 'Agent pid'`
+	start_out=$(echo "$start_out" | grep -v 'Agent pid')
 	case "$start_out" in
 		setenv*)
 			echo "$start_out" >"$start_cshpidf"
@@ -699,7 +699,7 @@ extract_fingerprints() {
 # synopsis: ssh_l
 # Return space-separated list of known fingerprints
 ssh_l() {
-	sl_mylist=`ssh-add -l 2>/dev/null`
+	sl_mylist=$(ssh-add -l 2>/dev/null)
 	sl_retval=$?
 
 	if $openssh; then
@@ -762,24 +762,24 @@ ssh_f() {
 	sf_filename="$1"
 	
 	if $openssh || $sunssh; then
-		realpath_bin="`command -v realpath`"
+		realpath_bin="$(command -v realpath)"
 		# if private key is symlink and symlink to *.pub is missing:
 		if [ -L "$sf_filename" ] && [ ! -z "$realpath_bin" ]; then
-			sf_filename="`$realpath_bin $sf_filename`"
+			sf_filename="$($realpath_bin $sf_filename)"
 		fi
 		lsf_filename="$sf_filename.pub"
 		if [ ! -f "$lsf_filename" ]; then
 			# try to remove extension from private key, *then* add .pub, and see if we now find it:
 			if [ -L "$sf_filename" ] && [ ! -z "$realpath_bin" ]; then
-				sf_filename="`$realpath_bin $sf_filename`"
+				sf_filename="$($realpath_bin $sf_filename)"
 			fi
-			lsf_filename=`echo "$sf_filename" | sed 's/\.[^\.]*$//'`.pub
+			lsf_filename=$(echo "$sf_filename" | sed 's/\.[^\.]*$//').pub
 			if [ ! -f "$lsf_filename" ]; then
 				warn "Cannot find public key for $1."
 				return 1
 			fi
 		fi
-		sf_fing=`ssh-keygen -l -f "$lsf_filename"` || return 1
+		sf_fing=$(ssh-keygen -l -f "$lsf_filename") || return 1
 		echo "$sf_fing" | extract_fingerprints
 	else
 		# can't get fingerprint for ssh2 so use filename *shrug*
@@ -794,7 +794,7 @@ ssh_f() {
 gpg_listmissing() {
 	unset glm_missing
 
-	GPG_TTY=`tty`
+	GPG_TTY=$(tty)
 
 	# Parse $gpgkeys into positional params to preserve spaces in filenames
 	set -f			# disable globbing
@@ -843,7 +843,7 @@ ssh_listmissing() {
 
 	for slm_k in "$@"; do
 		# Fingerprint current user-specified key
-		slm_finger=`ssh_f "$slm_k"` || continue
+		slm_finger=$(ssh_f "$slm_k") || continue
 
 		# Check if it needs to be added
 		case " $sshavail " in
@@ -912,7 +912,7 @@ parse_mykeys() {
 		# Check for gpg
 		if wantagent gpg; then
 			if [ -z "$pm_gpgsecrets" ]; then
-				pm_gpgsecrets="`gpg --list-secret-keys 2>/dev/null | cut -d/ -f2 | cut -d' ' -f1 | xargs`"
+				pm_gpgsecrets="$(gpg --list-secret-keys 2>/dev/null | cut -d/ -f2 | cut -d' ' -f1 | xargs)"
 				[ -z "$pm_gpgsecrets" ] && pm_gpgsecrets='/'	# arbitrary
 			fi
 			case " $pm_gpgsecrets " in *" $pm_k "*)
@@ -941,7 +941,7 @@ setaction() {
 # Check validity of agentsopt
 setagents() {
 	if [ -n "$agentsopt" ]; then
-		agentsopt=`echo "$agentsopt" | sed 's/,/ /g'`
+		agentsopt=$(echo "$agentsopt" | sed 's/,/ /g')
 		unset new_agentsopt
 		for a in $agentsopt; do
 			if command -v ${a}-agent >/dev/null; then
@@ -1153,7 +1153,7 @@ while [ -n "$1" ]; do
 			break
 			;;
 		-*)
-			zero=`basename "$0"`
+			zero=$(basename "$0")
 			echo "$zero: unknown option $1" >&2
 			$evalopt && { echo; echo "false;"; }
 			exit 1
@@ -1176,7 +1176,7 @@ done
 # to serialize the execution of multiple ssh-agent processes started 
 # simultaneously
 [ -z "$hostopt" ] && hostopt="${HOSTNAME}"
-[ -z "$hostopt" ] && hostopt=`uname -n 2>/dev/null || echo unknown`
+[ -z "$hostopt" ] && hostopt=$(uname -n 2>/dev/null || echo unknown)
 pidf="${keydir}/${hostopt}-sh"
 cshpidf="${keydir}/${hostopt}-csh"
 fishpidf="${keydir}/${hostopt}-fish"
@@ -1260,7 +1260,7 @@ if $quickopt; then
 		# then we'll have to check things again (in startagent) after taking the
 		# lock.  So don't do the initial check unless --quick was specified.
 		if [ $a = ssh ]; then
-			sshavail=`ssh_l`	# try to use existing agent
+			sshavail=$(ssh_l)	# try to use existing agent
 								# 0 = found keys, 1 = no keys, 2 = no agent
 			if [ $? = 0 -o \( $? = 1 -a -z "$mykeys" \) ]; then
 				mesg "Found existing ssh-agent: ${CYANN}$ssh_agent_pid${OFF}"
@@ -1269,7 +1269,7 @@ if $quickopt; then
 		elif [ $a = gpg ]; then
 			# not much way to be quick on this
 			if [ -n "$gpg_agent_pid" ]; then
-				case " `findpids gpg` " in
+				case " $(findpids gpg) " in
 					*" $gpg_agent_pid "*) 
 						mesg "Found existing gpg-agent: ${CYANN}$gpg_agent_pid${OFF}"
 						needstart=false ;;
@@ -1294,7 +1294,7 @@ fi
 if [ -n "$timeout" ] && wantagent ssh; then
 	ssh_timeout=$timeout
 	if $openssh || $sunssh; then
-		ssh_timeout=`expr $ssh_timeout \* 60`
+		ssh_timeout=$(expr $ssh_timeout \* 60)
 	fi
 	ssh_timeout="-t $ssh_timeout"
 fi
@@ -1333,7 +1333,7 @@ fi
 if $clearopt; then
 	for a in ${agentsopt}; do
 		if [ $a = ssh ]; then
-			sshout=`ssh-add -D 2>&1`
+			sshout=$(ssh-add -D 2>&1)
 			if [ $? = 0 ]; then
 				mesg "ssh-agent: $sshout"
 			else
@@ -1371,21 +1371,21 @@ parse_mykeys "$pkeypath" || die
 
 # Load ssh keys
 if wantagent ssh; then
-	sshavail=`ssh_l`				# update sshavail now that we're locked
+	sshavail=$(ssh_l)				# update sshavail now that we're locked
 	if [ "$myaction" = "list" ]; then
 		for key in $sshavail end; do
 			[ "$key" = "end" ] && continue
 			echo "$key"
 		done
 	else
-		sshkeys="`ssh_listmissing`"		# cache list of missing keys, newline-separated
+		sshkeys="$(ssh_listmissing)"		# cache list of missing keys, newline-separated
 		sshattempts=$attempts
 		savedisplay="$DISPLAY"
 
 		# Attempt to add the keys
 		while [ -n "$sshkeys" ]; do
 
-			mesg "Adding ${CYANN}"`echo "$sshkeys" | wc -l`"${OFF} ssh key(s): `echo $sshkeys`"
+			mesg "Adding ${CYANN}"$(echo "$sshkeys" | wc -l)"${OFF} ssh key(s): $(echo $sshkeys)"
 
 			# Parse $sshkeys into positional params to preserve spaces in filenames.
 			# This *must* happen after any calls to subroutines because pure Bourne
@@ -1401,9 +1401,9 @@ if wantagent ssh; then
 			if $noguiopt || [ -z "$SSH_ASKPASS" -o -z "$DISPLAY" ]; then
 				unset DISPLAY		# DISPLAY="" can cause problems
 				unset SSH_ASKPASS	# make sure ssh-add doesn't try SSH_ASKPASS
-				sshout=`ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1`
+				sshout=$(ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1)
 			else
-				sshout=`ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1 </dev/null`
+				sshout=$(ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1 </dev/null)
 			fi
 			if [ $? = 0 ] 
 		then
@@ -1412,7 +1412,7 @@ if wantagent ssh; then
 			[ -n "$timeout" ] && $confirmopt && blurb="${blurb},"
 			$confirmopt && blurb="${blurb}confirm"
 			[ -n "$blurb" ] && blurb=" (${blurb})"
-			mesg "ssh-add: Identities added: `echo $sshkeys`${blurb}"
+			mesg "ssh-add: Identities added: $(echo $sshkeys)${blurb}"
 			break
 		fi
 			if [ $sshattempts = 1 ]; then
@@ -1422,12 +1422,12 @@ if wantagent ssh; then
 			fi
 
 			# Update the list of missing keys
-			sshavail=`ssh_l`
+			sshavail=$(ssh_l)
 			[ $? = 0 ] || die "problem running ssh-add -l"
-			sshkeys="`ssh_listmissing`"  # remember, newline-separated
+			sshkeys="$(ssh_listmissing)"  # remember, newline-separated
 
 			# Decrement the countdown
-			sshattempts=`expr $sshattempts - 1`
+			sshattempts=$(expr $sshattempts - 1)
 		done
 
 		[ -n "$savedisplay" ] && DISPLAY="$savedisplay"
@@ -1436,18 +1436,18 @@ fi
 
 # Load gpg keys
 if wantagent gpg; then
-	gpgkeys="`gpg_listmissing`"		# cache list of missing keys, newline-separated
+	gpgkeys="$(gpg_listmissing)"		# cache list of missing keys, newline-separated
 	gpgattempts=$attempts
 
 	$noguiopt && unset DISPLAY
 	[ -n "$DISPLAY" ] || unset DISPLAY	# DISPLAY="" can cause problems
-	GPG_TTY=`tty` ; export GPG_TTY		# fall back to ncurses pinentry
+	GPG_TTY=$(tty) ; export GPG_TTY		# fall back to ncurses pinentry
 
 	# Attempt to add the keys
 	while [ -n "$gpgkeys" ]; do
 		tryagain=false
 
-		mesg "Adding ${BLUE}"`echo "$gpgkeys" | wc -l`"${OFF} gpg key(s): `echo $gpgkeys`"
+		mesg "Adding ${BLUE}"$(echo "$gpgkeys" | wc -l)"${OFF} gpg key(s): $(echo $gpgkeys)"
 
 		# Parse $gpgkeys into positional params to preserve spaces in filenames.
 		# This *must* happen after any calls to subroutines because pure Bourne
@@ -1474,10 +1474,10 @@ if wantagent gpg; then
 		fi
 
 		# Update the list of missing keys
-		gpgkeys="`gpg_listmissing`"  # remember, newline-separated
+		gpgkeys="$(gpg_listmissing)"  # remember, newline-separated
 
 		# Decrement the countdown
-		gpgattempts=`expr $gpgattempts - 1`
+		gpgattempts=$(expr $gpgattempts - 1)
 	done
 fi
 
