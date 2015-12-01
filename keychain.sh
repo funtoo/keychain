@@ -280,7 +280,7 @@ findpids() {
 stopagent() {
 	stop_prog=${1-ssh}
 	eval stop_except=\$\{${stop_prog}_agent_pid\}
-	stop_mypids=$(findpids "$stop_prog"$(
+	stop_mypids=$(findpids "$stop_prog")
 	[ $? = 0 ] || die
 
 	if [ -z "$stop_mypids" ]; then
@@ -779,7 +779,7 @@ ssh_f() {
 				return 1
 			fi
 		fi
-		sf_fing=$(ssh-keygen -l -f "$lsf_filename"$( || return 1
+		sf_fing=$(ssh-keygen -l -f "$lsf_filename") || return 1
 		echo "$sf_fing" | extract_fingerprints
 	else
 		# can't get fingerprint for ssh2 so use filename *shrug*
@@ -843,7 +843,7 @@ ssh_listmissing() {
 
 	for slm_k in "$@"; do
 		# Fingerprint current user-specified key
-		slm_finger=$(ssh_f "$slm_k"$( || continue
+		slm_finger=$(ssh_f "$slm_k") || continue
 
 		# Check if it needs to be added
 		case " $sshavail " in
@@ -1153,7 +1153,7 @@ while [ -n "$1" ]; do
 			break
 			;;
 		-*)
-			zero=$(basename "$0"$(
+			zero=$(basename "$0")
 			echo "$zero: unknown option $1" >&2
 			$evalopt && { echo; echo "false;"; }
 			exit 1
