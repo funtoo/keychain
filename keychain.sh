@@ -1068,7 +1068,7 @@ while [ -n "$1" ]; do
 			evalopt=true
 			;;
 		--list|-l)
-			setaction list
+			ssh-add -l
 			quietopt=true
 			;;
 		--query)
