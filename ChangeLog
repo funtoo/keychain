@@ -12,7 +12,7 @@
 # Maintained and rewritten April 2004 - July 2007 by Aron Griffis <agriffis@n01se.net>
 # Maintained July 2009 - present by Daniel Robbins <drobbins@funtoo.org>
 
-* keychain 2.8.2.1 (24 Jun 2016)
+* keychain 2.8.3 (24 Jun 2016)
 
   Summary: fix gpg key addition (Clemens Kaposi)
 
