@@ -2,7 +2,7 @@
 
 # Copyright 1999-2005 Gentoo Foundation
 # Copyright 2007 Aron Griffis <agriffis@n01se.net>
-# Copyright 2009-2015 Funtoo Solutions, Inc.
+# Copyright 2009-2016 Funtoo Solutions, Inc.
 # lockfile() Copyright 2009 Parallels, Inc.
 
 # Distributed under the terms of the GNU General Public License v2
@@ -911,13 +911,10 @@ parse_mykeys() {
 
 		# Check for gpg
 		if wantagent gpg; then
-			if [ -z "$pm_gpgsecrets" ]; then
-				pm_gpgsecrets="$(gpg --list-secret-keys 2>/dev/null | cut -d/ -f2 | cut -d' ' -f1 | xargs)"
-				[ -z "$pm_gpgsecrets" ] && pm_gpgsecrets='/'	# arbitrary
+                        gpg --list-secret-keys "$pm_k" >/dev/null 2>&1
+                        if [ $? -eq 0 ]; then
+                                add_gpgkey "$pm_k" ; continue
 			fi
-			case " $pm_gpgsecrets " in *" $pm_k "*)
-				add_gpgkey "$pm_k" ; continue ;;
-			esac
 		fi
 
 		$ignoreopt || warn "can't find $pm_k; skipping"
