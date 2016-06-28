@@ -1071,6 +1071,10 @@ while [ -n "$1" ]; do
 			ssh-add -l
 			quietopt=true
 			;;
+		--list-fp|-L)
+			ssh-add -L
+			quietopt=true
+			;;
 		--query)
 			queryopt=true
 			;;
