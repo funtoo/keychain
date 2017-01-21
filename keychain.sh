@@ -602,7 +602,8 @@ startagent() {
 			start_out=$(ssh-agent ${ssh_timeout})
 		elif [ "$start_prog" = gpg ]; then
 			if [ -n "${timeout}" ]; then
-				start_gpg_timeout="--default-cache-ttl $(expr $timeout \* 60)"
+				gpg_cache_ttl="$(expr $timeout \* 60)"
+				start_gpg_timeout="--default-cache-ttl $gpg_cache_ttl --max-cache-ttl $gpg_cache_ttl"
 			else
 				unset start_gpg_timeout
 			fi
