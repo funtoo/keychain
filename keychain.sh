@@ -965,20 +965,35 @@ setagents() {
 # Return private key path if found in ~/.ssh/config SSH configuration file.
 # Input: the name of the host we would like to connect to.
 confpath() {
-	h=""
+	match=""
 	while IFS= read -r line; do
 		# get the Host directives
-                case $line in
-                    *"Host "*) h=$(echo $line | awk '{print $2}') ;;
-                esac
-                case $line in
-                    *IdentityFile*)
-                        if [ $h = "$1" ]; then
-                            echo $line | awk '{print $2}'
-                            break
-                        fi
-                esac
+		if echo "$line" | grep -qi '^\s*Match\s'; then
+			match=""
+		elif echo "$line" | grep -qi '^\s*Host\s'; then
+			match=""
+			patterns=( echo "$line" )
+			for pattern in ${patterns[@]:1}; do
+				negate=$([ "${pattern[1]}" = "!" ] && echo yes);
+				if [ -n "$negate" ]; then
+					pattern="${pattern:1}"
+				fi
+				case $1 in
+					$pattern)
+						if [ -n "$negate"]; then
+							match=""
+							break
+						else
+							match=yes
+						fi
+				esac
+			done
+		fi
+		if [ -n "$match" ] && echo "$line" | grep -qi '^\s*IdentityFile\s'; then
+			identity_file="$(echo $line | awk '{print $2}')"
+		fi
 	done < ~/.ssh/config
+	echo $identity_file
 }
 
 # synopsis: wantagent prog
