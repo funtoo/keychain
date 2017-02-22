@@ -972,16 +972,16 @@ confpath() {
 			match=""
 		elif echo "$line" | grep -qi '^\s*Host\s'; then
 			match=""
-			patterns=( echo "$line" )
+			patterns=( $line )
 			for pattern in ${patterns[@]:1}; do
-				negate=$([ "${pattern[1]}" = "!" ] && echo yes);
+				negate=$([ "${pattern:0:1}" = "!" ] && echo yes);
 				if [ -n "$negate" ]; then
 					pattern="${pattern:1}"
 				fi
 				case $1 in
 					$pattern)
-						if [ -n "$negate"]; then
-							match=""
+						if [ -n "$negate" ]; then
+							match=
 							break
 						else
 							match=yes
