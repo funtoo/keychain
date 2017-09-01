@@ -145,8 +145,8 @@ testssh() {
 # synopsis: getuser
 # Set the global string $me
 getuser() {
-	# whoami gives euid, which might be different from USER or LOGNAME
-	me=$(whoami) || die "Who are you?  whoami doesn't know..."
+	# id -un gives euid, which might be different from USER or LOGNAME
+	me=$(id -un) || die "Who are you?  whoami doesn't know..."
 }
 
 # synopsis: getos
