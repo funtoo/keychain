@@ -2,7 +2,7 @@
 
 # Copyright 1999-2005 Gentoo Foundation
 # Copyright 2007 Aron Griffis <agriffis@n01se.net>
-# Copyright 2009-2016 Funtoo Solutions, Inc.
+# Copyright 2009-2017 Funtoo Solutions, Inc.
 # lockfile() Copyright 2009 Parallels, Inc.
 
 # Distributed under the terms of the GNU General Public License v2
@@ -10,7 +10,8 @@
 # Originally authored by Daniel Robbins <drobbins@gentoo.org>
 # Maintained August 2002 - April 2003 by Seth Chandler <sethbc@gentoo.org>
 # Maintained and rewritten April 2004 - July 2007 by Aron Griffis <agriffis@n01se.net>
-# Maintained July 2009 - present by Daniel Robbins <drobbins@funtoo.org>
+# Maintained July 2009 - Sept 2017 by Daniel Robbins <drobbins@funtoo.org>
+# Maintained September 2017 - present by Ryan Harris <x48rph@gmail.com>
 
 version=##VERSION##
 
@@ -132,7 +133,7 @@ EOHELP
 # synopsis: testssh
 # Figure out which ssh is in use, set the global boolean $openssh and $sunssh
 testssh() {
-	# Query local host for SSH application, presently supporting 
+	# Query local host for SSH application, presently supporting
 	# OpenSSH, Sun SSH, and ssh.com
 	openssh=false
 	sunssh=false
@@ -172,7 +173,7 @@ lockfile() {
 
 	# Description: This function attempts to acquire the lock. If it succeeds,
 	# it returns 0. If it fails, it returns 1. This function retuns immediately
-	# and only tries to acquire the lock once. 
+	# and only tries to acquire the lock once.
 
 		local tmpfile="$lockf.$$"
 
@@ -334,7 +335,7 @@ stopagent() {
 			;;
 	esac
 
-	# remove pid files if keychain-controlled 
+	# remove pid files if keychain-controlled
 	if [ "$stopwhich" != others ]; then
 		if [ "$stop_prog" != ssh ]; then
 			rm -f "${pidf}-$stop_prog" "${cshpidf}-$stop_prog" "${fishpidf}-$stop_prog" 2>/dev/null
@@ -350,7 +351,7 @@ stopagent() {
 # Save agent variables from the environment before they get wiped out
 inheritagents() {
 	# Verify these global vars are null
-	unset inherit_ssh_auth_sock inherit_ssh_agent_pid 
+	unset inherit_ssh_auth_sock inherit_ssh_agent_pid
 	unset inherit_ssh2_auth_sock inherit_ssh2_agent_sock
 	unset inherit_gpg_agent_info inherit_gpg_agent_pid
 
@@ -362,7 +363,7 @@ inheritagents() {
 				inherit_ssh_agent_pid="$SSH_AGENT_PID"
 			fi
 
-			if [ -n "$SSH2_AUTH_SOCK" ]; then 
+			if [ -n "$SSH2_AUTH_SOCK" ]; then
 				inherit_ssh2_auth_sock="$SSH2_AUTH_SOCK"
 				inherit_ssh2_agent_pid="$SSH2_AGENT_PID"
 			fi
@@ -632,7 +633,7 @@ SSH2_AGENT_PID=$inherit_ssh2_agent_pid; export SSH2_AGENT_PID;"
 			start_out="$start_out
 SSH2_AGENT_PID=$inherit_ssh2_agent_pid; export SSH2_AGENT_PID;"
 		fi
-	
+
 	elif [ "$start_prog" = gpg -a -n "$inherit_gpg_agent_info" ]; then
 		start_out="GPG_AGENT_INFO=$inherit_gpg_agent_info; export GPG_AGENT_INFO;"
 
@@ -761,7 +762,7 @@ ssh_l() {
 # Requires $openssh and $sunssh
 ssh_f() {
 	sf_filename="$1"
-	
+
 	if $openssh || $sunssh; then
 		realpath_bin="$(command -v realpath)"
 		# if private key is symlink and symlink to *.pub is missing:
@@ -922,7 +923,7 @@ parse_mykeys() {
 		$ignoreopt || warn "can't find $pm_k; skipping"
 		continue
 	done
-	
+
 	return 0
 }
 
@@ -969,16 +970,16 @@ confpath() {
 	h=""
 	while IFS= read -r line; do
 		# get the Host directives
-                case $line in
-                    *"Host "*) h=$(echo $line | awk '{print $2}') ;;
-                esac
-                case $line in
-                    *IdentityFile*)
-                        if [ $h = "$1" ]; then
-                            echo $line | awk '{print $2}'
-                            break
-                        fi
-                esac
+		case $line in
+			*"Host "*) h=$(echo $line | awk '{print $2}') ;;
+		esac
+		case $line in
+			*IdentityFile*)
+			if [ $h = "$1" ]; then
+				echo $line | awk '{print $2}'
+				break
+			fi
+		esac
 	done < ~/.ssh/config
 }
 
@@ -1001,10 +1002,10 @@ wantagent() {
 # parse the command-line
 while [ -n "$1" ]; do
 	case "$1" in
-		--help|-h) 
-			setaction help 
+		--help|-h)
+			setaction help
 			;;
-		--stop|-k) 
+		--stop|-k)
 			# As of version 2.5, --stop takes an argument.	For the sake of
 			# backward compatibility, only eat the arg if it's one we recognize.
 			if [ "$2" = mine ]; then
@@ -1018,8 +1019,8 @@ while [ -n "$1" ]; do
 				stopwhich=all-warn
 			fi
 			;;
-		--version|-V) 
-			setaction version 
+		--version|-V)
+			setaction version
 			;;
 		--agents)
 			shift
@@ -1169,14 +1170,14 @@ while [ -n "$1" ]; do
 	shift
 done
 
-# Set filenames *after* parsing command-line options to allow 
+# Set filenames *after* parsing command-line options to allow
 # modification of $keydir and/or $hostopt
 #
 # pidf holds the specific name of the keychain .ssh-agent-myhostname file.
 # We use the new hostname extension for NFS compatibility. cshpidf is the
 # .ssh-agent file with csh-compatible syntax. fishpidf is the .ssh-agent
 # file with fish-compatible syntax. lockf is the lockfile, used
-# to serialize the execution of multiple ssh-agent processes started 
+# to serialize the execution of multiple ssh-agent processes started
 # simultaneously
 [ -z "$hostopt" ] && hostopt="${HOSTNAME}"
 [ -z "$hostopt" ] && hostopt=$(uname -n 2>/dev/null || echo unknown)
@@ -1233,7 +1234,7 @@ getuser							# sets $me
 inheritagents
 
 # --stop: kill the existing ssh-agent(s) and quit
-if [ -n "$stopwhich" ]; then 
+if [ -n "$stopwhich" ]; then
 	if [ "$stopwhich" = all-warn ]; then
 		warn "--stop without an argument is deprecated; see --help"
 		stopwhich=all
@@ -1273,14 +1274,14 @@ if $quickopt; then
 			# not much way to be quick on this
 			if [ -n "$gpg_agent_pid" ]; then
 				case " $(findpids gpg) " in
-					*" $gpg_agent_pid "*) 
+					*" $gpg_agent_pid "*)
 						mesg "Found existing gpg-agent: ${CYANN}$gpg_agent_pid${OFF}"
 						needstart=false ;;
 				esac
 			fi
 		fi
 
-		if $needstart; then 
+		if $needstart; then
 			nagentsopt="$nagentsopt $a"
 		elif $evalopt; then
 			catpidf $a
@@ -1361,7 +1362,7 @@ fi
 # --noask: "don't ask for keys", so we're all done
 $noaskopt && { qprint; exit 0; }
 
-# If the --confhost option used, determine the path to the private key as 
+# If the --confhost option used, determine the path to the private key as
 # written in the ~/.ssh/config and add it to ssh-add.
 if $sshconfig; then
 	pkeypath=$(confpath "$confhost")
@@ -1408,7 +1409,7 @@ if wantagent ssh; then
 			else
 				sshout=$(ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1 </dev/null)
 			fi
-			if [ $? = 0 ] 
+			if [ $? = 0 ]
 		then
 			blurb=""
 			[ -n "$timeout" ] && blurb="life=${timeout}m"
