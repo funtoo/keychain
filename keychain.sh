@@ -1069,7 +1069,11 @@ while [ -n "$1" ]; do
 			evalopt=true
 			;;
 		--list|-l)
-			setaction list
+			ssh-add -l
+			quietopt=true
+			;;
+		--list-fp|-L)
+			ssh-add -L
 			quietopt=true
 			;;
 		--query)

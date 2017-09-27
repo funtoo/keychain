@@ -171,6 +171,10 @@ want the older behavior.
 
 List signatures of all active SSH keys, and exit, similar to "ssh-add -l".
 
+=item B<-L --list-fp>
+
+List fingerprints of all active SSH keys, and exit, similar to "ssh-add -L".
+
 =item B<--lockwait> I<seconds>
 
 How long to wait for the lock to become available.  Defaults to 5
