@@ -257,6 +257,7 @@ findpids() {
 	if [ -z "$fp_psout" ]; then
 		fp_psout=$(UNIX95=1 ps -u $me -o pid,comm 2>/dev/null | grep '^ *[0-9]')
 		[ -z "$fp_psout" ] && fp_psout=$(ps x 2>/dev/null)
+		[ -z "$fp_psout" ] && fp_psout=$(ps w 2>/dev/null) # Busybox syntax
 	fi
 
 	# Return the list of pids; ignore case for Cygwin.
