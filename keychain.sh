@@ -17,7 +17,7 @@ version=##VERSION##
 
 PATH="${PATH:-/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb}"
 
-maintainer="drobbins@funtoo.org"
+maintainer="x48rph@gmail.com"
 unset mesglog
 unset myaction
 unset agentsopt
@@ -54,6 +54,7 @@ absoluteopt=false
 systemdopt=false
 unset ssh_confirm
 unset GREP_OPTIONS
+gpg_prog_name="gpg"
 
 BLUE="[34;01m"
 CYAN="[36;01m"
@@ -376,7 +377,7 @@ inheritagents() {
 				inherit_gpg_agent_pid=$(echo "$GPG_AGENT_INFO" | cut -f2 -d:)
 			# GnuPG v.2.1+ removes $GPG_AGENT_INFO
 			elif [ -S "${GNUPGHOME:=$HOME/.gnupg}/S.gpg-agent" ]; then
-				inherit_gpg_agent_pid=$(findpids gpg)
+				inherit_gpg_agent_pid=$(findpids "${gpg_prog_name}")
 				inherit_gpg_agent_info="$GNUPGHOME/S.gpg-agent:${inherit_gpg_agent_pid}:1"
 			fi
 		fi
@@ -610,7 +611,7 @@ startagent() {
 				unset start_gpg_timeout
 			fi
 			# the 1.9.x series of gpg spews debug on stderr
-			start_out=$(gpg-agent --daemon --write-env-file $start_gpg_timeout 2>/dev/null)
+			start_out=$("${gpg_prog_name}"-agent --daemon --write-env-file $start_gpg_timeout 2>/dev/null)
 		else
 			error "I don't know how to start $start_prog-agent (2)"
 			return 1
@@ -635,7 +636,7 @@ SSH2_AGENT_PID=$inherit_ssh2_agent_pid; export SSH2_AGENT_PID;"
 SSH2_AGENT_PID=$inherit_ssh2_agent_pid; export SSH2_AGENT_PID;"
 		fi
 
-	elif [ "$start_prog" = gpg -a -n "$inherit_gpg_agent_info" ]; then
+	elif [ "$start_prog" = "${gpg_prog_name}" -a -n "$inherit_gpg_agent_info" ]; then
 		start_out="GPG_AGENT_INFO=$inherit_gpg_agent_info; export GPG_AGENT_INFO;"
 
 	else
@@ -812,7 +813,7 @@ gpg_listmissing() {
 	for glm_k in "$@"; do
 		# Check if this key is known to the agent.	Don't know another way...
 		if echo | env -i GPG_TTY="$GPG_TTY" PATH="$PATH" GPG_AGENT_INFO="$GPG_AGENT_INFO" \
-				gpg --no-options --use-agent --no-tty --sign --local-user "$glm_k" -o- >/dev/null 2>&1; then
+				"${gpg_prog_name}" --no-options --use-agent --no-tty --sign --local-user "$glm_k" -o- >/dev/null 2>&1; then
 			# already know about this key
 			mesg "Known gpg key: ${CYANN}${glm_k}${OFF}"
 			continue
@@ -915,7 +916,7 @@ parse_mykeys() {
 
 		# Check for gpg
 		if wantagent gpg; then
-                        gpg --list-secret-keys "$pm_k" >/dev/null 2>&1
+                        "${gpg_prog_name}" --list-secret-keys "$pm_k" >/dev/null 2>&1
                         if [ $? -eq 0 ]; then
                                 add_gpgkey "$pm_k" ; continue
 			fi
@@ -1148,6 +1149,9 @@ while [ -n "$1" ]; do
 		--systemd)
 			systemdopt=true
 			;;
+		--gpg2)
+		    gpg_prog_name="gpg2"
+		    ;;
 		--)
 			shift
 			IFS="
@@ -1274,7 +1278,7 @@ if $quickopt; then
 		elif [ $a = gpg ]; then
 			# not much way to be quick on this
 			if [ -n "$gpg_agent_pid" ]; then
-				case " $(findpids gpg) " in
+				case " $(findpids "${gpg_prog_name}") " in
 					*" $gpg_agent_pid "*)
 						mesg "Found existing gpg-agent: ${CYANN}$gpg_agent_pid${OFF}"
 						needstart=false ;;
@@ -1467,7 +1471,7 @@ if wantagent gpg; then
 
 		for k in "$@"; do
 			echo | env LC_ALL="$pinentry_lc_all" \
-				gpg --no-options --use-agent --no-tty --sign --local-user "$k" -o- >/dev/null 2>&1
+				"${gpg_prog_name}" --no-options --use-agent --no-tty --sign --local-user "$k" -o- >/dev/null 2>&1
 			[ $? != 0 ] && tryagain=true
 		done
 		$tryagain || break
