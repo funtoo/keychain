@@ -3,3 +3,5 @@
 /keychain.spec
 /keychain.txt
 /keychain.1.orig
+.idea/
+keychain.iml

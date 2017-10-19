@@ -4,7 +4,7 @@ keychain - re-use ssh-agent and/or gpg-agent between logins
 
 =head1 SYNOPSIS
 
-S<keychain [ -hklQqV ] [ --clear --confhost --help --ignore-missing --list --noask>
+S<keychain [ -hklQqV ] [ --clear --confhost --gpg2 --help --ignore-missing --list --noask>
 S<--nocolor --nogui --nolock --quick --quiet --version ]>
 S<[ --agents I<list> ] [ --attempts I<num> ] [ --dir I<dirname> ]>
 S<[ --host I<name> ] [ --lockwait I<seconds> ]>
@@ -117,6 +117,11 @@ keychain will attempt to load from ~/.keychain/[hostname]-env or
 alternatively ~/.keychain/env.  The purpose of this file is to
 override settings such as PATH, in case ssh is stored in
 a non-standard place.
+
+=item B<--gpg2>
+
+This option changes the default gpg calls to use gpg2 instead to support
+distributions such as Ubuntu which has both gpg and gpg2
 
 =item B<-h --help>
 
