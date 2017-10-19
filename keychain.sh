@@ -113,7 +113,7 @@ versinfo() {
 	qprint
 	qprint "   Copyright ${CYANN}2002-2006${OFF} Gentoo Foundation;"
 	qprint "   Copyright ${CYANN}2007${OFF} Aron Griffis;"
-	qprint "   Copyright ${CYANN}2009-2015${OFF} Funtoo Solutions, Inc;"
+	qprint "   Copyright ${CYANN}2009-2017${OFF} Funtoo Solutions, Inc;"
 	qprint "   lockfile() Copyright ${CYANN}2009${OFF} Parallels, Inc."
 	qprint
 	qprint " Keychain is free software: you can redistribute it and/or modify"
@@ -148,7 +148,7 @@ testssh() {
 # Set the global string $me
 getuser() {
 	# id -un gives euid, which might be different from USER or LOGNAME
-	me=$(id -un) || die "Who are you?  whoami doesn't know..."
+	me=$(id -un) || die "Who are you?  id -un doesn't know..."
 }
 
 # synopsis: getos
