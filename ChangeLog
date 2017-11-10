@@ -13,6 +13,14 @@
 # Maintained July 2009 - September 2017 by Daniel Robbins <drobbins@funtoo.org>
 # Maintained September 2017 - present by Ryan Harris <x48rph@gmail.com>
 
+* Keychain 2.8.4 (19 Oct 2017)
+
+  Summary: Support to GPG2 (Ryan Harris)
+
+  Support busybox ps (Alastair Hughes)
+
+  Various optimizations
+
 * keychain 2.8.3 (24 Jun 2016)
 
   Summary: fix gpg key addition (Clemens Kaposi)
@@ -68,9 +76,9 @@
   Various changes and updates:
 
   Fixes for fish from Marc Joliet.
-  
+
   Keychain will default to start only ssh-agent unless GPG is explicitly
-  updated using --agents. 
+  updated using --agents.
 
   Write ~/.gpg-agent-info when launching gpg-agent - fix from Thomas Spura.
 
@@ -123,7 +131,7 @@
   29 Sep 2009; Daniel Robbins <drobbins@funtoo.org>: disable "Identity added"
   messages when --quiet is specified (Gentoo bug #250328, thanks to Richard
   Laager,) --help will print output to stdout (Gentoo bug #196060, thanks to
-  Elan Ruusamäe,) output cleanup and colorization changes - moving away from
+  Elan Ruusamï¿½e,) output cleanup and colorization changes - moving away from
   blue and over to cyan as it displays better terminals with black background.
   Also some additional colorization. Version bump to 2.6.10.
 
@@ -167,9 +175,9 @@
   Add validinherit function so that validity of SSH_AUTH_SOCK and friends can be
   validated from startagent rather than up front.  The advantage is that warning
   messages aren't emitted unnecessarily when --inherit *-once.
-  Fix --eval for fish, and add new testcases: 
+  Fix --eval for fish, and add new testcases:
     053_start_with_--eval_ksh
-    054_start_with_--eval_fish 
+    054_start_with_--eval_fish
     055_start_with_--eval_csh
 
 * keychain 2.6.3 (07 Sep 2006)
@@ -375,7 +383,7 @@
 * keychain 2.0.3 (06 Apr 2003)
 
   06 Apr 2003; Seth Chandler <sethbc@gentoo.org>:
-  Added keychain man page, fixed bugs with displaying colors for keychain 
+  Added keychain man page, fixed bugs with displaying colors for keychain
   --help.  Also added a $grepopts to fix the grepping for a pid on cygwin
   Also added a TODO document
   color fix based on submission by Luke Holden <email@alterself.org>
@@ -402,13 +410,13 @@
   adding the missingkeys via "ssh-add ${missingkeys}" (at line 454 of version
   2.0) so that it reads: "ssh-add ${missingkeys} < /dev/null" then users can
   use program like x11-ssh-askpass in xfree to type in their passphrase. It
-  then still works for users on shell, depending if $DISPLAY is set." Added. 
-  
+  then still works for users on shell, depending if $DISPLAY is set." Added.
+
   24 Aug 2002; A fix to calling "tail" that *should* fix things for Tru64 Unix;
   unfortunately, I have no way to test but the solution should be portable to
   all other flavors of systems. Thanks to Mark Scarborough
   <Mark.Scarborough@broadwing.com> for reporting the issue.
-  
+
   24 Aug 2002; Changed around the psopts detection stuff so that "-x -u $me f"
   is used; this is needed on MacOS X. Thanks to Brian Bergstrand
   <brian@classicalguitar.net>, others for reporting this issue.
@@ -417,17 +425,17 @@
 
   17 Aug 2002; (Many submitters): A fix for keychain when running on HP-UX
   10.20.
-  
+
   17 Aug 2002; Patrice DUMAS - DOCT <dumas@centre-cired.fr>: Now perform help
   early on to avoid unnecessary processing. Also added --dir option to allow
   keychain to look in an alternate location for the .keychain directory (use
   like this: "keychain --dir /var/foo")
- 
+
   17 Aug 2002; Martial MICHEL <martial@users.sourceforge.net>: Martial also
   suggested moving help processing to earlier in the script. He also submitted
   a patch to place .ssh-agent-* files in a ~/.keychain/ directory, which makes
   sense particularly for NFS users so I integrated the concept into the code.
- 
+
   17 Aug 2002; Fred Carter <fred.carter@amberpoint.com>: Cygwin fix to use
   proper "ps" options.
 
@@ -451,12 +459,12 @@
 * keychain 1.9 (04 Mar 2002)
 
   04 Mar 2002; changed license from "GPL, v2 or later" to "GPL v2".
-  
+
   04 Mar 2002; added "keychain.cygwin" for Cygwin systems.  It may be time to
   follow this pattern and start building separate, optimized scripts for each
   platform so they don't get too sluggish.  Maybe I could use a C preprocessor
   for this.
-  
+
   06 Dec 2001; several people: Solaris doesn't like '-e' comparisons; switched
   to '-f'
 
@@ -465,11 +473,11 @@
   29 Nov 2001; Philip Hallstrom (philip@adhesivemedia.com) Added a "--local"
   option for removing the ${HOSTNAME} from the various files that keychain
   creates.  Handy for non-NFS users.
-  
+
   29 Nov 2001; Aron Griffis (agriffis@gentoo.org) Using the Bourne shell "type"
   builtin rather than using the external "which" command.  Should make things a
   lot more robust and slightly faster.
-  
+
   09 Nov 2001; Mike Briseno (mike@radik.com) Solaris' "which" command outputs
   "no lockfile in..." to stdout rather than stderr.  A one-line fix (test the
   error condition) has been applied.
@@ -487,15 +495,15 @@
 
   09 Nov 2001; Victor Leitman (vleitman@yahoo.com) CYAN color misdefined;
   fixed.
-  
+
   27 Oct 2001; Brian Wellington (bwelling@xbill.org) A "quiet mode" (--quiet)
   fix; I missed an "echo".
-  
+
   27 Oct 2001; J.A. Neitzel (jan@belvento.org) Missed another "kill -9"; it's
   now gone.
 
-* keychain 1.7 (21 Oct 2001) 
- 
+* keychain 1.7 (21 Oct 2001)
+
   21 Oct 2001; Frederic Gobry (frederic.gobry@smartdata.ch) Frederic suggested
   using procmail's lockfile to serialize the execution of critical parts of
   keychain, thus avoiding multiple ssh-agent processes being started if you
@@ -503,20 +511,20 @@
   Initially, I didn't think I could add this, since systems may not have the
   lockfile command; however, keychain will now auto-detect whether lockfile is
   installed; if it is, keychain will automatically use it, thus preventing
-  multiple ssh-agent processes from being spawned. 
-  
+  multiple ssh-agent processes from being spawned.
+
   21 Oct 2001; Raymond Wu (ursus@usa.net): --nocolor test is no longer inside
   the test for whether "echo -e" works.  According to Raymond, this works
   optimally on his Solaris box.
-  
+
   21 Oct 2001; J.A. Neitzel (jan@belvento.org): No longer "kill -9" our
   ssh-agent processes. SIGTERM should be sufficient and will allow ssh-agent to
   clean up after itself (this reverses a previously-applied patch).
-  
+
   21 Oct 2001; Thomas Finneid (tfinneid@online.no): Added argument "--quiet |
   -q" to make the program less intrusive to the user; with it, only error and
   interactive messages will appear.
-  
+
   21 Oct 2001; Thomas Finneid (tfinneid@online.no): Changed the format of some
   arguments to bring them more in line with common *nix programs: added "-h" as
   alias for "--help"; added "-k" as alias for "--stop"
@@ -524,7 +532,7 @@
   21 Oct 2001; Mark Stosberg (mark@summersault.com): $pidf to "$pidf" fixes to
   allow keychain to work with paths that include spaces (for Darwin and MacOS X
   in particular).
-  
+
   21 Oct 2001; Jonathan Wakely (redi@redi.uklinux.net): Small patch to convert
   "echo -n -e" to "echo -e "\c"" for FreeBSD compatibility.
 
@@ -532,7 +540,7 @@
 
   13 Oct 2001; Ralf Horstmann (ralf.horstmann@webwasher.com): Add /usr/ucb to
   path for Solaris systems.
-  
+
   11 Oct 2001; Idea from Joe Reid (jreid@vnet.net): Try to add multiple keys
   using ssh-add; avoid typing in identical passphrases more than once.  Good
   idea!
@@ -541,7 +549,7 @@
 
   21 Sep 2001; David Hull (hull@paracel.com): misc. compatibility, signal
   handling, cleanup fixes
-  
+
   21 Sep 2001; "ps" test to find the right one for your OS.
 
   20 Sep 2001; Marko Myllynen (myllynen@lut.fi): "grep [s]sh-agent" to "grep
@@ -559,17 +567,17 @@
   20 Sep 2001; Hans Peter Verne (h.p.verne@usit.uio.no); "echo -e" to "echo $E"
   (for IRIX compatibility with --nocolor), optimization of grep ("grep
   [s]sh-agent")
-  
+
   17 Sep 2001; Marko Myllynen (myllynen@lut.fi): Various fixes: trap signal 2
   if signal INT not supported (NetBSD); handle invalid keys correctly; ancient
   version of ash didn't support ~, so using $HOME; correct zsh instruction;
   minor cleanups
 
 *keychain 1.3 (12 Sep 2001)
-  
+
   12 Sep 2001; Minor color changes; the cyan was hard to read on xterm-colored
   terms so it was switched to bold.  Additional --help text added.
-  
+
   10 Sep 2001; We now use .ssh-agent-[hostname] instead of .ssh-agent.  We now
   create a .ssh-agent-csh-[hostname] file that can be sourced by csh-compatible
   shells.  We also now kill all our existing ssh-agent processes before
@@ -585,13 +593,13 @@
   10 Sep 2001; Marko Myllynen (myllynen@lut.fi): rm -f $pidf after stopping
   ssh-agent fix
 
-*keychain 1.2 
+*keychain 1.2
 
   09 Sep 2001; README updates to reflect new changes.
-  
+
   09 Sep 2001; Marko Myllynen (myllynen@lut.fi): bash 1/zsh/sh compatibility;
   now only tries to kill *your* ssh-agent processes, version fix, .ssh-agent
-  file creation error detection.  Thanks! 
+  file creation error detection.  Thanks!
 
 *keychain 1.1; fixes for calling "pidof"; README; ChangeLog
 
@@ -600,10 +608,10 @@
 
   07 Sep 2001; Explicitly added /sbin and /usr/sbin to path, and then called
   "pidof".  I think that this is a bit more robust.
-  
+
   06 Sep 2001; from John Ellson (ellson@lucent.com): "pidof" changed to
   "/sbin/pidof", since it's probably not in $PATH
- 
+
   06 Sep 2001; New ChangeLog! :)
 
 *keychain 1.0; initial release (Aug 2001)
