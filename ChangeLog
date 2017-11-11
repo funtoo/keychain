@@ -13,7 +13,7 @@
 # Maintained July 2009 - September 2017 by Daniel Robbins <drobbins@funtoo.org>
 # Maintained September 2017 - present by Ryan Harris <x48rph@gmail.com>
 
-* Keychain 2.8.4 (19 Oct 2017)
+* keychain 2.8.4 (19 Oct 2017)
 
   Summary: Support to GPG2 (Ryan Harris)
 
