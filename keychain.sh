@@ -761,7 +761,7 @@ ssh_l() {
 
 # synopsis: ssh_f filename
 # Return fingerprint for a keyfile
-# Requires $openssh and $sunssh
+# Requires $openssh or $sunssh
 ssh_f() {
 	sf_filename="$1"
 
@@ -779,9 +779,8 @@ ssh_f() {
 			fi
 			lsf_filename=$(echo "$sf_filename" | sed 's/\.[^\.]*$//').pub
 			if [ ! -f "$lsf_filename" ]; then
-				warn "Cannot find public key for $sf_filename."
-				basename "$sf_filename"
-				return 0
+			    warn "Cannot find separate public key for $1."
+				lsf_filename="$sf_filename"
 			fi
 		fi
 		sf_fing=$(ssh-keygen -l -f "$lsf_filename") || return 1
