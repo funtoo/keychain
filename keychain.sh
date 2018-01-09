@@ -376,9 +376,13 @@ inheritagents() {
 				inherit_gpg_agent_info="$GPG_AGENT_INFO"
 				inherit_gpg_agent_pid=$(echo "$GPG_AGENT_INFO" | cut -f2 -d:)
 			# GnuPG v.2.1+ removes $GPG_AGENT_INFO
-			elif [ -S "${GNUPGHOME:=$HOME/.gnupg}/S.gpg-agent" ]; then
+			else
+				gpg_socket_dir="${GNUPGHOME:=$HOME/.gnupg}"
+				if [ ! -S "${GNUPGHOME:=$HOME/.gnupg}/S.gpg-agent" ]; then
+					gpg_socket_dir="${XDG_RUNTIME_DIR}/gnupg"
+				fi
 				inherit_gpg_agent_pid=$(findpids "${gpg_prog_name}")
-				inherit_gpg_agent_info="$GNUPGHOME/S.gpg-agent:${inherit_gpg_agent_pid}:1"
+				inherit_gpg_agent_info="${gpg_socket_dir}/S.gpg-agent:${inherit_gpg_agent_pid}:1"
 			fi
 		fi
 	fi
