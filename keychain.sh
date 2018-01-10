@@ -381,8 +381,10 @@ inheritagents() {
 				if [ ! -S "${GNUPGHOME:=$HOME/.gnupg}/S.gpg-agent" ]; then
 					gpg_socket_dir="${XDG_RUNTIME_DIR}/gnupg"
 				fi
-				inherit_gpg_agent_pid=$(findpids "${gpg_prog_name}")
-				inherit_gpg_agent_info="${gpg_socket_dir}/S.gpg-agent:${inherit_gpg_agent_pid}:1"
+				if [ -S "${gpg_socket_dir}/S.gpg-agent" ]; then
+					inherit_gpg_agent_pid=$(findpids "${gpg_prog_name}")
+					inherit_gpg_agent_info="${gpg_socket_dir}/S.gpg-agent:${inherit_gpg_agent_pid}:1"
+				fi
 			fi
 		fi
 	fi
