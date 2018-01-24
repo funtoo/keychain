@@ -13,7 +13,7 @@
 # Maintained July 2009 - Sept 2017 by Daniel Robbins <drobbins@funtoo.org>
 # Maintained September 2017 - present by Ryan Harris <x48rph@gmail.com>
 
-version=2.8.4
+version=2.8.5
 
 PATH="${PATH:-/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb}"
 
@@ -246,7 +246,7 @@ OPTIONS
         specified if they haven't yet been added to ssh-agent.
 
     ${GREEN}--nocolor${OFF}
-        Disable color hilighting for non ANSI-compatible terms.
+        Disable color highlighting for non ANSI-compatible terms.
 
     ${GREEN}--nogui${OFF}
         Don't honor SSH_ASKPASS, if it is set. This will cause ssh-add to
@@ -357,7 +357,7 @@ lockfile() {
 	# it returns 0. If it fails, it returns 1. This function retuns immediately
 	# and only tries to acquire the lock once.
 
-		local tmpfile="$lockf.$$"
+		tmpfile="$lockf.$$"
 
 		echo $$ >"$tmpfile" 2>/dev/null || exit
 		if ln "$tmpfile" "$lockf" 2>/dev/null; then
@@ -386,7 +386,7 @@ takelock() {
 	# First attempt:
 	lockfile && return 0
 
-	local counter=0
+	counter=0
 	mesg "Waiting $lockwait seconds for lock..."
 	while [ "$counter" -lt "$(( $lockwait * 2 ))" ]
 	do
@@ -557,9 +557,15 @@ inheritagents() {
 				inherit_gpg_agent_info="$GPG_AGENT_INFO"
 				inherit_gpg_agent_pid=$(echo "$GPG_AGENT_INFO" | cut -f2 -d:)
 			# GnuPG v.2.1+ removes $GPG_AGENT_INFO
-			elif [ -S "${GNUPGHOME:=$HOME/.gnupg}/S.gpg-agent" ]; then
-				inherit_gpg_agent_pid=$(findpids "${gpg_prog_name}")
-				inherit_gpg_agent_info="$GNUPGHOME/S.gpg-agent:${inherit_gpg_agent_pid}:1"
+			else
+				gpg_socket_dir="${GNUPGHOME:=$HOME/.gnupg}"
+				if [ ! -S "${GNUPGHOME:=$HOME/.gnupg}/S.gpg-agent" ]; then
+					gpg_socket_dir="${XDG_RUNTIME_DIR}/gnupg"
+				fi
+				if [ -S "${gpg_socket_dir}/S.gpg-agent" ]; then
+					inherit_gpg_agent_pid=$(findpids "${gpg_prog_name}")
+					inherit_gpg_agent_info="${gpg_socket_dir}/S.gpg-agent:${inherit_gpg_agent_pid}:1"
+				fi
 			fi
 		fi
 	fi
@@ -942,7 +948,7 @@ ssh_l() {
 
 # synopsis: ssh_f filename
 # Return fingerprint for a keyfile
-# Requires $openssh and $sunssh
+# Requires $openssh or $sunssh
 ssh_f() {
 	sf_filename="$1"
 
@@ -960,9 +966,8 @@ ssh_f() {
 			fi
 			lsf_filename=$(echo "$sf_filename" | sed 's/\.[^\.]*$//').pub
 			if [ ! -f "$lsf_filename" ]; then
-				warn "Cannot find public key for $sf_filename."
-				basename "$sf_filename"
-				return 0
+			    warn "Cannot find separate public key for $1."
+				lsf_filename="$sf_filename"
 			fi
 		fi
 		sf_fing=$(ssh-keygen -l -f "$lsf_filename") || return 1

@@ -162,7 +162,7 @@ OPTIONS
         specified if they haven't yet been added to ssh-agent.
 
     --nocolor
-        Disable color hilighting for non ANSI-compatible terms.
+        Disable color highlighting for non ANSI-compatible terms.
 
     --nogui
         Don't honor SSH_ASKPASS, if it is set. This will cause ssh-add to

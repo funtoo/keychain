@@ -13,6 +13,18 @@
 # Maintained July 2009 - September 2017 by Daniel Robbins <drobbins@funtoo.org>
 # Maintained September 2017 - present by Ryan Harris <x48rph@gmail.com>
 
+* keychain 2.8.5 (24 Jan 2018)
+
+  Summary Various fixes and support systemd gnupg sockets
+
+  Some shells don't support local builtin (Roy Marples)
+
+  Support systemd managed gnupg sockets (Pedro Romano)
+
+  Fix some lintian warnings in the man page (Chris West)
+
+  Fix issues loading pem keys (Jack Twilley)
+
 * keychain 2.8.4 (19 Oct 2017)
 
   Summary: Support to GPG2 (Ryan Harris)
