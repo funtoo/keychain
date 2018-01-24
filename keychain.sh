@@ -176,7 +176,7 @@ lockfile() {
 	# it returns 0. If it fails, it returns 1. This function retuns immediately
 	# and only tries to acquire the lock once.
 
-		local tmpfile="$lockf.$$"
+		tmpfile="$lockf.$$"
 
 		echo $$ >"$tmpfile" 2>/dev/null || exit
 		if ln "$tmpfile" "$lockf" 2>/dev/null; then
@@ -205,7 +205,7 @@ takelock() {
 	# First attempt:
 	lockfile && return 0
 
-	local counter=0
+	counter=0
 	mesg "Waiting $lockwait seconds for lock..."
 	while [ "$counter" -lt "$(( $lockwait * 2 ))" ]
 	do
