@@ -32,6 +32,7 @@ openssh=unknown
 sunssh=unknown
 confhost=unknown
 sshconfig=false
+confallhosts=false
 quickopt=false
 quietopt=false
 clearopt=false
@@ -893,8 +894,10 @@ add_sshkey() {
 # synopsis: parse_mykeys
 # Sets $sshkeys and $gpgkeys based on $mykeys
 parse_mykeys() {
-	# Possible path to the private key: if --confhost variable used.
-	pkeypath="$1"
+  for pkeypath in "$@"; do
+    mykeys=${mykeys+"$mykeys
+"}"$pkeypath"
+  done
 
 	# Parse $mykeys into positional params to preserve spaces in filenames
 	set -f		   # disable globbing
@@ -914,8 +917,6 @@ parse_mykeys() {
 				add_sshkey "$HOME/.ssh/$pm_k" ; continue
 			elif [ -f "$HOME/.ssh2/$pm_k" ]; then
 				add_sshkey "$HOME/.ssh2/$pm_k" ; continue
-			elif [ -f "$pkeypath" ]; then
-				add_sshkey "$pkeypath"; continue
 			fi
 		fi
 
@@ -1138,6 +1139,14 @@ while [ -n "$1" ]; do
 				confhost="$2"
 			else
 				warn "~/.ssh/config not found; --confhost/-c option ignored."
+			fi
+			;;
+    --confallhosts|-C)
+			if [ -e ~/.ssh/config ]; then
+				sshconfig=true
+        confallhosts=true
+			else
+				warn "~/.ssh/config not found; --confallhosts/-C option ignored."
 			fi
 			;;
 		--nocolor)
@@ -1372,16 +1381,32 @@ fi
 # --noask: "don't ask for keys", so we're all done
 $noaskopt && { qprint; exit 0; }
 
-# If the --confhost option used, determine the path to the private key as
-# written in the ~/.ssh/config and add it to ssh-add.
+# If the --confhost or the --confallhosts option used, and the .ssh/config
+# file exists, either load host key or all keys defined
 if $sshconfig; then
-	pkeypath=$(confpath "$confhost")
-	eval pkeypath=$pkeypath
+  if $confallhosts; then
+    # If the --confallhosts option used, load all the private keys defined in
+    # the .ssh/config file and add them to ssh-add
+    while IFS= read -r line; do
+      case $line in
+        *IdentityFile*)
+        currentpath="$(echo $line | awk '{print $2}')"
+        eval currentpath=$currentpath
+        pkeypaths=${pkeypaths+"$pkeypaths
+"}"$currentpath"   
+      esac
+    done < ~/.ssh/config
+  else
+    # If the --confhost option is used, find the private key through 
+    # .ssh/config file and load it with ssh-add
+    pkeypaths=$(confpath "$confhost")
+	  eval pkeypaths=$pkeypaths
+  fi
 fi
 
 # Parse $mykeys into ssh vs. gpg keys; it may be necessary in the future to
 # differentiate on the cmdline
-parse_mykeys "$pkeypath" || die
+parse_mykeys "$pkeypaths" || die
 
 # Load ssh keys
 if wantagent ssh; then
