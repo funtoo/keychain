@@ -4,7 +4,7 @@ keychain - re-use ssh-agent and/or gpg-agent between logins
 
 =head1 SYNOPSIS
 
-S<keychain [ -hklQqV ] [ --clear --confhost --gpg2 --help --ignore-missing --list>
+S<keychain [ -hklQqV ] [ --clear --confhost --confallhosts --gpg2 --help --ignore-missing --list>
 S<--noask --nocolor --nogui --nolock --quick --quiet --version ]>
 S<[ --agents I<list> ] [ --attempts I<num> ] [ --dir I<dirname> ]>
 S<[ --host I<name> ] [ --lockwait I<seconds> ]>
@@ -79,8 +79,15 @@ ssh keys when you're logged out.
 
 By default, keychain will look for key pairs in the ~/.ssh/ directory.
 The --confhost option will inform keychain to look in ~/.ssh/config
-for IdentityFile settings defined for particular hosts, and use these
-paths to locate keys.
+for IdentityFile settings defined for the mentioned host (in I<keys>), 
+and use these paths to locate keys.
+
+=item B<--confallhosts>
+
+By default, keychain will look for key pairs in the ~/.ssh/ directory.
+The --confallhosts option will inform keychain to look in ~/.ssh/config
+for IdentityFile settings defined for all hosts, and use these
+paths to locate keys to load.
 
 =item B<--confirm>
 
