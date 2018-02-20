@@ -375,11 +375,11 @@ key:
 \&    eval \`keychain \-\-eval id_rsa id_dsa 0123ABCD\`
 .Ve
 .PP
-For the fish shell, use the following format:
+For the fish shell, the following snippet can be added to your configuration file:
 .PP
 .Vb 3
 \&    if status \-\-is\-interactive
-\&        keychain \-\-eval \-\-quiet \-Q id_rsa | source
+\&        keychain \-\-eval \-\-quiet \-Q id_rsa id_dsa 0123ABCD | source
 \&    end
 .Ve
 .PP
@@ -413,6 +413,19 @@ This is equivalent for C shell (including tcsh):
 \&    if (\-f $HOME/.keychain/$host\-csh\-gpg) then
 \&            source $HOME/.keychain/$host\-csh\-gpg
 \&    endif
+.Ve
+.PP
+Likewise, the following commands can be used in fish:
+.PP
+.Vb 8
+\&    keychain id_rsa id_dsa 0123ABCD
+\&    test \-z "$hostname"; and set hostname (uname \-n)
+\&    if test \-f "$HOME/.keychain/$hostname\-fish"
+\&            source $HOME/.keychain/$hostname\-fish
+\&    end
+\&    if test \-f "$HOME/.keychain/$hostname\-fish\-gpg"
+\&            source $HOME/.keychain/$hostname\-fish\-gpg
+\&    end
 .Ve
 .PP
 To load keychain variables from a script (for example from cron) and
