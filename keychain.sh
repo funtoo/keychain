@@ -854,7 +854,15 @@ ssh_listmissing() {
 
 	for slm_k in "$@"; do
 		# Fingerprint current user-specified key
-		slm_finger=$(ssh_f "$slm_k") || continue
+		if ! slm_finger=$(ssh_f "$slm_k"); then
+			warn "Unable to extract fingerprint from keyfile ${slm_k}.pub, skipping"
+			continue
+		fi
+		slm_wordcount="$(printf -- '%s\n' "$slm_finger" | wc -w)"
+		if [ "$slm_wordcount" -ne 1 ]; then
+			warn "Unable to extract exactly one key fingerprint from keyfile ${slm_k}.pub, got $slm_wordcount instead, skipping"
+			continue
+		fi
 
 		# Check if it needs to be added
 		case " $sshavail " in
