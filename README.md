@@ -3,12 +3,12 @@ IMPORTANT - GitHub Contributors
 
 Please apply your patches to `keychain.sh`, *not* the generated `keychain`
 script, which we are now including in the git repo to facilitate the
-distribution of release archives direct from GitHub. All development work will 
-be done on the 'devel' branch and will only be merged with the master branch when 
+distribution of release archives directly from GitHub. All development work will 
+be done on the 'devel' branch and will only be merged into the master branch when 
 a new release is made. This should allow the generated files (keychain, man pages,
-spec file)to remain in sync on the master branch but no guarantees are made except
+spec file) to remain in sync on the master branch but no guarantees are made except
 for the tagged release. They will be regenerated for official release archives 
-only (those tagged with the release version.). Anyone using or contributing to the
+only (those tagged with the release version). Anyone using or contributing to the
 'devel' branch should assume the generated files are out of date and regenerate 
 locally if needed.
 Thanks!
