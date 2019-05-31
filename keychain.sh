@@ -960,7 +960,7 @@ setagents() {
 		done
 		agentsopt="${new_agentsopt}"
 	else
-		for a in ssh; do
+		for a in ssh gpg; do
 			command -v ${a}-agent >/dev/null || continue
 			agentsopt="${agentsopt+$agentsopt }${a}"
 		done
