@@ -40,6 +40,7 @@ color=true
 inheritwhich=local-once
 unset stopwhich
 unset timeout
+unset agent_socket
 unset ssh_timeout
 attempts=1
 unset sshavail
@@ -609,7 +610,7 @@ startagent() {
 		# Branch again since the agents start differently
 		mesg "Starting ${start_prog}-agent..."
 		if [ "$start_prog" = ssh ]; then
-			start_out=$(ssh-agent ${ssh_timeout})
+			start_out=$(ssh-agent ${ssh_timeout} ${ssh_agent_socket})
 		elif [ "$start_prog" = gpg ]; then
 			if [ -n "${timeout}" ]; then
 				gpg_cache_ttl="$(expr $timeout \* 60)"
@@ -1152,6 +1153,10 @@ while [ -n "$1" ]; do
 		--nocolor)
 			color=false
 			;;
+		--agent-socket)
+			shift
+			agent_socket=$1
+			;;
 		--timeout)
 			shift
 			if [ "$1" -gt 0 ] 2>/dev/null; then
@@ -1311,6 +1316,11 @@ fi
 
 # If there are no agents remaining, then bow out now...
 [ -n "$agentsopt" ] || { qprint; exit 0; }
+
+# --agent-socket translates argument into `-a` argument to set static SSH_AUTH_SOCKET
+if [ -n "$timeout" ] && wantagent ssh; then
+	ssh_agent_socket="-a $agent_socket"
+fi
 
 # --timeout translates almost directly to ssh-add/ssh-agent -t, but ssh.com uses
 # minutes and OpenSSH uses seconds

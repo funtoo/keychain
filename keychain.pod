@@ -6,8 +6,8 @@ keychain - re-use ssh-agent and/or gpg-agent between logins
 
 S<keychain [ -hklQqV ] [ --clear --confhost --confallhosts --gpg2 --help --ignore-missing --list>
 S<--noask --nocolor --nogui --nolock --quick --quiet --version ]>
-S<[ --agents I<list> ] [ --attempts I<num> ] [ --dir I<dirname> ]>
-S<[ --host I<name> ] [ --lockwait I<seconds> ]>
+S<[ --agents I<list> ] [ --agent-socket I<list> ] [ --attempts I<num> ]>
+S<[ --dir I<dirname> ] [ --host I<name> ] [ --lockwait I<seconds> ]>
 S<[ --stop I<which> ] [ --timeout I<minutes> ] [ keys... ]>
 
 =head1 DESCRIPTION
@@ -62,6 +62,11 @@ It works with Bourne-compatible, csh-compatible and fish shells.
 Start the agents listed.  By default keychain will start ssh-agent
 if it is found in your path. The list should be comma-separated, 
 for example "gpg,ssh"
+
+=item B<--agent-socket> I<path>
+
+Path for SSH_AUTH_SOCK. If set, ssh-agent will try to bind the socket to
+the given path.
 
 =item B<--attempts> I<num>
 
