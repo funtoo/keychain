@@ -13,6 +13,14 @@
 # Maintained July 2009 - September 2017 by Daniel Robbins <drobbins@funtoo.org>
 # Maintained September 2017 - present by Ryan Harris <x48rph@gmail.com>
 
+2021-10-05  Henry S. Thompson  <ht@home.hst.name>
+
+	* keychain.sh: 
+
+	If PATH lacks the basics, add them
+
+	Add a few #' to allow (x)emacs fontify to work better
+	
 * keychain 2.8.5 (24 Jan 2018)
 
   Summary Various fixes and support systemd gnupg sockets
