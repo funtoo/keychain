@@ -1236,11 +1236,11 @@ mesg "${PURP}keychain ${OFF}${CYANN}${version}${OFF} ~ ${GREEN}http://www.funtoo
 if $clearopt; then
 	trap '' 2	# disallow ^C until we've had a chance to --clear
 	trap 'droplock; exit 1' 1 15	# drop the lock on signal
-	trap 'droplock; exit 0' 0		# drop the lock on exit
+	trap 'droplock;' 0		# drop the lock on exit
 else
 	# Don't use signal names because they don't work on Cygwin.
 	trap 'droplock; exit 1' 1 2 15	# drop the lock on signal
-	trap 'droplock; exit 0' 0		# drop the lock on exit
+	trap 'droplock;' 0		# drop the lock on exit
 fi
 
 setagents						# verify/set $agentsopt
