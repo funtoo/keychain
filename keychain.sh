@@ -15,7 +15,15 @@
 
 version=##VERSION##
 
-PATH="${PATH:-/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb}"
+if type -t id > /dev/null
+then
+ :
+elif [ "$PATH" ]
+then
+ PATH=$PATH:/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb
+else
+ PATH=/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb
+fi
 
 maintainer="x48rph@gmail.com"
 unset mesglog
@@ -131,7 +139,7 @@ helpinfo() {
 	cat >&1 <<EOHELP
 INSERT_POD_OUTPUT_HERE
 EOHELP
-}
+} #'
 
 # synopsis: testssh
 # Figure out which ssh is in use, set the global boolean $openssh and $sunssh
@@ -172,7 +180,7 @@ verifykeydir() {
 }
 
 lockfile() {
-	# This function originates from Parallels Inc.'s OpenVZ vpsreboot script
+	# This function originates from Parallels Inc.'s OpenVZ vpsreboot script #'
 
 	# Description: This function attempts to acquire the lock. If it succeeds,
 	# it returns 0. If it fails, it returns 1. This function retuns immediately
