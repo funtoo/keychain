@@ -2,7 +2,7 @@
 
 # Copyright 1999-2005 Gentoo Foundation
 # Copyright 2007 Aron Griffis <agriffis@n01se.net>
-# Copyright 2009-2017 Funtoo Solutions, Inc.
+# Copyright 2009-2025 Funtoo Solutions, Inc.
 # lockfile() Copyright 2009 Parallels, Inc.
 
 # Distributed under the terms of the GNU General Public License v2
@@ -11,13 +11,14 @@
 # Maintained August 2002 - April 2003 by Seth Chandler <sethbc@gentoo.org>
 # Maintained and rewritten April 2004 - July 2007 by Aron Griffis <agriffis@n01se.net>
 # Maintained July 2009 - Sept 2017 by Daniel Robbins <drobbins@funtoo.org>
-# Maintained September 2017 - present by Ryan Harris <x48rph@gmail.com>
+# Maintained September 2017 - 2018 by Ryan Harris <x48rph@gmail.com>
+# Maintained currently by Daniel Robbins <drobbins@funtoo.org>
 
 version=2.8.5
 
 PATH="${PATH:-/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb}"
 
-maintainer="x48rph@gmail.com"
+maintainer="drobbins@funtoo.org"
 unset mesglog
 unset myaction
 unset agentsopt
