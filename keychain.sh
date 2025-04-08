@@ -16,10 +16,7 @@
 
 version=##VERSION##
 
-if type -t id > /dev/null
-then
-	:
-elif [ "$PATH" ]
+if [ "$PATH" ]
 then
 	PATH=$PATH:/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb
 else
