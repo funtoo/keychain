@@ -46,7 +46,7 @@ GENKEYCHAINPL = open P, "keychain.txt" or die "cannot open keychain.txt"; \
 			s/\#\#VERSION\#\#/$V/g || die; \
 		print
 
-keychain: keychain.sh keychain.txt
+keychain: keychain.sh keychain.txt VERSION
 	perl -e '$(GENKEYCHAINPL)' >keychain || rm -f keychain
 	chmod +x keychain
 

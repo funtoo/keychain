@@ -2,10 +2,11 @@ NAME
     keychain - re-use ssh-agent and/or gpg-agent between logins
 
 SYNOPSIS
-    keychain [ -hklQqV ] [ --clear --confhost --gpg2 --help --ignore-missing
-     --list --noask --nocolor --nogui --nolock --quick --quiet --version ]
-    [ --agents *list* ] [ --attempts *num* ] [ --dir *dirname* ]
-    [ --host *name* ] [ --lockwait *seconds* ]
+    keychain [ -hklQqV ] [ --clear --confhost --confallhosts --gpg2 --help -
+    -ignore-missing --list
+    --noask --nocolor --nogui --nolock --quick --quiet --version ]
+    [ --agents *list* ] [ --agent-socket *list* ] [ --attempts *num* ]
+    [ --dir *dirname* ] [ --host *name* ] [ --lockwait *seconds* ]
     [ --stop *which* ] [ --timeout *minutes* ] [ keys... ]
 
 DESCRIPTION
@@ -41,7 +42,7 @@ DESCRIPTION
 
     As an additional feature, if a private key has an extension ".ext",
     keychain will look for privkey.ext.pub first, and if not found, will
-    look for privkeyname.pub.
+    look for privkey.pub.
 
     Keychain also supports gpg-agent in the same ways that ssh-agent is
     supported. By default keychain attempts to start ssh-agent only. You can
@@ -56,6 +57,10 @@ OPTIONS
         it is found in your path. The list should be comma-separated, for
         example "gpg,ssh"
 
+    --agent-socket *path*
+        Path for SSH_AUTH_SOCK. If set, ssh-agent will try to bind the
+        socket to the given path.
+
     --attempts *num*
         Try num times to add keys before giving up. The default is 1.
 
@@ -69,8 +74,14 @@ OPTIONS
     --confhost
         By default, keychain will look for key pairs in the ~/.ssh/
         directory. The --confhost option will inform keychain to look in
-        ~/.ssh/config for IdentityFile settings defined for particular
-        hosts, and use these paths to locate keys.
+        ~/.ssh/config for IdentityFile settings defined for the mentioned
+        host (in *keys*), and use these paths to locate keys.
+
+    --confallhosts
+        By default, keychain will look for key pairs in the ~/.ssh/
+        directory. The --confallhosts option will inform keychain to look in
+        ~/.ssh/config for IdentityFile settings defined for all hosts, and
+        use these paths to locate keys to load.
 
     --confirm
         Keys are subject to interactive confirmation by the SSH_ASKPASS
@@ -184,7 +195,7 @@ OPTIONS
                  Prior to keychain-2.5.0, this was the behavior of the bare
                  "--stop" option.
 
-        others   Kill agent processes other than the one keychain is
+        others   Kill agent processes other than the ones keychain is
                  providing. Prior to keychain-2.5.0, keychain would do this
                  automatically. The new behavior requires that you specify
                  it explicitly if you want it.
