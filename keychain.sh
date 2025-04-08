@@ -2,7 +2,7 @@
 
 # Copyright 1999-2005 Gentoo Foundation
 # Copyright 2007 Aron Griffis <agriffis@n01se.net>
-# Copyright 2009-2017 Funtoo Solutions, Inc.
+# Copyright 2009-2025 Funtoo Solutions, Inc.
 # lockfile() Copyright 2009 Parallels, Inc.
 
 # Distributed under the terms of the GNU General Public License v2
@@ -11,21 +11,21 @@
 # Maintained August 2002 - April 2003 by Seth Chandler <sethbc@gentoo.org>
 # Maintained and rewritten April 2004 - July 2007 by Aron Griffis <agriffis@n01se.net>
 # Maintained July 2009 - Sept 2017 by Daniel Robbins <drobbins@funtoo.org>
-# Maintained September 2017 - present by Ryan Harris <x48rph@gmail.com>
+# Maintained September 2017 - 2018 by Ryan Harris <x48rph@gmail.com>
+# Maintained currently by Daniel Robbins <drobbins@funtoo.org>
 
 version=##VERSION##
 
 if type -t id > /dev/null
 then
- :
+	:
 elif [ "$PATH" ]
 then
- PATH=$PATH:/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb
+	PATH=$PATH:/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb
 else
- PATH=/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb
+	PATH=/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb
 fi
 
-maintainer="x48rph@gmail.com"
 unset mesglog
 unset myaction
 unset agentsopt
@@ -123,7 +123,7 @@ versinfo() {
 	qprint
 	qprint "   Copyright ${CYANN}2002-2006${OFF} Gentoo Foundation;"
 	qprint "   Copyright ${CYANN}2007${OFF} Aron Griffis;"
-	qprint "   Copyright ${CYANN}2009-2017${OFF} Funtoo Solutions, Inc;"
+	qprint "   Copyright ${CYANN}2009-2025${OFF} Funtoo Solutions, Inc;"
 	qprint "   lockfile() Copyright ${CYANN}2009${OFF} Parallels, Inc."
 	qprint
 	qprint " Keychain is free software: you can redistribute it and/or modify"
@@ -283,7 +283,7 @@ findpids() {
 
 	# If none worked, we're stuck
 	error "Unable to use \"ps\" to scan for $fp_prog-agent processes"
-	error "Please report to $maintainer via http://bugs.gentoo.org"
+	error "Please report to https://github.com/funtoo/keychain/issues."
 	return 1
 }
 
@@ -784,13 +784,13 @@ ssh_f() {
 	if $openssh || $sunssh; then
 		realpath_bin="$(command -v realpath)"
 		# if private key is symlink and symlink to *.pub is missing:
-		if [ -L "$sf_filename" ] && [ ! -z "$realpath_bin" ]; then
+		if [ -L "$sf_filename" ] && [ -n "$realpath_bin" ]; then
 			sf_filename="$($realpath_bin $sf_filename)"
 		fi
 		lsf_filename="$sf_filename.pub"
 		if [ ! -f "$lsf_filename" ]; then
 			# try to remove extension from private key, *then* add .pub, and see if we now find it:
-			if [ -L "$sf_filename" ] && [ ! -z "$realpath_bin" ]; then
+			if [ -L "$sf_filename" ] && [ -n "$realpath_bin" ]; then
 				sf_filename="$($realpath_bin $sf_filename)"
 			fi
 			lsf_filename=$(echo "$sf_filename" | sed 's/\.[^\.]*$//').pub
