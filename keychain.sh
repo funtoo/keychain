@@ -190,7 +190,7 @@ lockfile() {
 				rm -f "$tmpfile"
 		havelock=true && return 0
 		fi
-		if kill -0 $(cat $lockf 2>/dev/null) 2>/dev/null; then
+		if kill -0 "$(cat "$lockf" 2>/dev/null)" 2>/dev/null; then
 				rm -f "$tmpfile"
 			return 1
 	fi
@@ -214,10 +214,10 @@ takelock() {
 
 	counter=0
 	mesg "Waiting $lockwait seconds for lock..."
-	while [ "$counter" -lt "$(( $lockwait * 2 ))" ]
+	while [ "$counter" -lt "$(( lockwait * 2 ))" ]
 	do
 		lockfile && return 0
-		sleep 0.5; counter=$(( $counter + 1 ))
+		sleep 0.5; counter=$(( counter + 1 ))
 	done 
 	rm -f "$lockf" && lockfile && return 0
 	return 1
@@ -248,11 +248,11 @@ findpids() {
 		AIX|*bsd*|*BSD*|CYGWIN|darwin*|Linux|linux-gnu|OSF1)
 			fp_psout=$(ps x 2>/dev/null) ;;		# BSD syntax
 		HP-UX)
-			fp_psout=$(ps -u $me 2>/dev/null) ;; # SysV syntax
+			fp_psout=$(ps -u "$me" 2>/dev/null) ;; # SysV syntax
 		SunOS)
 			case $(uname -r) in
 				[56]*)
-					fp_psout=$(ps -u $me 2>/dev/null) ;; # SysV syntax
+					fp_psout=$(ps -u "$me" 2>/dev/null) ;; # SysV syntax
 				*)
 					fp_psout=$(ps x 2>/dev/null) ;;		# BSD syntax
 			esac ;;
@@ -550,7 +550,7 @@ startagent() {
 	[ "$start_pid" -gt 0 ] 2>/dev/null || start_pid=none
 
 	# This hack makes the case statement easier
-	if [ "$inheritwhich" = any -o "$inheritwhich" = any-once ]; then
+	if [ "$inheritwhich" = any ] || [ "$inheritwhich" = any-once ]; then
 		start_fwdflg=forwarded
 	else
 		unset start_fwdflg
@@ -682,7 +682,7 @@ SSH2_AGENT_PID=$inherit_ssh2_agent_pid; export SSH2_AGENT_PID;"
 # Extract the fingerprints from standard input, returns space-separated list.
 # Utility routine for ssh_l and ssh_f
 extract_fingerprints() {
-	while read ef_line; do
+	while read -r ef_line; do
 		case "$ef_line" in
 			*\ *\ [0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F]:*)
 				# Sun SSH spits out different things depending on the type of
@@ -782,13 +782,13 @@ ssh_f() {
 		realpath_bin="$(command -v realpath)"
 		# if private key is symlink and symlink to *.pub is missing:
 		if [ -L "$sf_filename" ] && [ -n "$realpath_bin" ]; then
-			sf_filename="$($realpath_bin $sf_filename)"
+			sf_filename="$($realpath_bin "$sf_filename")"
 		fi
 		lsf_filename="$sf_filename.pub"
 		if [ ! -f "$lsf_filename" ]; then
 			# try to remove extension from private key, *then* add .pub, and see if we now find it:
 			if [ -L "$sf_filename" ] && [ -n "$realpath_bin" ]; then
-				sf_filename="$($realpath_bin $sf_filename)"
+				sf_filename="$($realpath_bin "$sf_filename")"
 			fi
 			lsf_filename=$(echo "$sf_filename" | sed 's/\.[^\.]*$//').pub
 			if [ ! -f "$lsf_filename" ]; then
@@ -818,6 +818,7 @@ gpg_listmissing() {
 	glm_IFS="$IFS"	# save current IFS
 	IFS="
 "					# set IFS to newline
+	# shellcheck disable=SC2086
 	set -- $gpgkeys
 	IFS="$glm_IFS"	# restore IFS
 	set +f			# re-enable globbing
@@ -854,6 +855,7 @@ ssh_listmissing() {
 	slm_IFS="$IFS"	# save current IFS
 	IFS="
 "					# set IFS to newline
+	# shellcheck disable=SC2086
 	set -- $sshkeys
 	IFS="$slm_IFS"	# restore IFS
 	set +f			# re-enable globbing
@@ -918,6 +920,7 @@ parse_mykeys() {
 	pm_IFS="$IFS"  # save current IFS
 	IFS="
 "				   # set IFS to newline
+	# shellcheck disable=SC2086
 	set -- $mykeys
 	IFS="$pm_IFS"  # restore IFS
 	set +f		   # re-enable globbing
@@ -936,9 +939,9 @@ parse_mykeys() {
 
 		# Check for gpg
 		if wantagent gpg; then
-                        "${gpg_prog_name}" --list-secret-keys "$pm_k" >/dev/null 2>&1
-                        if [ $? -eq 0 ]; then
-                                add_gpgkey "$pm_k" ; continue
+			 "${gpg_prog_name}" --list-secret-keys "$pm_k" >/dev/null 2>&1
+			 if [ $? -eq 0 ]; then
+				add_gpgkey "$pm_k" ; continue
 			fi
 		fi
 
@@ -966,7 +969,7 @@ setagents() {
 		agentsopt=$(echo "$agentsopt" | sed 's/,/ /g')
 		unset new_agentsopt
 		for a in $agentsopt; do
-			if command -v ${a}-agent >/dev/null; then
+			if command -v "${a}-agent" >/dev/null; then
 				new_agentsopt="${new_agentsopt+$new_agentsopt }${a}"
 			else
 				warn "can't find ${a}-agent, removing from list"
@@ -993,12 +996,12 @@ confpath() {
 	while IFS= read -r line; do
 		# get the Host directives
 		case $line in
-			*"Host "*) h=$(echo $line | awk '{print $2}') ;;
+			*"Host "*) h=$(echo "$line" | awk '{print $2}') ;;
 		esac
 		case $line in
 			*IdentityFile*)
-			if [ $h = "$1" ]; then
-				echo $line | awk '{print $2}'
+			if [ "$h" = "$1" ]; then
+				echo "$line" | awk '{print $2}'
 				break
 			fi
 		esac
@@ -1152,6 +1155,7 @@ while [ -n "$1" ]; do
 				sshconfig=true
 				confhost="$2"
 			else
+				# shellcheck disable=SC2088
 				warn "~/.ssh/config not found; --confhost/-c option ignored."
 			fi
 			;;
@@ -1160,6 +1164,7 @@ while [ -n "$1" ]; do
 				sshconfig=true
         confallhosts=true
 			else
+				# shellcheck disable=SC2088
 				warn "~/.ssh/config not found; --confallhosts/-C option ignored."
 			fi
 			;;
@@ -1216,12 +1221,16 @@ done
 # file with fish-compatible syntax. lockf is the lockfile, used
 # to serialize the execution of multiple ssh-agent processes started
 # simultaneously
-[ -z "$hostopt" ] && hostopt="${HOSTNAME}"
-[ -z "$hostopt" ] && hostopt=$(uname -n 2>/dev/null || echo unknown)
+if [ -z "$hostopt" ]; then
+	if [ -z "$HOSTNAME" ]; then
+		hostopt=$(uname -n 2>/dev/null || echo unknown)
+	else
+		hostopt="$HOSTNAME"
+	fi
+fi
 pidf="${keydir}/${hostopt}-sh"
 cshpidf="${keydir}/${hostopt}-csh"
 fishpidf="${keydir}/${hostopt}-fish"
-olockf="${keydir}/${hostopt}-lock"
 lockf="${keydir}/${hostopt}-lockf"
 
 # Read the env snippet (especially for things like PATH, but could modify
@@ -1232,6 +1241,7 @@ if [ -z "$envf" ]; then
 	[ -f "$envf" ] || unset envf
 fi
 if [ -n "$envf" ]; then
+	# shellcheck disable=SC1090
 	. "$envf"
 fi
 
@@ -1277,11 +1287,11 @@ if [ -n "$stopwhich" ]; then
 		stopwhich=all
 	fi
 	takelock || die
-	if [ "$stopwhich" = mine -o "$stopwhich" = others ]; then
-		loadagents $agentsopt
+	if [ "$stopwhich" = mine ] || [ "$stopwhich" = others ]; then
+		loadagents "$agentsopt"
 	fi
 	for a in $agentsopt; do
-		stopagent $a
+		stopagent "$a"
 	done
 	if [ "$stopwhich" != others ]; then
 		qprint
@@ -1292,7 +1302,7 @@ fi
 # Note regarding locking: if we're trying to be quick, then don't take the lock.
 # It will be taken later if we discover we can't be quick.
 if $quickopt; then
-	loadagents $agentsopt		# sets ssh_auth_sock, ssh_agent_pid, etc
+	loadagents "$agentsopt"		# sets ssh_auth_sock, ssh_agent_pid, etc
 	unset nagentsopt
 	for a in $agentsopt; do
 		needstart=true
@@ -1300,14 +1310,14 @@ if $quickopt; then
 		# Trying to be quick has a price... If we discover the agent isn't running,
 		# then we'll have to check things again (in startagent) after taking the
 		# lock.  So don't do the initial check unless --quick was specified.
-		if [ $a = ssh ]; then
-			sshavail=$(ssh_l)	# try to use existing agent
-								# 0 = found keys, 1 = no keys, 2 = no agent
-			if [ $? = 0 -o \( $? = 1 -a -z "$mykeys" \) ]; then
+		if [ "$a" = ssh ]; then
+				# try to use existing agent
+				# 0 = found keys, 1 = no keys, 2 = no agent
+			if sshavail=$(ssh_l) || { [ $? = 1 ] && [ -z "$mykeys" ]; }; then
 				mesg "Found existing ssh-agent: ${CYANN}$ssh_agent_pid${OFF}"
 				needstart=false
 			fi
-		elif [ $a = gpg ]; then
+		elif [ "$a" = gpg ]; then
 			# not much way to be quick on this
 			if [ -n "$gpg_agent_pid" ]; then
 				case " $(findpids "${gpg_prog_name}") " in
@@ -1321,7 +1331,7 @@ if $quickopt; then
 		if $needstart; then
 			nagentsopt="$nagentsopt $a"
 		elif $evalopt; then
-			catpidf $a
+			catpidf "$a"
 		fi
 	done
 	agentsopt="$nagentsopt"
@@ -1340,7 +1350,7 @@ fi
 if [ -n "$timeout" ] && wantagent ssh; then
 	ssh_timeout=$timeout
 	if $openssh || $sunssh; then
-		ssh_timeout=$(expr $ssh_timeout \* 60)
+		ssh_timeout=$(( ssh_timeout * 60 ))
 	fi
 	ssh_timeout="-t $ssh_timeout"
 fi
@@ -1348,14 +1358,14 @@ fi
 # There are agents remaining to start, and we now know we can't be quick.  Take
 # the lock before continuing
 takelock || die
-loadagents $agentsopt
+loadagents "$agentsopt"
 unset nagentsopt
 for a in $agentsopt; do
 	if $queryopt; then
-		catpidf_shell sh $a | cut -d\; -f1
-	elif startagent $a; then
+		catpidf_shell sh "$a" | cut -d\; -f1
+	elif startagent "$a"; then
 		nagentsopt="${nagentsopt+$nagentsopt }$a"
-		$evalopt && catpidf $a
+		$evalopt && catpidf "$a"
 	fi
 done
 agentsopt="$nagentsopt"
@@ -1378,15 +1388,14 @@ fi
 # --clear: remove all keys from the agent(s)
 if $clearopt; then
 	for a in ${agentsopt}; do
-		if [ $a = ssh ]; then
-			sshout=$(ssh-add -D 2>&1)
-			if [ $? = 0 ]; then
+		if [ "$a" = ssh ]; then
+			if sshout=$(ssh-add -D 2>&1); then
 				mesg "ssh-agent: $sshout"
 			else
 				warn "ssh-agent: $sshout"
 			fi
-		elif [ $a = gpg ]; then
-			kill -1 $gpg_agent_pid 2>/dev/null
+		elif [ "$a" = gpg ]; then
+			kill -1 "$gpg_agent_pid" 2>/dev/null
 			mesg "gpg-agent: All identities removed."
 		else
 			warn "--clear not supported for ${a}-agent"
@@ -1397,7 +1406,7 @@ fi
 
 if $systemdopt; then
 	for a in $agentsopt; do
-		systemctl --user set-environment $( catpidf_shell sh $a | cut -d\; -f1 )
+		systemctl --user set-environment "$( catpidf_shell sh "$a" | cut -d\; -f1 )"
 	done
 fi
 
@@ -1413,8 +1422,8 @@ if $sshconfig; then
     while IFS= read -r line; do
       case $line in
         *IdentityFile*)
-        currentpath="$(echo $line | awk '{print $2}')"
-        eval currentpath=$currentpath
+        currentpath="$(echo "$line" | awk '{print $2}')"
+        eval currentpath="$currentpath"
         pkeypaths=${pkeypaths+"$pkeypaths
 "}"$currentpath"   
       esac
@@ -1423,7 +1432,7 @@ if $sshconfig; then
     # If the --confhost option is used, find the private key through 
     # .ssh/config file and load it with ssh-add
     pkeypaths=$(confpath "$confhost")
-	  eval pkeypaths=$pkeypaths
+	  eval pkeypaths="$pkeypaths"
   fi
 fi
 
@@ -1447,7 +1456,7 @@ if wantagent ssh; then
 		# Attempt to add the keys
 		while [ -n "$sshkeys" ]; do
 
-			mesg "Adding ${CYANN}"$(echo "$sshkeys" | wc -l)"${OFF} ssh key(s): $(echo $sshkeys)"
+			mesg "Adding ${CYANN}$(echo "$sshkeys" | wc -l)${OFF} ssh key(s): $sshkeys"
 
 			# Parse $sshkeys into positional params to preserve spaces in filenames.
 			# This *must* happen after any calls to subroutines because pure Bourne
@@ -1460,23 +1469,23 @@ if wantagent ssh; then
 			IFS="$old_IFS"	# restore IFS
 			set +f			# re-enable globbing
 
-			if $noguiopt || [ -z "$SSH_ASKPASS" -o -z "$DISPLAY" ]; then
+			if $noguiopt || [ -z "$SSH_ASKPASS" ] || [ -z "$DISPLAY" ]; then
 				unset DISPLAY		# DISPLAY="" can cause problems
 				unset SSH_ASKPASS	# make sure ssh-add doesn't try SSH_ASKPASS
-				sshout=$(ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1)
+				sshout=$(ssh-add "${ssh_timeout}" ${ssh_confirm} "$@" 2>&1)
 			else
-				sshout=$(ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1 </dev/null)
+				sshout=$(ssh-add "${ssh_timeout}" ${ssh_confirm} "$@" 2>&1 </dev/null)
 			fi
 			if [ $? = 0 ]
-		then
-			blurb=""
-			[ -n "$timeout" ] && blurb="life=${timeout}m"
-			[ -n "$timeout" ] && $confirmopt && blurb="${blurb},"
-			$confirmopt && blurb="${blurb}confirm"
-			[ -n "$blurb" ] && blurb=" (${blurb})"
-			mesg "ssh-add: Identities added: $(echo $sshkeys)${blurb}"
-			break
-		fi
+			then
+				blurb=""
+				[ -n "$timeout" ] && blurb="life=${timeout}m"
+				[ -n "$timeout" ] && $confirmopt && blurb="${blurb},"
+				$confirmopt && blurb="${blurb}confirm"
+				[ -n "$blurb" ] && blurb=" (${blurb})"
+				mesg "ssh-add: Identities added: $sshkeys${blurb}"
+				break
+			fi
 			if [ $sshattempts = 1 ]; then
 				die "Problem adding; giving up"
 			else
@@ -1489,7 +1498,7 @@ if wantagent ssh; then
 			sshkeys="$(ssh_listmissing)"  # remember, newline-separated
 
 			# Decrement the countdown
-			sshattempts=$(expr $sshattempts - 1)
+			sshattempts=$(( sshattempts -1 ))
 		done
 
 		[ -n "$savedisplay" ] && DISPLAY="$savedisplay"
@@ -1509,7 +1518,7 @@ if wantagent gpg; then
 	while [ -n "$gpgkeys" ]; do
 		tryagain=false
 
-		mesg "Adding ${BLUE}"$(echo "$gpgkeys" | wc -l)"${OFF} gpg key(s): $(echo $gpgkeys)"
+		mesg "Adding ${BLUE} $(echo "$gpgkeys" | wc -l)${OFF} gpg key(s): $gpgkeys"
 
 		# Parse $gpgkeys into positional params to preserve spaces in filenames.
 		# This *must* happen after any calls to subroutines because pure Bourne
@@ -1518,7 +1527,7 @@ if wantagent gpg; then
 		old_IFS="$IFS"	# save current IFS
 		IFS="
 "						# set IFS to newline
-		set -- $gpgkeys
+		set -- "$gpgkeys"
 		IFS="$old_IFS"	# restore IFS
 		set +f			# re-enable globbing
 
@@ -1529,7 +1538,7 @@ if wantagent gpg; then
 		done
 		$tryagain || break
 
-		if [ $gpgattempts = 1 ]; then
+		if [ "$gpgattempts" = 1 ]; then
 			die "Problem adding (is pinentry installed?); giving up"
 		else
 			warn "Problem adding; trying again"
@@ -1539,7 +1548,7 @@ if wantagent gpg; then
 		gpgkeys="$(gpg_listmissing)"  # remember, newline-separated
 
 		# Decrement the countdown
-		gpgattempts=$(expr $gpgattempts - 1)
+		gpgattempts=$(( gpgattempts - 1 ))
 	done
 fi
 
