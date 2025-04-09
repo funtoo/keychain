@@ -1,13 +1,40 @@
-# ChangeLog for Keychain; http://www.funtoo.org/Funtoo:Keychain
+# ChangeLog for Keychain
+# http://www.funtoo.org/Funtoo:Keychain
 
+* keychain 2.9.0_alpha1 (9 Apr 2025)
 
-2021-10-05  Henry S. Thompson  <ht@home.hst.name>
+  * Daniel Robbins returns as keychain maintainer.
 
-	* keychain.sh: 
+  * 'keychain' and 'keychain.1' removed from git repo and added to .gitignore.
 
-	If PATH lacks the basics, add them
+  * Make 'keychain.sh' fully-compliant with ShellCheck, and add necessary exception
+    comments to the codebase. These changes require testing, as some of the suggested
+    fixes are not desired, and I tried to catch all of these. Thus the _alpha1
+    status.
 
-	Add a few #' to allow (x)emacs fontify to work better
+  * Merge in typographical errors from Peter Pentchev (@ppentchev).
+    (commit d8a566d6402a2e93ce1664cb9c7e9df3233323de)
+
+  * Merge in validity checking for malformed SSH public key files, also from
+    Peter Pentchev (@ppentchev). (commit 2722fdcc5d86725dd72995a83694862849494471)
+
+  * Merge in support for --agents, which adds detection of gpg-agent which was
+    disabled. From Mikko Koivunalho (@mikkoi). 
+    (commit 1d170da33be908c742a0840191533fe90b82db5b)
+
+  * Merge in support for --agent-socket option, to specify the path for
+    SSH_AUTH_SOCK manually. From Mikhail f. Shiryaev (@felixoid).
+    (commit 2a3dfcd46e91c32a620d64035c42c8d2971c926f)
+
+  * Fix handling of exit codes. This fix is from Manolis Androulidakis 
+    (@manolis-andr). (commit ced07855cca34664c382aaaf536e719113f9e4e4)
+
+  * Add --confallhosts option to allow loading of keys from all hosts.
+  This is from Ole Martin Ruud (@barskern). 
+  (commit 004107877d0258076653b291f25c1e6083fec0fb)
+
+  * Update GPL-2 license file. This is from Karol Babioch (@ghost).
+    (commit 15ad9e1c8d5624dd762e503c4da014bcc8ebe890)
 	
 * keychain 2.8.5 (24 Jan 2018)
 
