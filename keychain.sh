@@ -70,11 +70,11 @@ GREEN="[32;01m"
 RED="[31;01m"
 PURP="[35;01m"
 OFF="[0m"
-
+DEBUG=1
 # GNU awk and sed have regex issues in a multibyte environment.  If any locale
 # variables are set, then override by setting LC_ALL
 unset pinentry_locale
-if [ -n "$LANG$LC_ALL" ] || [ -n "$(locale 2>/dev/null | egrep -v '="?(|POSIX|C)"?$' 2>/dev/null)" ]; then
+if [ -n "$LANG$LC_ALL" ] || locale 2>/dev/null | grep -E -qv '="?(|POSIX|C)"?$' 2>/dev/null; then
 	# save LC_ALL so that pinentry-curses works right.	This has always worked
 	# correctly for me but peper and kloeri had problems with it.
 	pinentry_lc_all="$LC_ALL"
@@ -97,6 +97,10 @@ mesg() {
 # Prettily print a warning to stderr
 warn() {
 	echo " ${RED}* Warning${OFF}: $*" >&2
+}
+
+debug() {
+	[ -n "$DEBUG" ] && echo "${CYAN}debug> $*${OFF}" >&2
 }
 
 # synopsis: error "message"
@@ -263,7 +267,8 @@ findpids() {
 	# If we didn't get a match above, try a list of possibilities...
 	# The first one will probably fail on systems supporting only BSD syntax.
 	if [ -z "$fp_psout" ]; then
-		fp_psout=$(UNIX95=1 ps -u $me -o pid,comm 2>/dev/null | grep '^ *[0-9]')
+		# shellcheck disable=SC2009
+		fp_psout=$(UNIX95=1 ps -u "$me" -o pid,comm 2>/dev/null | grep '^ *[0-9]+')
 		[ -z "$fp_psout" ] && fp_psout=$(ps x 2>/dev/null)
 		[ -z "$fp_psout" ] && fp_psout=$(ps w 2>/dev/null) # Busybox syntax
 	fi
@@ -289,9 +294,8 @@ findpids() {
 # prog can be ssh or gpg, defaults to ssh.
 stopagent() {
 	stop_prog=${1-ssh}
-	eval stop_except=\$\{${stop_prog}_agent_pid\}
-	stop_mypids=$(findpids "$stop_prog")
-	[ $? = 0 ] || die
+	eval stop_except=\$\{"${stop_prog}_agent_pid"\}
+	stop_mypids=$(findpids "$stop_prog") || die
 
 	if [ -z "$stop_mypids" ]; then
 		mesg "No $stop_prog-agent(s) found running"
@@ -300,21 +304,24 @@ stopagent() {
 
 	case "$stopwhich" in
 		all)
+			# shellcheck disable=SC2086 # intentionally pass as separate arguments:
 			kill $stop_mypids >/dev/null 2>&1
 			mesg "All ${CYANN}$me${OFF}'s $stop_prog-agents stopped: ${CYANN}$stop_mypids${OFF}"
 			;;
 
 		others)
-			# Try to handle the case where we *will* inherit a pid
+			# Try to handle the case where we *will* inherit a pid. $stop_except is a single pid.
+			# shellcheck disable=SC2086 # intentionally pass as separate arguments:
 			kill -0 $stop_except >/dev/null 2>&1
-			if [ -z "$stop_except" -o $? != 0 -o \
-					"$inheritwhich" = local -o "$inheritwhich" = any ]; then
+			ret=$?
+			if [ -z "$stop_except" ] || [ $ret != 0 ] || [ "$inheritwhich" = local ] || [ "$inheritwhich" = any ]; then
 				if [ "$inheritwhich" != none ]; then
-					eval stop_except=\$\{inherit_${stop_prog}_agent_pid\}
-					kill -0 $stop_except >/dev/null 2>&1
-					if [ -z "$stop_except" -o $? != 0 ]; then
+					eval stop_except=\$\{"inherit_${stop_prog}_agent_pid"\}
+					kill -0 "$stop_except" >/dev/null 2>&1
+					ret=$?
+					if [ -z "$stop_except" ] || [ $ret != 0 ]; then
 						# Handle ssh2
-						eval stop_except=\$\{inherit_${stop_prog}2_agent_pid\}
+						eval stop_except=\$\{"inherit_${stop_prog}2_agent_pid"\}
 					fi
 				fi
 			fi
@@ -322,11 +329,12 @@ stopagent() {
 			# Filter out the running agent pid
 			unset stop_mynewpids
 			for stop_x in $stop_mypids; do
-				[ $stop_x -eq $stop_except ] 2>/dev/null && continue
+				[ "$stop_x" -eq "$stop_except" ] 2>/dev/null && continue
 				stop_mynewpids="${stop_mynewpids+$stop_mynewpids }$stop_x"
 			done
 
 			if [ -n "$stop_mynewpids" ]; then
+				# shellcheck disable=SC2086 # intentionally pass as separate arguments:
 				kill $stop_mynewpids >/dev/null 2>&1
 				mesg "Other ${CYANN}$me${OFF}'s $stop_prog-agents stopped: ${CYANN}$stop_mynewpids${OFF}"
 			else
@@ -335,7 +343,8 @@ stopagent() {
 			;;
 
 		mine)
-			if [ $stop_except -gt 0 ] 2>/dev/null; then
+			if [ "$stop_except" -gt 0 ] 2>/dev/null; then
+				# shellcheck disable=SC2086 # intentionally pass as separate arguments:
 				kill $stop_except >/dev/null 2>&1
 				mesg "Keychain $stop_prog-agents stopped: ${CYANN}$stop_except${OFF}"
 			else
@@ -352,7 +361,7 @@ stopagent() {
 			rm -f "${pidf}" "${cshpidf}" "${fishpidf}" 2>/dev/null
 		fi
 
-		eval unset ${stop_prog}_agent_pid
+		eval unset "${stop_prog}_agent_pid"
 	fi
 }
 
@@ -363,12 +372,12 @@ inheritagents() {
 	unset inherit_ssh_auth_sock inherit_ssh_agent_pid
 	unset inherit_ssh2_auth_sock inherit_ssh2_agent_sock
 	unset inherit_gpg_agent_info inherit_gpg_agent_pid
-
 	# Save variables so we can inherit a running agent
 	if [ "$inheritwhich" != none ]; then
 		if wantagent ssh; then
 			if [ -n "$SSH_AUTH_SOCK" ]; then
 				inherit_ssh_auth_sock="$SSH_AUTH_SOCK"
+				# shellcheck disable=SC2153 # $SSH_AGENT_PID is not a typo:
 				inherit_ssh_agent_pid="$SSH_AGENT_PID"
 			fi
 
@@ -405,8 +414,7 @@ validinherit() {
 
 	if [ "$vi_agent" = ssh ]; then
 		if [ -n "$inherit_ssh_auth_sock" ]; then
-			ls "$inherit_ssh_auth_sock" >/dev/null 2>&1
-			if [ $? != 0 ]; then
+			if ! ls "$inherit_ssh_auth_sock" >/dev/null 2>&1; then
 				warn "SSH_AUTH_SOCK in environment is invalid; ignoring it"
 				unset inherit_ssh_auth_sock inherit_ssh_agent_pid
 				vi_status=1
@@ -414,8 +422,7 @@ validinherit() {
 		fi
 
 		if [ -n "$inherit_ssh2_auth_sock" ]; then
-			ls "$inherit_ssh2_auth_sock" >/dev/null 2>&1
-			if [ $? != 0 ]; then
+			if ! ls "$inherit_ssh2_auth_sock" >/dev/null 2>&1; then
 				warn "SSH2_AUTH_SOCK in environment is invalid; ignoring it"
 				unset inherit_ssh2_auth_sock inherit_ssh2_agent_pid
 				vi_status=1
@@ -424,8 +431,7 @@ validinherit() {
 
 	elif [ "$vi_agent" = gpg ]; then
 		if [ -n "$inherit_gpg_agent_pid" ]; then
-			kill -0 "$inherit_gpg_agent_pid" >/dev/null 2>&1
-			if [ $? != 0 ]; then
+			if ! kill -0 "$inherit_gpg_agent_pid" >/dev/null 2>&1; then
 				unset inherit_gpg_agent_pid inherit_gpg_agent_info
 				warn "GPG_AGENT_INFO in environment is invalid; ignoring it"
 				vi_status=1
@@ -469,10 +475,12 @@ catpidf() {
 # Load agent variables from $pidf and copy implementation-specific environment
 # variables into generic global strings
 loadagents() {
-	for la_a in "$@"; do
+	# shellcheck disable=SC2068 # We are expecting multiple space-delimited arguments:
+	for la_a in $@; do
 		case "$la_a" in
 			ssh)
 				unset SSH_AUTH_SOCK SSH_AGENT_PID SSH2_AUTH_SOCK SSH2_AGENT_PID
+				# shellcheck disable=SC2086
 				eval "$(catpidf_shell sh $la_a)"
 				if [ -n "$SSH_AUTH_SOCK" ]; then
 					ssh_auth_sock=$SSH_AUTH_SOCK
@@ -486,11 +494,14 @@ loadagents() {
 				;;
 
 			gpg)
+				# Note: GPG_AGENT_INFO is obsolete; used by GnuPG versions before 2.1.
 				unset GPG_AGENT_INFO
+				# shellcheck disable=SC2086
 				eval "$(catpidf_shell sh $la_a)"
 				if [ -n "$GPG_AGENT_INFO" ]; then
 					la_IFS="$IFS"  # save current IFS
 					IFS=':'		   # set IFS to colon to separate PATH
+					# shellcheck disable=SC2086
 					set -- $GPG_AGENT_INFO
 					IFS="$la_IFS"  # restore IFS
 					gpg_agent_pid=$2
@@ -498,6 +509,7 @@ loadagents() {
 				;;
 
 			*)
+				# shellcheck disable=SC2086
 				eval "$(catpidf_shell sh $la_a)"
 				;;
 		esac
@@ -511,12 +523,10 @@ loadagents() {
 # Requires $ssh_agent_pid
 startagent() {
 	start_prog=${1-ssh}
-	start_proto=${2-${start_prog}}
 	unset start_pid
 	start_inherit_pid=none
-	start_mypids=$(findpids "$start_prog")
-	[ $? = 0 ] || die
-
+	start_mypids=$(findpids "$start_prog") || die
+	
 	# Unfortunately there isn't much way to genericize this without introducing
 	# a lot more supporting code/structures.
 	if [ "$start_prog" = ssh ]; then
@@ -524,7 +534,7 @@ startagent() {
 		start_cshpidf="$cshpidf"
 		start_fishpidf="$fishpidf"
 		start_pid="$ssh_agent_pid"
-		if [ -n "$inherit_ssh_auth_sock" -o -n "$inherit_ssh2_auth_sock" ]; then
+		if [ -n "$inherit_ssh_auth_sock" ] || [ -n "$inherit_ssh2_auth_sock" ]; then
 			if [ -n "$inherit_ssh_agent_pid" ]; then
 				start_inherit_pid="$inherit_ssh_agent_pid"
 			elif [ -n "$inherit_ssh2_agent_pid" ]; then
@@ -566,8 +576,7 @@ startagent() {
 
 		*:*" $start_inherit_pid "*)
 			# This test was postponed until now to prevent generating warnings
-			validinherit "$start_prog"
-			if [ $? != 0 ]; then
+			if ! validinherit "$start_prog"; then
 				# inherit_* vars have been removed from the environment.  Try
 				# again now
 				startagent "$start_prog"
@@ -583,25 +592,16 @@ startagent() {
 			;;
 	esac
 
-	# Init the bourne-formatted pidfile
-	( umask 0177 && :> "$start_pidf"; )
-	if [ $? != 0 ]; then
+
+	# The ( ) subshell is intentional! We don't want to change the umask, just get the current pid!
+	if ! ( umask 0177 && :> "$start_pidf" ); then
 		rm -f "$start_pidf" "$start_cshpidf" "$start_fishpidf" 2>/dev/null
 		error "can't create $start_pidf"
 		return 1
 	fi
 
-	# Init the csh-formatted pidfile
-	( umask 0177 && :> "$start_cshpidf"; )
-	if [ $? != 0 ]; then
-		rm -f "$start_pidf" "$start_cshpidf" "$start_fishpidf" 2>/dev/null
-		error "can't create $start_cshpidf"
-		return 1
-	fi
-
-	# Init the fish-formatted pidfile
-	( umask 0177 && :> "$start_fishpidf"; )
-	if [ $? != 0 ]; then
+	# The ( ) subshell is intentional! We don't want to change the umask, just get the current pid!
+	if ! ( umask 0177 && : > "$start_fishpidf" ); then
 		rm -f "$start_pidf" "$start_cshpidf" "$start_fishpidf" 2>/dev/null
 		error "can't create $start_fishpidf"
 		return 1
@@ -615,33 +615,36 @@ startagent() {
 		# Branch again since the agents start differently
 		mesg "Starting ${start_prog}-agent..."
 		if [ "$start_prog" = ssh ]; then
-			start_out=$(ssh-agent ${ssh_timeout} ${ssh_agent_socket})
+			# shellcheck disable=SC2086 # We purposely don't want to double-quote the args to ssh-agent so they disappear if not used:
+			start_out="$(ssh-agent ${ssh_timeout} ${ssh_agent_socket})"
+			ret=$?
 		elif [ "$start_prog" = gpg ]; then
 			if [ -n "${timeout}" ]; then
-				gpg_cache_ttl="$(expr $timeout \* 60)"
+				gpg_cache_ttl="$(( timeout * 60 ))"
 				start_gpg_timeout="--default-cache-ttl $gpg_cache_ttl --max-cache-ttl $gpg_cache_ttl"
 			else
 				unset start_gpg_timeout
 			fi
 			# the 1.9.x series of gpg spews debug on stderr
-			start_out=$(gpg-agent --daemon --write-env-file $start_gpg_timeout 2>/dev/null)
+			start_out=$(gpg-agent --daemon --write-env-file "$start_gpg_timeout" 2>/dev/null)
+			ret=$?
 		else
 			error "I don't know how to start $start_prog-agent (2)"
 			return 1
 		fi
-		if [ $? != 0 -a $? != 2 ]; then
+		if [ $ret != 0 ] && [ $ret != 2 ]; then
 			rm -f "$start_pidf" "$start_cshpidf" "$start_fishpidf" 2>/dev/null
 			error "Failed to start ${start_prog}-agent"
 			return 1
 		fi
 
-	elif [ "$start_prog" = ssh -a -n "$inherit_ssh_auth_sock" ]; then
+	elif [ "$start_prog" = ssh ] && [ -n "$inherit_ssh_auth_sock" ]; then
 		start_out="SSH_AUTH_SOCK=$inherit_ssh_auth_sock; export SSH_AUTH_SOCK;"
 		if [ "$inherit_ssh_agent_pid" -gt 0 ] 2>/dev/null; then
 			start_out="$start_out
 SSH_AGENT_PID=$inherit_ssh_agent_pid; export SSH_AGENT_PID;"
 		fi
-	elif [ "$start_prog" = ssh -a -n "$inherit_ssh2_auth_sock" ]; then
+	elif [ "$start_prog" = ssh ] && [ -n "$inherit_ssh2_auth_sock" ]; then
 		start_out="SSH2_AUTH_SOCK=$inherit_ssh2_auth_sock; export SSH2_AUTH_SOCK;
 SSH2_AGENT_PID=$inherit_ssh2_agent_pid; export SSH2_AGENT_PID;"
 		if [ "$inherit_ssh2_agent_pid" -gt 0 ] 2>/dev/null; then
@@ -649,7 +652,7 @@ SSH2_AGENT_PID=$inherit_ssh2_agent_pid; export SSH2_AGENT_PID;"
 SSH2_AGENT_PID=$inherit_ssh2_agent_pid; export SSH2_AGENT_PID;"
 		fi
 
-	elif [ "$start_prog" = "${gpg_prog_name}" -a -n "$inherit_gpg_agent_info" ]; then
+	elif [ "$start_prog" = "${gpg_prog_name}" ] && [ -n "$inherit_gpg_agent_info" ]; then
 		start_out="GPG_AGENT_INFO=$inherit_gpg_agent_info; export GPG_AGENT_INFO;"
 
 	else
@@ -939,8 +942,7 @@ parse_mykeys() {
 
 		# Check for gpg
 		if wantagent gpg; then
-			 "${gpg_prog_name}" --list-secret-keys "$pm_k" >/dev/null 2>&1
-			 if [ $? -eq 0 ]; then
+			 if "${gpg_prog_name}" --list-secret-keys "$pm_k" >/dev/null 2>&1; then
 				add_gpgkey "$pm_k" ; continue
 			fi
 		fi
@@ -1465,6 +1467,7 @@ if wantagent ssh; then
 			old_IFS="$IFS"	# save current IFS
 			IFS="
 	"						# set IFS to newline
+			# shellcheck disable=SC2086
 			set -- $sshkeys
 			IFS="$old_IFS"	# restore IFS
 			set +f			# re-enable globbing
@@ -1473,10 +1476,12 @@ if wantagent ssh; then
 				unset DISPLAY		# DISPLAY="" can cause problems
 				unset SSH_ASKPASS	# make sure ssh-add doesn't try SSH_ASKPASS
 				sshout=$(ssh-add "${ssh_timeout}" ${ssh_confirm} "$@" 2>&1)
+				ret=$?
 			else
 				sshout=$(ssh-add "${ssh_timeout}" ${ssh_confirm} "$@" 2>&1 </dev/null)
+				ret=$?
 			fi
-			if [ $? = 0 ]
+			if [ $ret = 0 ]
 			then
 				blurb=""
 				[ -n "$timeout" ] && blurb="life=${timeout}m"
@@ -1486,15 +1491,14 @@ if wantagent ssh; then
 				mesg "ssh-add: Identities added: $sshkeys${blurb}"
 				break
 			fi
-			if [ $sshattempts = 1 ]; then
+			if [ "$sshattempts" = 1 ]; then
 				die "Problem adding; giving up"
 			else
 				warn "Problem adding; trying again"
 			fi
 
 			# Update the list of missing keys
-			sshavail=$(ssh_l)
-			[ $? = 0 ] || die "problem running ssh-add -l"
+			sshavail=$(ssh_l) || die "problem running ssh-add -l"
 			sshkeys="$(ssh_listmissing)"  # remember, newline-separated
 
 			# Decrement the countdown
@@ -1532,9 +1536,7 @@ if wantagent gpg; then
 		set +f			# re-enable globbing
 
 		for k in "$@"; do
-			echo | env LC_ALL="$pinentry_lc_all" \
-				"${gpg_prog_name}" --no-options --use-agent --no-tty --sign --local-user "$k" -o- >/dev/null 2>&1
-			[ $? != 0 ] && tryagain=true
+			echo | env LC_ALL="$pinentry_lc_all" "${gpg_prog_name}" --no-options --use-agent --no-tty --sign --local-user "$k" -o- >/dev/null 2>&1 || tryagain=true
 		done
 		$tryagain || break
 
