@@ -1247,7 +1247,7 @@ fi
 $color || unset BLUE CYAN CYANN GREEN PURP OFF RED
 
 qprint #initial newline
-mesg "${PURP}keychain ${OFF}${CYANN}${version}${OFF} ~ ${GREEN}http://www.funtoo.org${OFF}"
+mesg "${PURP}keychain ${OFF}${CYANN}${version}${OFF} ~ ${GREEN}http://www.funtoo.org/Funtoo:Keychain${OFF}"
 [ "$myaction" = version ] && { versinfo; exit 0; }
 [ "$myaction" = help ] && { versinfo; helpinfo; exit 0; }
 
