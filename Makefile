@@ -1,5 +1,6 @@
 V:=$(shell cat VERSION)
 D:=$(shell date +'%d %b %Y')
+Y:=$(shell date +'%Y')
 RPMDIR=`rpmbuild -E '%_rpmdir'`
 SRPMDIR=`rpmbuild -E '%_srcrpmdir'`
 TARBALL_CONTENTS=keychain README.md ChangeLog COPYING.txt keychain.pod keychain.1 \
@@ -46,8 +47,8 @@ GENKEYCHAINPL = open P, "keychain.txt" or die "cannot open keychain.txt"; \
 			s/\#\#VERSION\#\#/$V/g || die; \
 		print
 
-keychain: keychain.sh keychain.txt VERSION
-	perl -e '$(GENKEYCHAINPL)' >keychain || rm -f keychain
+keychain: keychain.sh keychain.txt VERSION MAINTAINERS.txt
+	perl -e '$(GENKEYCHAINPL)' | sed -e 's/##CUR_YEAR##/$(Y)/g' >keychain || rm -f keychain
 	chmod +x keychain
 
 keychain.txt: keychain.pod

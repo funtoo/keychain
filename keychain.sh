@@ -1,18 +1,10 @@
 #!/bin/sh
 
+# Distributed under the terms of the GNU General Public License v2
 # Copyright 1999-2005 Gentoo Foundation
 # Copyright 2007 Aron Griffis <agriffis@n01se.net>
-# Copyright 2009-2025 Funtoo Solutions, Inc.
+# Copyright 2009-##CUR_YEAR## Funtoo Solutions, Inc.
 # lockfile() Copyright 2009 Parallels, Inc.
-
-# Distributed under the terms of the GNU General Public License v2
-
-# Originally authored by Daniel Robbins <drobbins@gentoo.org>
-# Maintained August 2002 - April 2003 by Seth Chandler <sethbc@gentoo.org>
-# Maintained and rewritten April 2004 - July 2007 by Aron Griffis <agriffis@n01se.net>
-# Maintained July 2009 - Sept 2017 by Daniel Robbins <drobbins@funtoo.org>
-# Maintained September 2017 - 2018 by Ryan Harris <x48rph@gmail.com>
-# Maintained currently by Daniel Robbins <drobbins@funtoo.org>
 
 version=##VERSION##
 
@@ -482,14 +474,12 @@ loadagents() {
 				unset SSH_AUTH_SOCK SSH_AGENT_PID SSH2_AUTH_SOCK SSH2_AGENT_PID
 				# shellcheck disable=SC2086
 				eval "$(catpidf_shell sh $la_a)"
-				if [ -n "$SSH_AUTH_SOCK" ]; then
-					ssh_auth_sock=$SSH_AUTH_SOCK
+				if [ -n "$SSH_AGENT_PID" ]; then
 					ssh_agent_pid=$SSH_AGENT_PID
-				elif [ -n "$SSH2_AUTH_SOCK" ]; then
-					ssh_auth_sock=$SSH2_AUTH_SOCK
+				elif [ -n "$SSH2_AGENT_PID" ]; then
 					ssh_agent_pid=$SSH2_AGENT_PID
 				else
-					unset ssh_auth_sock ssh_agent_pid
+					unset ssh_agent_pid
 				fi
 				;;
 
@@ -1304,7 +1294,7 @@ fi
 # Note regarding locking: if we're trying to be quick, then don't take the lock.
 # It will be taken later if we discover we can't be quick.
 if $quickopt; then
-	loadagents "$agentsopt"		# sets ssh_auth_sock, ssh_agent_pid, etc
+	loadagents "$agentsopt"		# sets ssh_agent_pid, etc.
 	unset nagentsopt
 	for a in $agentsopt; do
 		needstart=true
