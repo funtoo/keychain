@@ -1,6 +1,20 @@
 # ChangeLog for Keychain
 # http://www.funtoo.org/Funtoo:Keychain
 
+* keychain 2.9.0_beta1 (15 Apr 2015)
+
+  * Keychain will now detect when gpg-agent is available and has ssh-agent 
+    functionality, and use gpg-agent by default. To disable this behavior,
+    use the '--nosub' option to disable auto-substitution of gpg-agent for
+    ssh-agent. This implements GitHub issue #67 requested by Martin Väth.
+
+  * Begin removal of support for gpg-agent earlier than 2.1. This release
+    is about 9 years old at this point, and if you have a newer version of
+    keychain on a system, it's likely you also have updated GNUPG.
+
+  * Update of keychain project URL to point to GitHub, and minor copyright
+    updates.
+
 * keychain 2.9.0_alpha1 (9 Apr 2025)
 
   * Daniel Robbins returns as keychain maintainer.

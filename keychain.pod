@@ -224,6 +224,13 @@ Don't inherit any agent processes, overriding the default
 Don't attempt to use a lockfile while manipulating files, pids and
 keys.
 
+=item B<--nosub>
+
+By default, keychain will use gpg-agent in place of ssh-agent if
+gpg-agent is available and supports this functionality. This option
+will disable this and any future potential substitution of original
+programs, so only ssh-agent will be used for SSH support, etc.
+
 =item B<-k --stop> I<which>
 
 Kill currently running agent processes.  The following values are
