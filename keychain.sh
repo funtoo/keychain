@@ -375,7 +375,7 @@ inheritagents() {
 	# Verify these global vars are null
 	unset inherit_ssh_auth_sock inherit_ssh_agent_pid
 	unset inherit_ssh2_auth_sock inherit_ssh2_agent_sock
-	unset inherit_gpg_agent_info inherit_gpg_agent_pid
+	unset inherit_gpg_agent_pid
 	unset inherti_gpg_ssh_sock
 	# Save variables so we can inherit a running agent
 	if [ "$inheritwhich" != none ]; then
@@ -394,7 +394,6 @@ inheritagents() {
 
 		if wantagent gpg; then
 			if [ -n "$GPG_AGENT_INFO" ]; then
-				inherit_gpg_agent_info="$GPG_AGENT_INFO"
 				inherit_gpg_agent_pid=$(echo "$GPG_AGENT_INFO" | cut -f2 -d:)
 			# GnuPG v.2.1+ removes $GPG_AGENT_INFO
 			else
@@ -404,7 +403,6 @@ inheritagents() {
 				fi
 				if [ -S "${gpg_socket_dir}/S.gpg-agent" ]; then
 					inherit_gpg_agent_pid=$(findpids "${gpg_prog_name}")
-					inherit_gpg_agent_info="${gpg_socket_dir}/S.gpg-agent:${inherit_gpg_agent_pid}:1"
 				fi
 				if [ -S "${gpg_socket_dir}/S.gpg_agent.ssh" ]; then
 					inherit_gpg_ssh_sock="${gpg_socket_dir}/S.gpg-agent.ssh"
@@ -440,7 +438,7 @@ validinherit() {
 	elif [ "$vi_agent" = gpg ]; then
 		if [ -n "$inherit_gpg_agent_pid" ]; then
 			if ! kill -0 "$inherit_gpg_agent_pid" >/dev/null 2>&1; then
-				unset inherit_gpg_agent_pid inherit_gpg_agent_info
+				unset inherit_gpg_agent_pid
 				warn "GPG_AGENT_INFO in environment is invalid; ignoring it"
 				vi_status=1
 			fi
@@ -499,11 +497,7 @@ loadagents() {
 			ssh)
 				unset SSH_AUTH_SOCK SSH_AGENT_PID SSH2_AUTH_SOCK SSH2_AGENT_PID
 				# shellcheck disable=SC2086
-				if [ $gpgagent_ssh = "true" ]; then
-					eval "$(catpidf_shell sh gpg)"
-				else
-					eval "$(catpidf_shell sh ssh)"
-				fi
+				eval "$(catpidf_shell sh ssh)"
 				if [ -n "$SSH_AGENT_PID" ]; then
 					ssh_agent_pid=$SSH_AGENT_PID
 				elif [ -n "$SSH2_AGENT_PID" ]; then
@@ -551,9 +545,12 @@ startagent() {
 	unset start_pid
 	start_inherit_pid=none
 	start_mypids=$(findpids "$start_prog") || die
+	debug start_mypids "$start_mypids"
 	# Unfortunately there isn't much way to genericize this without introducing
 	# a lot more supporting code/structures.
-	if [ "$start_prog" = ssh ]; then
+	debug ssh_agent_pid $ssh_agent_pid
+	debug gpg_agent_pid $gpg_agent_pid
+	if [ "$orig_start_prog" = ssh ]; then
 		start_pidf="$pidf"
 		start_cshpidf="$cshpidf"
 		start_fishpidf="$fishpidf"
@@ -592,6 +589,7 @@ startagent() {
 
 	# Check for an existing agent
 	start_tester="$inheritwhich: $start_mypids $start_fwdflg "
+	debug start_tester \""$start_tester"\"
 	case "$start_tester" in
 		none:*" $start_pid "*|*-once:*" $start_pid "*)
 			mesg "Found existing ${start_prog}-agent: ${CYANN}$start_pid${OFF}"
@@ -599,8 +597,10 @@ startagent() {
 			;;
 
 		*:*" $start_inherit_pid "*)
+			debug "start_tester: start_inherit_pid"
 			# This test was postponed until now to prevent generating warnings
 			if ! validinherit "$start_prog"; then
+				debug NOT validinherit
 				# inherit_* vars have been removed from the environment.  Try
 				# again now
 				startagent "$start_prog"
@@ -610,6 +610,7 @@ startagent() {
 			;;
 
 		*)
+			debug "start_tester: no match"
 			# start_inherit_pid might be "forwarded" which we don't allow with,
 			# for example, local-once (the default setting)
 			start_inherit_pid=none
@@ -664,10 +665,8 @@ startagent() {
 		fi
   
 	else
-		if [ "$start_prog" = "gpg" ] && [ "$orig_start_prog" = "ssh" ] && [ -n "$inherit_gpg_ssh_sock" ]; then
+		if [ "$orig_start_prog" = "ssh" ] && [ -n "$inherit_gpg_ssh_sock" ]; then
 			start_out="SSH_AUTH_SOCK=$inherit_gpg_ssh_sock; export SSH_AUTH_SOCK;"
-		elif [ "$start_prog" = ssh ] && [ -n "$inherit_ssh_auth_sock" ]; then
-			start_out="SSH_AUTH_SOCK=$inherit_ssh_auth_sock; export SSH_AUTH_SOCK;"
 		fi
 		if [ "$inherit_ssh_agent_pid" -gt 0 ] 2>/dev/null; then
 			start_out="$start_out
@@ -1509,10 +1508,13 @@ if wantagent ssh; then
 			if $noguiopt || [ -z "$SSH_ASKPASS" ] || [ -z "$DISPLAY" ]; then
 				unset DISPLAY		# DISPLAY="" can cause problems
 				unset SSH_ASKPASS	# make sure ssh-add doesn't try SSH_ASKPASS
-				sshout=$(ssh-add "${ssh_timeout}" ${ssh_confirm} "$@" 2>&1)
+				
+				# shellcheck disable=SC2086 # this is intentional:
+				sshout=$(ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1)
 				ret=$?
 			else
-				sshout=$(ssh-add "${ssh_timeout}" ${ssh_confirm} "$@" 2>&1 </dev/null)
+				# shellcheck disable=SC2086 # this is intentional:
+				sshout=$(ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1 </dev/null)
 				ret=$?
 			fi
 			if [ $ret = 0 ]
