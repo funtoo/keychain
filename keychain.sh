@@ -542,6 +542,13 @@ startagent() {
 	else
 		orig_start_prog=$start_prog
 	fi
+	if [ "${started_agents% "${start_prog}"}" != "${started_agents}" ]; then
+		debug ALREADY STARTED ${start_prog}
+		return 0
+	else
+		debug DIDN\'T YET START ${start_prog}
+	fi
+	
 	unset start_pid
 	start_inherit_pid=none
 	start_mypids=$(findpids "$start_prog") || die
@@ -626,22 +633,23 @@ startagent() {
 		rm -f "$start_pidf.foo"
 	fi
 
-	# Determine content for files
 	unset start_out
 	if [ "$start_inherit_pid" = none ]; then
 		# Start the agent.
 		# Branch again since the agents start differently
 		debug "ABOUT TO START. started agents: $started_agents"
 		ret=0
-		if [ "$start_prog" = ssh ] && [ "${started_agents% ssh}" = "${started_agents}" ]; then
+		if [ "$start_prog" = ssh ]; then
 			mesg "Starting ${start_prog}-agent..."
 			# shellcheck disable=SC2086 # We purposely don't want to double-quote the args to ssh-agent so they disappear if not used:
 			start_out="$(ssh-agent ${ssh_timeout} ${ssh_agent_socket})"
-			started_agents="$started_agents ssh"
 			ret=$?
-		elif [ "$start_prog" = gpg ] && [ "${started_agents% gpg}" = "${started_agents}" ]; then
+			started_agents="$started_agents ssh"
+		elif [ "$start_prog" = gpg ]; then
 			if [ "$orig_start_prog" = ssh ]; then
-				mesg "Starting gpg-agent for ssh..."
+				mesg "Using gpg-agent for ssh..."
+				startagent gpg
+				return $?
 			else
 				mesg "Starting gpg-agent..."
 			fi
@@ -660,11 +668,13 @@ startagent() {
 			fi
 			# shellcheck disable=SC2086 # this is intentional:
 			start_out=$(gpg-agent $gpg_opts)
-			started_agents="$started_agents gpg"
 			ret=$?
+			started_agents="$started_agents gpg"
 		fi
-  
 	else
+		# Agent was inherited, not started. We set started_agents anyway because
+		# this prevents a second attempt to call startagent() on the same agent:
+		started_agents="$started_agents $start_prog"
 		if [ "$orig_start_prog" = "ssh" ] && [ -n "$inherit_gpg_ssh_sock" ]; then
 			start_out="SSH_AUTH_SOCK=$inherit_gpg_ssh_sock; export SSH_AUTH_SOCK;"
 		fi
@@ -1396,6 +1406,7 @@ takelock || die
 loadagents "$agentsopt"
 unset nagentsopt
 for a in $agentsopt; do
+	debug AGENTSOPT LOOP $a
 	if $queryopt; then
 		catpidf_shell sh "$a" | cut -d\; -f1
 	elif startagent "$a"; then
