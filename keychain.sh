@@ -1302,7 +1302,7 @@ else
 	trap 'droplock;' 0		# drop the lock on exit
 fi
 
-wantagent ssh && testssh		# sets $openssh, $sunssh and $gpgagent_ssh
+testssh							# sets $openssh, $sunssh and $gpgagent_ssh
 setagents						# verify/set $agentsopt
 verifykeydir					# sets up $keydir
 getuser							# sets $me
