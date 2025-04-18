@@ -390,20 +390,15 @@ inheritagents() {
 		fi
 
 		if wantagent gpg; then
-			if [ -n "$GPG_AGENT_INFO" ]; then
-				inherit_gpg_agent_pid=$(echo "$GPG_AGENT_INFO" | cut -f2 -d:)
-			# GnuPG v.2.1+ removes $GPG_AGENT_INFO
-			else
-				gpg_socket_dir="${GNUPGHOME:=$HOME/.gnupg}"
-				if [ ! -S "${GNUPGHOME:=$HOME/.gnupg}/S.gpg-agent" ]; then
-					gpg_socket_dir="${XDG_RUNTIME_DIR}/gnupg"
-				fi
-				if [ -S "${gpg_socket_dir}/S.gpg-agent" ]; then
-					inherit_gpg_agent_pid=$(findpids "${gpg_prog_name}")
-				fi
-				if [ -S "${gpg_socket_dir}/S.gpg_agent.ssh" ]; then
-					inherit_gpg_ssh_sock="${gpg_socket_dir}/S.gpg-agent.ssh"
-				fi
+			gpg_socket_dir="${GNUPGHOME:=$HOME/.gnupg}"
+			if [ ! -S "${GNUPGHOME:=$HOME/.gnupg}/S.gpg-agent" ]; then
+				gpg_socket_dir="${XDG_RUNTIME_DIR}/gnupg"
+			fi
+			if [ -S "${gpg_socket_dir}/S.gpg-agent" ]; then
+				inherit_gpg_agent_pid=$(findpids "${gpg_prog_name}")
+			fi
+			if [ -S "${gpg_socket_dir}/S.gpg_agent.ssh" ]; then
+				inherit_gpg_ssh_sock="${gpg_socket_dir}/S.gpg-agent.ssh"
 			fi
 		fi
 	fi
@@ -503,24 +498,6 @@ loadagents() {
 					unset ssh_agent_pid
 				fi
 				;;
-			gpg)
-				# Note: GPG_AGENT_INFO is obsolete; used by GnuPG versions before 2.1.
-				unset GPG_AGENT_INFO
-				# shellcheck disable=SC2086
-				eval "$(catpidf_shell sh gpg)"
-				if [ -n "$GPG_AGENT_INFO" ]; then
-					la_IFS="$IFS"  # save current IFS
-					IFS=':'		   # set IFS to colon to separate PATH
-					# shellcheck disable=SC2086
-					set -- $GPG_AGENT_INFO
-					IFS="$la_IFS"  # restore IFS
-					gpg_agent_pid=$2
-				fi
-				;;
-			*)
-				# shellcheck disable=SC2086
-				eval "$(catpidf_shell sh $la_a)"
-				;;
 		esac
 	done
 	return 0
@@ -570,7 +547,6 @@ startagent() {
 		start_cshpidf="${cshpidf}-$start_prog"
 		start_fishpidf="${fishpidf}-$start_prog"
 		if [ "$start_prog" = gpg ]; then
-			start_pid="$gpg_agent_pid"
 			if [ -n "$inherit_gpg_agent_pid" ]; then
 				start_inherit_pid="$inherit_gpg_agent_pid"
 			fi
@@ -998,22 +974,29 @@ setaction() {
 
 # synopsis: setagents
 # Pre-process agentsopt setting from --agents. We want the final setting to list gpg first if
-# we will be using it directly or as a substitute for ssh-agent.
+# we will be using it directly or as a substitute for ssh-agent. This also now does a "quick"
+# check and will avoid starting ssh-agent (or gpg-agent sub) if one is found active in the 
+# environment: 
 setagents() {
 	debug setagents initial agentsopt "$agentsopt"
 	final_agents=""
-	debug setagetnts $gpgagent_ssh
-	if [ "$gpgagent_ssh" = "true" ] && [ "${agentsopt%%gpg*}" = "${agentsopt}" ]; then
-		agentsopt="${agentsopt} gpg"
-	fi
-	for a in ssh gpg; do
-		[ "${agentsopt%%"${a}"*}" != "${agentsopt}" ] && final_agents="${final_agents} ${a}"
-	done
+	debug setagents gpgagent_ssh $gpgagent_ssh
+	if [ "${agentsopt%%ssh*}" != "${agentsopt}" ]; then
+		debug setagents quickopt $quickopt
+		if $quickopt && ( sshavail=$(ssh_l) || { [ $? = 1 ] && [ -z "$mykeys" ]; }; ) then
+			# This check simply means we found a working ssh-agent in env:
+			mesg "Found existing ssh-agent (quick)"
+		else
+			if [ "$gpgagent_ssh" = "true" ] && [ "${agentsopt%%gpg*}" = "${agentsopt}" ]; then
+				agentsopt="${agentsopt} gpg"
+			else
+				final_agents="${final_agents} ssh"
+			fi
+		fi
+	fi	
+	[ "${agentsopt%%gpg*}" != "${agentsopt}" ] && final_agents="${final_agents} gpg"
 	agentsopt="${final_agents#*( )}"
 	debug setagents final agentsopt "$agentsopt"
-	if [ -z "$agentsopt" ]; then
-		die "no agents available to start"
-	fi
 }
 
 # synopsis: confpath
@@ -1330,43 +1313,9 @@ if [ -n "$stopwhich" ]; then
 	fi
 fi
 
-# Note regarding locking: if we're trying to be quick, then don't take the lock.
-# It will be taken later if we discover we can't be quick.
-if $quickopt; then
-	loadagents "$agentsopt"		# sets ssh_agent_pid, etc.
-	unset nagentsopt
-	for a in $agentsopt; do
-		needstart=true
-
-		# Trying to be quick has a price... If we discover the agent isn't running,
-		# then we'll have to check things again (in startagent) after taking the
-		# lock.  So don't do the initial check unless --quick was specified.
-		if [ "$a" = ssh ]; then
-				# try to use existing agent
-				# 0 = found keys, 1 = no keys, 2 = no agent
-			if sshavail=$(ssh_l) || { [ $? = 1 ] && [ -z "$mykeys" ]; }; then
-				mesg "Found existing ssh-agent: ${CYANN}$ssh_agent_pid${OFF}"
-				needstart=false
-			fi
-		elif [ "$a" = gpg ]; then
-			# not much way to be quick on this
-			if [ -n "$gpg_agent_pid" ]; then
-				case " $(findpids "${gpg_prog_name}") " in
-					*" $gpg_agent_pid "*)
-						mesg "Found existing gpg-agent: ${CYANN}$gpg_agent_pid${OFF}"
-						needstart=false ;;
-				esac
-			fi
-		fi
-
-		if $needstart; then
-			nagentsopt="$nagentsopt $a"
-		elif $evalopt; then
-			catpidf "$a"
-		fi
-	done
-	agentsopt="$nagentsopt"
-fi
+# TODO: I removed the "quick" code from here, but I also removed a call to
+# catpidf $a if $evalopt was true, which is likely still needed here so that
+# keychain --quick --agents ssh --eval works...
 
 # If there are no agents remaining, then bow out now...
 [ -n "$agentsopt" ] || { qprint; exit 0; }
