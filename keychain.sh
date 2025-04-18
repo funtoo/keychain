@@ -17,7 +17,7 @@ fi
 
 unset mesglog
 unset myaction
-unset agentsopt
+agentsopt=ssh,gpg
 havelock=false
 unset hostopt
 ignoreopt=false
@@ -154,9 +154,6 @@ testssh() {
 	if [ "$nosubopt" = "false" ] && out="$(gpg-agent --help | grep enable-ssh-support)" && [ -n "$out" ]; then
 		gpgagent_ssh=true
 	fi
-	debug "openssh=$openssh"
-	debug "sunssh=$sunssh"
-	debug "gpgagent_ssh=$gpgagent_ssh"
 }
 
 # synopsis: getuser
@@ -543,20 +540,17 @@ startagent() {
 		orig_start_prog=$start_prog
 	fi
 	if [ "${started_agents% "${start_prog}"}" != "${started_agents}" ]; then
-		debug ALREADY STARTED ${start_prog}
+		debug startagent: already started "${start_prog}"
 		return 0
 	else
-		debug DIDN\'T YET START ${start_prog}
+		debug startagent: not started yet: "${start_prog}"
 	fi
 	
 	unset start_pid
 	start_inherit_pid=none
 	start_mypids=$(findpids "$start_prog") || die
-	debug start_mypids "$start_mypids"
 	# Unfortunately there isn't much way to genericize this without introducing
 	# a lot more supporting code/structures.
-	debug ssh_agent_pid $ssh_agent_pid
-	debug gpg_agent_pid $gpg_agent_pid
 	if [ "$orig_start_prog" = ssh ]; then
 		start_pidf="$pidf"
 		start_cshpidf="$cshpidf"
@@ -596,7 +590,7 @@ startagent() {
 
 	# Check for an existing agent
 	start_tester="$inheritwhich: $start_mypids $start_fwdflg "
-	debug start_tester \""$start_tester"\"
+	debug startagent start_tester \""$start_tester"\"
 	case "$start_tester" in
 		none:*" $start_pid "*|*-once:*" $start_pid "*)
 			mesg "Found existing ${start_prog}-agent: ${CYANN}$start_pid${OFF}"
@@ -604,20 +598,20 @@ startagent() {
 			;;
 
 		*:*" $start_inherit_pid "*)
-			debug "start_tester: start_inherit_pid"
+			debug "startagent start_tester: start_inherit_pid $start_inherit_pid"
 			# This test was postponed until now to prevent generating warnings
 			if ! validinherit "$start_prog"; then
-				debug NOT validinherit
+				debug startagent NOT validinherit
 				# inherit_* vars have been removed from the environment.  Try
 				# again now
 				startagent "$start_prog"
 				return $?
 			fi 
-			mesg "Inheriting ${start_prog}-agent (PID $start_inherit_pid) for ${orig_start_prog}..."
+			mesg "Inheriting running ${start_prog}-agent (${CYANN}$start_inherit_pid${OFF}) for ${orig_start_prog}..."
 			;;
 
 		*)
-			debug "start_tester: no match"
+			debug "startagent start_tester: no match (start_inherit_pid was $start_inherit_pid)"
 			# start_inherit_pid might be "forwarded" which we don't allow with,
 			# for example, local-once (the default setting)
 			start_inherit_pid=none
@@ -637,7 +631,6 @@ startagent() {
 	if [ "$start_inherit_pid" = none ]; then
 		# Start the agent.
 		# Branch again since the agents start differently
-		debug "ABOUT TO START. started agents: $started_agents"
 		ret=0
 		if [ "$start_prog" = ssh ]; then
 			mesg "Starting ${start_prog}-agent..."
@@ -648,8 +641,7 @@ startagent() {
 		elif [ "$start_prog" = gpg ]; then
 			if [ "$orig_start_prog" = ssh ]; then
 				mesg "Using gpg-agent for ssh..."
-				startagent gpg
-				return $?
+				return 0
 			else
 				mesg "Starting gpg-agent..."
 			fi
@@ -1005,26 +997,20 @@ setaction() {
 }
 
 # synopsis: setagents
-# Check validity of agentsopt
+# Pre-process agentsopt setting from --agents. We want the final setting to list gpg first if
+# we will be using it directly or as a substitute for ssh-agent.
 setagents() {
-	if [ -n "$agentsopt" ]; then
-		agentsopt=$(echo "$agentsopt" | sed 's/,/ /g')
-		unset new_agentsopt
-		for a in $agentsopt; do
-			if command -v "${a}-agent" >/dev/null; then
-				new_agentsopt="${new_agentsopt+$new_agentsopt }${a}"
-			else
-				warn "can't find ${a}-agent, removing from list"
-			fi
-		done
-		agentsopt="${new_agentsopt}"
-	else
-		for a in ssh gpg; do
-			command -v ${a}-agent >/dev/null || continue
-			agentsopt="${agentsopt+$agentsopt }${a}"
-		done
+	debug setagents initial agentsopt "$agentsopt"
+	final_agents=""
+	debug setagetnts $gpgagent_ssh
+	if [ "$gpgagent_ssh" = "true" ] && [ "${agentsopt%%gpg*}" = "${agentsopt}" ]; then
+		agentsopt="${agentsopt} gpg"
 	fi
-
+	for a in ssh gpg; do
+		[ "${agentsopt%%"${a}"*}" != "${agentsopt}" ] && final_agents="${final_agents} ${a}"
+	done
+	agentsopt="${final_agents#*( )}"
+	debug setagents final agentsopt "$agentsopt"
 	if [ -z "$agentsopt" ]; then
 		die "no agents available to start"
 	fi
@@ -1316,9 +1302,9 @@ else
 	trap 'droplock;' 0		# drop the lock on exit
 fi
 
+wantagent ssh && testssh		# sets $openssh, $sunssh and $gpgagent_ssh
 setagents						# verify/set $agentsopt
 verifykeydir					# sets up $keydir
-wantagent ssh && testssh		# sets $openssh, $sunssh and $gpgagent_ssh
 getuser							# sets $me
 
 # Inherit agent info from the environment before loadagents wipes it out.
@@ -1406,7 +1392,6 @@ takelock || die
 loadagents "$agentsopt"
 unset nagentsopt
 for a in $agentsopt; do
-	debug AGENTSOPT LOOP $a
 	if $queryopt; then
 		catpidf_shell sh "$a" | cut -d\; -f1
 	elif startagent "$a"; then
