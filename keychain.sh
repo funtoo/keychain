@@ -95,7 +95,7 @@ warn() {
 }
 
 debug() {
-	[ "$DEBUG" -eq 1 ] && echo "${CYAN}debug> $*${OFF}" >&2
+	[ "$DEBUG" -eq 1 ] && ! $evalopt && echo "${CYAN}debug> $*${OFF}" >&2
 }
 
 # synopsis: error "message"
@@ -179,6 +179,12 @@ verifykeydir() {
 	elif [ ! -d "${keydir}" ]; then
 		( umask 0077 && mkdir "${keydir}"; ) || die "can't create ${keydir}"
 	fi
+	# Can we write to the keydir? - The ( ) subshell is intentional! We don't want to change the umask globally!
+	if ! ( umask 0177 && :> "$pidf.foo" ); then
+		die "can't write inside $pidf"
+	else
+		rm -f "$pidf.foo"
+	fi
 }
 
 lockfile() {
@@ -227,7 +233,6 @@ takelock() {
 	rm -f "$lockf" && lockfile && return 0
 	return 1
 }
-
 
 # synopsis: droplock
 # Drops the lock if we're holding it.
@@ -366,83 +371,8 @@ stopagent() {
 	fi
 }
 
-# synopsis: inheritagents
-# Save agent variables from the environment before they get wiped out
-inheritagents() {
-	# Verify these global vars are null
-	unset inherit_ssh_auth_sock inherit_ssh_agent_pid
-	unset inherit_ssh2_auth_sock inherit_ssh2_agent_sock
-	unset inherit_gpg_agent_pid
-	unset inherti_gpg_ssh_sock
-	# Save variables so we can inherit a running agent
-	if [ "$inheritwhich" != none ]; then
-		if wantagent ssh; then
-			if [ -n "$SSH_AUTH_SOCK" ]; then
-				inherit_ssh_auth_sock="$SSH_AUTH_SOCK"
-				# shellcheck disable=SC2153 # $SSH_AGENT_PID is not a typo:
-				inherit_ssh_agent_pid="$SSH_AGENT_PID"
-			fi
-
-			if [ -n "$SSH2_AUTH_SOCK" ]; then
-				inherit_ssh2_auth_sock="$SSH2_AUTH_SOCK"
-				inherit_ssh2_agent_pid="$SSH2_AGENT_PID"
-			fi
-		fi
-
-		if wantagent gpg; then
-			gpg_socket_dir="${GNUPGHOME:=$HOME/.gnupg}"
-			if [ ! -S "${GNUPGHOME:=$HOME/.gnupg}/S.gpg-agent" ]; then
-				gpg_socket_dir="${XDG_RUNTIME_DIR}/gnupg"
-			fi
-			if [ -S "${gpg_socket_dir}/S.gpg-agent" ]; then
-				inherit_gpg_agent_pid=$(findpids "${gpg_prog_name}")
-			fi
-			if [ -S "${gpg_socket_dir}/S.gpg_agent.ssh" ]; then
-				inherit_gpg_ssh_sock="${gpg_socket_dir}/S.gpg-agent.ssh"
-			fi
-		fi
-	fi
-}
-
-# synopsis: validinherit
-# Test inherit_* variables for validity
-validinherit() {
-	vi_agent="$1"
-	vi_status=0
-
-	if [ "$vi_agent" = ssh ]; then
-		if [ -n "$inherit_ssh_auth_sock" ]; then
-			if ! ls "$inherit_ssh_auth_sock" >/dev/null 2>&1; then
-				warn "SSH_AUTH_SOCK in environment is invalid; ignoring it"
-				unset inherit_ssh_auth_sock inherit_ssh_agent_pid
-				vi_status=1
-			fi
-		fi
-
-		if [ -n "$inherit_ssh2_auth_sock" ]; then
-			if ! ls "$inherit_ssh2_auth_sock" >/dev/null 2>&1; then
-				warn "SSH2_AUTH_SOCK in environment is invalid; ignoring it"
-				unset inherit_ssh2_auth_sock inherit_ssh2_agent_pid
-				vi_status=1
-			fi
-		fi
-
-	elif [ "$vi_agent" = gpg ]; then
-		if [ -n "$inherit_gpg_agent_pid" ]; then
-			if ! kill -0 "$inherit_gpg_agent_pid" >/dev/null 2>&1; then
-				unset inherit_gpg_agent_pid
-				warn "GPG_AGENT_INFO in environment is invalid; ignoring it"
-				vi_status=1
-			fi
-		fi
-	fi
-
-	return $vi_status
-}
-
-# synopsis: catpidf_shell shell agents...
-# cat the pid files for the given agents.  This is used by loadagents and also
-# for keychain output when --eval is given.
+# synopsis: catpidf_shell shell
+# cat the pid file for the specified shell.
 catpidf_shell() {
 	debug catpidf_shell "$*"
 	case "$1" in
@@ -450,32 +380,16 @@ catpidf_shell() {
 		*csh)		 cp_pidf="$cshpidf" ;;
 		*)			 cp_pidf="$pidf" ;;
 	esac
-	shift
-
-	for cp_a in "$@"; do
-		case "${cp_a}" in
-			ssh) 
-				if [ "$gpgagent_ssh" = "true" ]; then
-					[ -f "${cp_pidf}-gpg" ] && catfile="${cp_pidf}-gpg"
-				else	
-					[ -f "$cp_pidf" ] && catfile="$cp_pidf"
-				fi
-				;;
-			*)	 [ -f "${cp_pidf}-$cp_a" ] && catfile="${cp_pidf}-$cp_a" ;;
-		esac
-		debug catpidf_shell cat "${catfile}"
-		[ -n "${catfile}" ] && cat "${catfile}"
-		echo
-	done
-
+	shift	
+	[ -f "$cp_pidf" ] && cat "${cp_pidf}"
+	echo
 	return 0
 }
 
 # synopsis: catpidf agents...
-# cat the pid files for the given agents, appropriate for the current value of
-# $SHELL.  This is used for keychain output when --eval is given.
+# cat the ssh pidfile for the current shell
 catpidf() {
-	catpidf_shell "$SHELL" "$@"
+	catpidf_shell "$SHELL"
 }
 
 # synopsis: loadagents agents...
@@ -489,73 +403,75 @@ loadagents() {
 			ssh)
 				unset SSH_AUTH_SOCK SSH_AGENT_PID SSH2_AUTH_SOCK SSH2_AGENT_PID
 				# shellcheck disable=SC2086
-				eval "$(catpidf_shell sh ssh)"
-				if [ -n "$SSH_AGENT_PID" ]; then
-					ssh_agent_pid=$SSH_AGENT_PID
-				elif [ -n "$SSH2_AGENT_PID" ]; then
-					ssh_agent_pid=$SSH2_AGENT_PID
-				else
-					unset ssh_agent_pid
-				fi
+				eval "$(catpidf_shell sh)"
 				;;
 		esac
 	done
 	return 0
 }
 
-# synopsis: startagent [prog]
-# Starts an agent if it isn't already running.
-# Requires $ssh_agent_pid
-startagent() {
-	debug startagent "$*"
-	start_prog=${1-ssh}
-	# if gpg-agent has ssh-agent support, start it instead:
-	if [ "$start_prog" = "ssh" ] && [ "$gpgagent_ssh" = "true" ]; then
-		start_prog="gpg"
-		orig_start_prog="ssh"
+startagent_gpg() {
+	wantagent ssh && mesg "Using gpg-agent for ssh..."
+	if [ ! -S "${GNUPGHOME:=$HOME/.gnupg}/S.gpg-agent" ]; then
+		gpg_socket_dir="${XDG_RUNTIME_DIR}/gnupg"
 	else
-		orig_start_prog=$start_prog
+		gpg_socket_dir="${GNUPGHOME:=$HOME/.gnupg}"
 	fi
-	if [ "${started_agents% "${start_prog}"}" != "${started_agents}" ]; then
-		debug startagent: already started "${start_prog}"
-		return 0
+	if [ -S "${gpg_socket_dir}/S.gpg-agent" ]; then
+		gpg_agent_pid=$(findpids "${gpg_prog_name}")
+	fi
+	if [ -n "$gpg_agent_pid" ]; then
+		mesg "Found existing gpg-agent: ${CYANN}$gpg_agent_pid${OFF}"
 	else
-		debug startagent: not started yet: "${start_prog}"
+		if [ -n "${timeout}" ]; then
+			gpg_cache_ttl="$(( timeout * 60 ))"
+			start_gpg_timeout="--default-cache-ttl $gpg_cache_ttl --max-cache-ttl $gpg_cache_ttl"
+		else
+			unset start_gpg_timeout
+		fi
+		# the 1.9.x series of gpg spews debug on stderr
+		# shellcheck disable=SC2086 # $start_gpg_timeout should not be quoted:
+		if [ "$gpgagent_ssh" = "true" ]; then
+			gpg_opts="--daemon --enable-ssh-support $start_gpg_timeout"
+		else
+			gpg_opts="--daemon $start_gpg_timeout"
+		fi
+		# shellcheck disable=SC2086 # this is intentional. Note: GPG-2.1+ only output ssh info:
+		start_out=$(gpg-agent $gpg_opts)
 	fi
-	
-	unset start_pid
+}
+
+# synopsis: startagent_ssh
+# This function specifically handles (potential) starting of ssh-agent. Unlike the
+# classic startagent function, it does not handle writing out contents of pidfiles,
+# which will be done in a combined way after startagent_gpg() is called as well.
+startagent_ssh() {
 	start_inherit_pid=none
-	start_mypids=$(findpids "$start_prog") || die
-	# Unfortunately there isn't much way to genericize this without introducing
-	# a lot more supporting code/structures.
-	if [ "$orig_start_prog" = ssh ]; then
-		start_pidf="$pidf"
-		start_cshpidf="$cshpidf"
-		start_fishpidf="$fishpidf"
-		start_pid="$ssh_agent_pid"
-		if [ -n "$inherit_ssh_auth_sock" ] || [ -n "$inherit_ssh2_auth_sock" ]; then
-			if [ -n "$inherit_ssh_agent_pid" ]; then
-				start_inherit_pid="$inherit_ssh_agent_pid"
-			elif [ -n "$inherit_ssh2_agent_pid" ]; then
-				start_inherit_pid="$inherit_ssh2_agent_pid"
+	start_mypids=$(findpids ssh) || die
+	
+	if [ -n "$SSH_AUTH_SOCK" ]; then
+		if [ ! -S "$SSH_AUTH_SOCK" ]; then
+			warn "SSH_AUTH_SOCK in environment is invalid; ignoring it"
+			unset SSH_AUTH_SOCK
+		else
+			if [ -n "$SSH_AGENT_PID" ]; then
+				if ! kill -0 "$SSH_AGENT_PID" >/dev/null 2>&1; then
+					warn "SSH_AGENT_PID in environment is invalid; ignoring it"
+					unset SSH_AGENT_PID
+				else
+					start_inherit_pid="$SSH_AGENT_PID"
+				fi
 			else
 				start_inherit_pid="forwarded"
 			fi
 		fi
-	else
-		start_pidf="${pidf}-$start_prog"
-		start_cshpidf="${cshpidf}-$start_prog"
-		start_fishpidf="${fishpidf}-$start_prog"
-		if [ "$start_prog" = gpg ]; then
-			if [ -n "$inherit_gpg_agent_pid" ]; then
-				start_inherit_pid="$inherit_gpg_agent_pid"
-			fi
-		else
-			error "I don't know how to start $start_prog-agent (1)"
-			return 1
-		fi
 	fi
-	[ "$start_pid" -gt 0 ] 2>/dev/null || start_pid=none
+
+	if [ -n "$SSH_AGENT_PID" ] && [ "$SSH_AGENT_PID" -gt 0 ]; then	
+		start_pid="$SSH_AGENT_PID"
+	else
+		start_pid=none
+	fi
 
 	# This hack makes the case statement easier
 	if [ "$inheritwhich" = any ] || [ "$inheritwhich" = any-once ]; then
@@ -566,127 +482,49 @@ startagent() {
 
 	# Check for an existing agent
 	start_tester="$inheritwhich: $start_mypids $start_fwdflg "
-	debug startagent start_tester \""$start_tester"\"
 	case "$start_tester" in
 		none:*" $start_pid "*|*-once:*" $start_pid "*)
-			mesg "Found existing ${start_prog}-agent: ${CYANN}$start_pid${OFF}"
+			mesg "Found existing ssh-agent: ${CYANN}$start_pid${OFF}"
 			return 0
 			;;
-
 		*:*" $start_inherit_pid "*)
-			debug "startagent start_tester: start_inherit_pid $start_inherit_pid"
-			# This test was postponed until now to prevent generating warnings
-			if ! validinherit "$start_prog"; then
-				debug startagent NOT validinherit
-				# inherit_* vars have been removed from the environment.  Try
-				# again now
-				startagent "$start_prog"
-				return $?
-			fi 
-			mesg "Inheriting running ${start_prog}-agent (${CYANN}$start_inherit_pid${OFF}) for ${orig_start_prog}..."
+			mesg "Inheriting running ssh-agent (${CYANN}$start_inherit_pid${OFF})..."
 			;;
-
 		*)
-			debug "startagent start_tester: no match (start_inherit_pid was $start_inherit_pid)"
 			# start_inherit_pid might be "forwarded" which we don't allow with,
 			# for example, local-once (the default setting)
 			start_inherit_pid=none
 			;;
 	esac
-
-	# The ( ) subshell is intentional! We don't want to change the umask, just get the current pid!
-	if ! ( umask 0177 && :> "$start_pidf.foo" ); then
-		rm -f "$start_pidf" "$start_cshpidf" "$start_fishpidf" 2>/dev/null
-		error "can't create $start_pidf"
-		return 1
-	else
-		rm -f "$start_pidf.foo"
-	fi
-
-	unset start_out
 	if [ "$start_inherit_pid" = none ]; then
 		# Start the agent.
-		# Branch again since the agents start differently
 		ret=0
-		if [ "$start_prog" = ssh ]; then
-			mesg "Starting ${start_prog}-agent..."
-			# shellcheck disable=SC2086 # We purposely don't want to double-quote the args to ssh-agent so they disappear if not used:
-			start_out="$(ssh-agent ${ssh_timeout} ${ssh_agent_socket})"
-			ret=$?
-			started_agents="$started_agents ssh"
-		elif [ "$start_prog" = gpg ]; then
-			if [ "$orig_start_prog" = ssh ]; then
-				mesg "Using gpg-agent for ssh..."
-				return 0
-			else
-				mesg "Starting gpg-agent..."
-			fi
-			if [ -n "${timeout}" ]; then
-				gpg_cache_ttl="$(( timeout * 60 ))"
-				start_gpg_timeout="--default-cache-ttl $gpg_cache_ttl --max-cache-ttl $gpg_cache_ttl"
-			else
-				unset start_gpg_timeout
-			fi
-			# the 1.9.x series of gpg spews debug on stderr
-			# shellcheck disable=SC2086 # $start_gpg_timeout should not be quoted:
-			if [ "$gpgagent_ssh" = "true" ]; then
-				gpg_opts="--daemon --enable-ssh-support $start_gpg_timeout"
-			else
-				gpg_opts="--daemon $start_gpg_timeout"
-			fi
-			# shellcheck disable=SC2086 # this is intentional:
-			start_out=$(gpg-agent $gpg_opts)
-			ret=$?
-			started_agents="$started_agents gpg"
-		fi
-	else
-		# Agent was inherited, not started. We set started_agents anyway because
-		# this prevents a second attempt to call startagent() on the same agent:
-		started_agents="$started_agents $start_prog"
-		if [ "$orig_start_prog" = "ssh" ] && [ -n "$inherit_gpg_ssh_sock" ]; then
-			start_out="SSH_AUTH_SOCK=$inherit_gpg_ssh_sock; export SSH_AUTH_SOCK;"
-		fi
-		if [ "$inherit_ssh_agent_pid" -gt 0 ] 2>/dev/null; then
-			start_out="$start_out
-SSH_AGENT_PID=$inherit_ssh_agent_pid; export SSH_AGENT_PID;"
-		fi
-		if [ "$start_prog" = ssh ] && [ -n "$inherit_ssh2_auth_sock" ]; then
-			start_out="SSH2_AUTH_SOCK=$inherit_ssh2_auth_sock; export SSH2_AUTH_SOCK;
-SSH2_AGENT_PID=$inherit_ssh2_agent_pid; export SSH2_AGENT_PID;"
-			if [ "$inherit_ssh2_agent_pid" -gt 0 ] 2>/dev/null; then
-				start_out="$start_out
-SSH2_AGENT_PID=$inherit_ssh2_agent_pid; export SSH2_AGENT_PID;"
-			fi
-		fi
+		mesg "Starting ssh-agent..."
+		# shellcheck disable=SC2086 # We purposely don't want to double-quote the args to ssh-agent so they disappear if not used:
+		start_out="$(ssh-agent ${ssh_timeout} ${ssh_agent_socket})"
+		ret=$?
 	fi
+}
 
-	# Add content to pidfiles.
-	# Some versions of ssh-agent don't understand -s, which means to
-	# generate Bourne shell syntax.  It appears they also ignore SHELL,
-	# according to http://bugs.gentoo.org/show_bug.cgi?id=52874
-	# So make no assumptions.
+write_pidfile() {
 	if [ -n "$start_out" ]; then
-		debug add_to_pidfile "$start_pidf" "$start_out"
 		start_out=$(echo "$start_out" | grep -v 'Agent pid')
 		case "$start_out" in
 			setenv*)
-				echo "$start_out" >"$start_cshpidf"
-				echo "$start_out" | awk '{print $2"="$3" export "$2";"}' >"$start_pidf"
+				warn "writing to $pidf"
+				echo "$start_out" >"$cshpidf"
+				echo "$start_out" | awk '{print $2"="$3" export "$2";"}' >"$pidf"
 				;;
 			*)
-				echo "$start_out" >"$start_pidf"
-				echo "$start_out" | sed 's/;.*/;/' | sed 's/=/ /' | sed 's/^/setenv /' >"$start_cshpidf"
-				echo "$start_out" | sed 's/;.*/;/' | sed 's/^\(.*\)=\(.*\);/set -e \1; set -x -U \1 \2;/' >"$start_fishpidf"
+				warn "writing to $pidf"
+				echo "$start_out" >"$pidf"
+				echo "$start_out" | sed 's/;.*/;/' | sed 's/=/ /' | sed 's/^/setenv /' >"$cshpidf"
+				echo "$start_out" | sed 's/;.*/;/' | sed 's/^\(.*\)=\(.*\);/set -e \1; set -x -U \1 \2;/' >"$fishpidf"
 				;;
 		esac
-		#exit 300
 	else
 		debug skipping creation of pidfiles!
 	fi
-
-
-	# Hey the agent should be started now... load it up!
-	loadagents "$start_prog"
 }
 
 # synopsis: extract_fingerprints
@@ -943,8 +781,6 @@ parse_mykeys() {
 				add_sshkey "$pm_k" ; continue
 			elif [ -f "$HOME/.ssh/$pm_k" ]; then
 				add_sshkey "$HOME/.ssh/$pm_k" ; continue
-			elif [ -f "$HOME/.ssh2/$pm_k" ]; then
-				add_sshkey "$HOME/.ssh2/$pm_k" ; continue
 			fi
 		fi
 
@@ -972,31 +808,15 @@ setaction() {
 	fi
 }
 
-# synopsis: setagents
-# Pre-process agentsopt setting from --agents. We want the final setting to list gpg first if
-# we will be using it directly or as a substitute for ssh-agent. This also now does a "quick"
-# check and will avoid starting ssh-agent (or gpg-agent sub) if one is found active in the 
-# environment: 
 setagents() {
-	debug setagents initial agentsopt "$agentsopt"
 	final_agents=""
-	debug setagents gpgagent_ssh $gpgagent_ssh
 	if [ "${agentsopt%%ssh*}" != "${agentsopt}" ]; then
-		debug setagents quickopt $quickopt
-		if $quickopt && ( sshavail=$(ssh_l) || { [ $? = 1 ] && [ -z "$mykeys" ]; }; ) then
-			# This check simply means we found a working ssh-agent in env:
-			mesg "Found existing ssh-agent (quick)"
-		else
-			if [ "$gpgagent_ssh" = "true" ] && [ "${agentsopt%%gpg*}" = "${agentsopt}" ]; then
-				agentsopt="${agentsopt} gpg"
-			else
-				final_agents="${final_agents} ssh"
-			fi
-		fi
-	fi	
-	[ "${agentsopt%%gpg*}" != "${agentsopt}" ] && final_agents="${final_agents} gpg"
+		final_agents="ssh"
+	fi
+	if [ "${agentsopt%%gpg*}" != "${agentsopt}" ]; then
+		final_agents="$final_agents gpg"
+	fi
 	agentsopt="${final_agents#*( )}"
-	debug setagents final agentsopt "$agentsopt"
 }
 
 # synopsis: confpath
@@ -1242,6 +1062,7 @@ if [ -z "$hostopt" ]; then
 		hostopt="$HOSTNAME"
 	fi
 fi
+
 pidf="${keydir}/${hostopt}-sh"
 cshpidf="${keydir}/${hostopt}-csh"
 fishpidf="${keydir}/${hostopt}-fish"
@@ -1268,8 +1089,10 @@ fi
 
 $color || unset BLUE CYAN CYANN GREEN PURP OFF RED
 
-qprint #initial newline
-mesg "${PURP}keychain ${OFF}${CYANN}${version}${OFF} ~ ${GREEN}http://www.funtoo.org/Funtoo:Keychain${OFF}"
+if ! $evalopt; then
+	qprint #initial newline
+	mesg "${PURP}keychain ${OFF}${CYANN}${version}${OFF} ~ ${GREEN}http://www.funtoo.org/Funtoo:Keychain${OFF}"
+fi
 [ "$myaction" = version ] && { versinfo; exit 0; }
 [ "$myaction" = help ] && { versinfo; helpinfo; exit 0; }
 
@@ -1290,10 +1113,6 @@ setagents						# verify/set $agentsopt
 verifykeydir					# sets up $keydir
 getuser							# sets $me
 
-# Inherit agent info from the environment before loadagents wipes it out.
-# Always call this since it checks $inheritopt and sets variables accordingly.
-inheritagents
-
 # --stop: kill the existing ssh-agent(s) and quit
 if [ -n "$stopwhich" ]; then
 	if [ "$stopwhich" = all-warn ]; then
@@ -1312,10 +1131,6 @@ if [ -n "$stopwhich" ]; then
 		exit 0					# stopagent is always successful
 	fi
 fi
-
-# TODO: I removed the "quick" code from here, but I also removed a call to
-# catpidf $a if $evalopt was true, which is likely still needed here so that
-# keychain --quick --agents ssh --eval works...
 
 # If there are no agents remaining, then bow out now...
 [ -n "$agentsopt" ] || { qprint; exit 0; }
@@ -1339,19 +1154,32 @@ fi
 # the lock before continuing
 takelock || die
 loadagents "$agentsopt"
-unset nagentsopt
-for a in $agentsopt; do
-	if $queryopt; then
-		catpidf_shell sh "$a" | cut -d\; -f1
-	elif startagent "$a"; then
-		nagentsopt="${nagentsopt+$nagentsopt }$a"
-		$evalopt && catpidf "$a"
+if $evalopt; then
+	catpidf_shell ssh
+elif $queryopt; then
+	catpidf_shell sh | cut -d\; -f1
+elif $quickopt; then
+	if [ -n "$SSH_AUTH_SOCK" ] && ( sshavail=$(ssh_l) || { [ $? = 1 ] && [ -z "$mykeys" ]; }; ) then
+			# This check simply means we found a working ssh-agent in env:
+			mesg "Found existing ssh-agent (quick)"
+	else
+			warn "Couldn't find existing ssh-agent (quick) or no keys loaded"
+			exit 1
 	fi
-done
-agentsopt="$nagentsopt"
+else
+	if wantagent gpg || [ "$gpgagent_ssh" = "true" ]; then
+		startagent_gpg
+		[ -n "$start_out" ] && write_pidfile
+	fi
+	if wantagent ssh && [ ! "$gpgagent_ssh" = "true" ]; then
+		startagent_ssh
+		[ -n "$start_out" ] && write_pidfile
+	fi
+fi
 
 # If we are just querying the services, exit.
 $queryopt && exit 0
+$evalopt && exit 0
 
 # If there are no agents remaining, then duck out now...
 [ -n "$agentsopt" ] || { qprint; exit 0; }
@@ -1385,9 +1213,7 @@ if $clearopt; then
 fi
 
 if $systemdopt; then
-	for a in $agentsopt; do
-		systemctl --user set-environment "$( catpidf_shell sh "$a" | cut -d\; -f1 )"
-	done
+	systemctl --user set-environment "$( catpidf_shell sh | cut -d\; -f1 )"
 fi
 
 # --noask: "don't ask for keys", so we're all done
