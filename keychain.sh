@@ -439,9 +439,13 @@ ssh_envcheck() {
 # classic startagent function, it does not handle writing out contents of pidfiles,
 # which will be done in a combined way after startagent_gpg() is called as well.
 startagent_ssh() {
-	if $quickopt && [ -n "$SSH_AUTH_SOCK" ] && ( sshavail=$(ssh_l) || { [ $? = 1 ] && [ -z "$mykeys" ]; }; ) then
-		mesg "Found existing ssh-agent (quick)"
-		return 0
+	if $quickopt; then
+		if [ -n "$SSH_AUTH_SOCK" ] && ( sshavail=$(ssh_l) || { [ $? = 1 ] && [ -z "$mykeys" ]; }; ) then
+			mesg "Found existing ssh-agent (quick)"
+			return 0
+		else
+			warn "Tried quick start, now doing regular start..."
+		fi
 	fi
 	
 	takelock || warn "no locky"
@@ -1079,9 +1083,6 @@ if [ "$myaction" = stop ]; then
 	exit 0
 fi
 
-# If there are no agents remaining, then bow out now...
-[ -n "$agentsopt" ] || { qprint; exit 0; }
-
 # --agent-socket translates argument into `-a` argument to set static SSH_AUTH_SOCKET
 if [ -n "$timeout" ] && wantagent ssh; then
 	ssh_agent_socket="-a $agent_socket"
@@ -1153,7 +1154,7 @@ fi
 
 # --noask: "don't ask for keys", so we're all done
 $noaskopt && { qprint; exit 0; }
-$quickopt && exit 0
+$quickopt && { qprint; exit 0; }
 
 # If the --confhost or the --confallhosts option used, and the .ssh/config
 # file exists, either load host key or all keys defined
