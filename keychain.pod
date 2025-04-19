@@ -233,7 +233,7 @@ programs, so only ssh-agent will be used for SSH support, etc.
 
 =item B<-k --stop> I<which>
 
-Kill currently running agent processes.  The following values are
+Kill currently running ssh-agent processes.  The following values are
 valid for "which":
 
 =over 9

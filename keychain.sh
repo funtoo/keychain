@@ -28,7 +28,7 @@ nosubopt=false
 lockwait=5
 openssh=unknown
 sunssh=unknown
-gpgagent_ssh=unknown
+gpgagent_ssh=false
 confhost=unknown
 sshconfig=false
 confallhosts=false
@@ -56,6 +56,7 @@ systemdopt=false
 unset ssh_confirm
 unset GREP_OPTIONS
 gpg_prog_name="gpg"
+gpg_started=false
 
 BLUE="[34;01m"
 CYAN="[36;01m"
@@ -150,8 +151,7 @@ testssh() {
 		*Sun?SSH*) sunssh=true ;;
 	esac
 	# See if gpg-agent is available and provides ssh-agent functionality:
-	gpgagent_ssh=false
-	if [ "$nosubopt" = "false" ] && out="$(gpg-agent --help | grep enable-ssh-support)" && [ -n "$out" ]; then
+	if ! $nosubopt && out="$(gpg-agent --help | grep enable-ssh-support)" && [ -n "$out" ]; then
 		gpgagent_ssh=true
 	fi
 }
@@ -392,26 +392,17 @@ catpidf() {
 	catpidf_shell "$SHELL"
 }
 
-# synopsis: loadagents agents...
-# Load agent variables from $pidf and copy implementation-specific environment
-# variables into generic global strings
-loadagents() {
-	debug loadagents "$*"
-	# shellcheck disable=SC2068 # We are expecting multiple space-delimited arguments:
-	for la_a in $@; do
-		case "$la_a" in
-			ssh)
-				unset SSH_AUTH_SOCK SSH_AGENT_PID SSH2_AUTH_SOCK SSH2_AGENT_PID
-				# shellcheck disable=SC2086
-				eval "$(catpidf_shell sh)"
-				;;
-		esac
-	done
-	return 0
+unset_ssh_agent_vars() {
+	unset SSH_AUTH_SOCK SSH_AGENT_PID SSH2_AUTH_SOCK SSH2_AGENT_PID
 }
 
 startagent_gpg() {
-	wantagent ssh && mesg "Using gpg-agent for ssh..."
+	if $gpg_started; then
+		return 0
+	else
+		gpg_started=true
+	fi
+	[ "$1" = "ssh" ] && mesg "Using gpg-agent for ssh..."
 	if [ ! -S "${GNUPGHOME:=$HOME/.gnupg}/S.gpg-agent" ]; then
 		gpg_socket_dir="${XDG_RUNTIME_DIR}/gnupg"
 	else
@@ -423,32 +414,18 @@ startagent_gpg() {
 	if [ -n "$gpg_agent_pid" ]; then
 		mesg "Found existing gpg-agent: ${CYANN}$gpg_agent_pid${OFF}"
 	else
-		if [ -n "${timeout}" ]; then
-			gpg_cache_ttl="$(( timeout * 60 ))"
-			start_gpg_timeout="--default-cache-ttl $gpg_cache_ttl --max-cache-ttl $gpg_cache_ttl"
-		else
-			unset start_gpg_timeout
-		fi
-		# the 1.9.x series of gpg spews debug on stderr
-		# shellcheck disable=SC2086 # $start_gpg_timeout should not be quoted:
-		if [ "$gpgagent_ssh" = "true" ]; then
-			gpg_opts="--daemon --enable-ssh-support $start_gpg_timeout"
-		else
-			gpg_opts="--daemon $start_gpg_timeout"
-		fi
-		# shellcheck disable=SC2086 # this is intentional. Note: GPG-2.1+ only output ssh info:
-		start_out=$(gpg-agent $gpg_opts)
+		gpg_opts="--daemon"
+		[ -n "${timeout}" ] && gpg_opts="$gpg_opts --default-cache-ttl $(( timeout * 60 )) --max-cache-ttl $(( timeout * 60 ))"
+		$gpgagent_ssh && gpg_opts="$gpg_opts --enable-ssh-support"
+		mesg "Starting gpg-agent..."
+		# shellcheck disable=SC2086 # this is intentionalh
+		start_out="$(gpg-agent --sh $gpg_opts)"
+		return $?
 	fi
 }
 
-# synopsis: startagent_ssh
-# This function specifically handles (potential) starting of ssh-agent. Unlike the
-# classic startagent function, it does not handle writing out contents of pidfiles,
-# which will be done in a combined way after startagent_gpg() is called as well.
-startagent_ssh() {
-	start_inherit_pid=none
-	start_mypids=$(findpids ssh) || die
-	
+ssh_envcheck() {
+	existing_pid=none
 	if [ -n "$SSH_AUTH_SOCK" ]; then
 		if [ ! -S "$SSH_AUTH_SOCK" ]; then
 			warn "SSH_AUTH_SOCK in environment is invalid; ignoring it"
@@ -459,50 +436,46 @@ startagent_ssh() {
 					warn "SSH_AGENT_PID in environment is invalid; ignoring it"
 					unset SSH_AGENT_PID
 				else
-					start_inherit_pid="$SSH_AGENT_PID"
+					existing_pid="$SSH_AGENT_PID"
 				fi
 			else
-				start_inherit_pid="forwarded"
+				existing_pid="forwarded"
 			fi
 		fi
 	fi
+}
 
-	if [ -n "$SSH_AGENT_PID" ] && [ "$SSH_AGENT_PID" -gt 0 ]; then	
-		start_pid="$SSH_AGENT_PID"
-	else
-		start_pid=none
+# synopsis: startagent_ssh
+# This function specifically handles (potential) starting of ssh-agent. Unlike the
+# classic startagent function, it does not handle writing out contents of pidfiles,
+# which will be done in a combined way after startagent_gpg() is called as well.
+startagent_ssh() {
+	if $quickopt && [ -n "$SSH_AUTH_SOCK" ] && ( sshavail=$(ssh_l) || { [ $? = 1 ] && [ -z "$mykeys" ]; }; ) then
+		mesg "Found existing ssh-agent (quick)"
+		return 0
+	fi
+	
+	takelock || warn "no locky"
+	start_mypids=$(findpids ssh) || die
+	ssh_envcheck
+	if [ -z "$SSH_AUTH_SOCK" ]; then
+		eval "$(catpidf_shell sh)"
+		ssh_envcheck
+	fi
+	
+	if [ -n "$existing_pid" ] && [ "${start_mypids%% "$existing_pid"*}" != "$start_mypids" ]; then
+		mesg "Found existing ssh-agent: ${CYANN}$existing_pid${OFF}"
+		return 0
 	fi
 
-	# This hack makes the case statement easier
-	if [ "$inheritwhich" = any ] || [ "$inheritwhich" = any-once ]; then
-		start_fwdflg=forwarded
+	if $gpgagent_ssh; then
+		startagent_gpg ssh
+		return $?
 	else
-		unset start_fwdflg
-	fi
-
-	# Check for an existing agent
-	start_tester="$inheritwhich: $start_mypids $start_fwdflg "
-	case "$start_tester" in
-		none:*" $start_pid "*|*-once:*" $start_pid "*)
-			mesg "Found existing ssh-agent: ${CYANN}$start_pid${OFF}"
-			return 0
-			;;
-		*:*" $start_inherit_pid "*)
-			mesg "Inheriting running ssh-agent (${CYANN}$start_inherit_pid${OFF})..."
-			;;
-		*)
-			# start_inherit_pid might be "forwarded" which we don't allow with,
-			# for example, local-once (the default setting)
-			start_inherit_pid=none
-			;;
-	esac
-	if [ "$start_inherit_pid" = none ]; then
-		# Start the agent.
-		ret=0
 		mesg "Starting ssh-agent..."
 		# shellcheck disable=SC2086 # We purposely don't want to double-quote the args to ssh-agent so they disappear if not used:
 		start_out="$(ssh-agent ${ssh_timeout} ${ssh_agent_socket})"
-		ret=$?
+		return $?
 	fi
 }
 
@@ -862,18 +835,8 @@ while [ -n "$1" ]; do
 			setaction help
 			;;
 		--stop|-k)
-			# As of version 2.5, --stop takes an argument.	For the sake of
-			# backward compatibility, only eat the arg if it's one we recognize.
-			if [ "$2" = mine ]; then
-				stopwhich=mine; shift
-			elif [ "$2" = others ]; then
-				stopwhich=others; shift
-			elif [ "$2" = all ]; then
-				stopwhich=all; shift
-			else
-				# backward compat
-				stopwhich=all-warn
-			fi
+			setaction stop
+			stopwhich="$2"
 			;;
 		--version|-V)
 			setaction version
@@ -1113,23 +1076,17 @@ setagents						# verify/set $agentsopt
 verifykeydir					# sets up $keydir
 getuser							# sets $me
 
-# --stop: kill the existing ssh-agent(s) and quit
-if [ -n "$stopwhich" ]; then
-	if [ "$stopwhich" = all-warn ]; then
-		warn "--stop without an argument is deprecated; see --help"
-		stopwhich=all
-	fi
+# --stop: kill the existing ssh-agent(s) (not gpg-agent) and quit
+if [ "$myaction" = stop ]; then
 	takelock || die
 	if [ "$stopwhich" = mine ] || [ "$stopwhich" = others ]; then
 		loadagents "$agentsopt"
 	fi
-	for a in $agentsopt; do
-		stopagent "$a"
-	done
+	stopagent ssh
 	if [ "$stopwhich" != others ]; then
-		qprint
-		exit 0					# stopagent is always successful
+		qprint				# stopagent is always successful
 	fi
+	exit 0
 fi
 
 # If there are no agents remaining, then bow out now...
@@ -1150,39 +1107,26 @@ if [ -n "$timeout" ] && wantagent ssh; then
 	ssh_timeout="-t $ssh_timeout"
 fi
 
-# There are agents remaining to start, and we now know we can't be quick.  Take
-# the lock before continuing
-takelock || die
-loadagents "$agentsopt"
 if $evalopt; then
 	catpidf_shell ssh
 elif $queryopt; then
 	catpidf_shell sh | cut -d\; -f1
-elif $quickopt; then
-	if [ -n "$SSH_AUTH_SOCK" ] && ( sshavail=$(ssh_l) || { [ $? = 1 ] && [ -z "$mykeys" ]; }; ) then
-			# This check simply means we found a working ssh-agent in env:
-			mesg "Found existing ssh-agent (quick)"
-	else
-			warn "Couldn't find existing ssh-agent (quick) or no keys loaded"
-			exit 1
-	fi
 else
-	if wantagent gpg || [ "$gpgagent_ssh" = "true" ]; then
-		startagent_gpg
-		[ -n "$start_out" ] && write_pidfile
+	if wantagent ssh; then
+		# This will start gpg-agent as an ssh-agent if such functionality is enabled (default)
+		startagent_ssh || warn "Unable to start an ssh-agent ($?)"
 	fi
-	if wantagent ssh && [ ! "$gpgagent_ssh" = "true" ]; then
-		startagent_ssh
-		[ -n "$start_out" ] && write_pidfile
+	[ -n "$start_out" ] && write_pidfile
+	if ! $gpg_started && wantagent gpg; then
+		# If we also want gpg, and it hasn't been started yet, start it also. We don't need to
+		# look for pidfile output, as this would have been output from the startagent_ssh->startagent_gpg
+		# call above, and gpg doesn't use pidfiles for gpg stuff anymore.
+		startagent_gpg || warn "Unable to start gpg-agent ($?)"
 	fi
 fi
 
-# If we are just querying the services, exit.
 $queryopt && exit 0
 $evalopt && exit 0
-
-# If there are no agents remaining, then duck out now...
-[ -n "$agentsopt" ] || { qprint; exit 0; }
 
 # --confirm translates to ssh-add -c
 if $confirmopt && wantagent ssh; then
@@ -1203,7 +1147,8 @@ if $clearopt; then
 				warn "ssh-agent: $sshout"
 			fi
 		elif [ "$a" = gpg ]; then
-			kill -1 "$gpg_agent_pid" 2>/dev/null
+			# shellcheck disable=SC2046
+			kill -1 $(findpids "${gpg_prog_name}") 2>/dev/null
 			mesg "gpg-agent: All identities removed."
 		else
 			warn "--clear not supported for ${a}-agent"
@@ -1218,6 +1163,7 @@ fi
 
 # --noask: "don't ask for keys", so we're all done
 $noaskopt && { qprint; exit 0; }
+$quickopt && exit 0
 
 # If the --confhost or the --confallhosts option used, and the .ssh/config
 # file exists, either load host key or all keys defined
