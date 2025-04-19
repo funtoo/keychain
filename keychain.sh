@@ -156,19 +156,6 @@ testssh() {
 	fi
 }
 
-# synopsis: getuser
-# Set the global string $me
-getuser() {
-	# id -un gives euid, which might be different from USER or LOGNAME
-	me=$(id -un) || die "Who are you?  id -un doesn't know..."
-}
-
-# synopsis: getos
-# Set the global string $OSTYPE
-getos() {
-	OSTYPE=$(uname) || die 'uname failed'
-}
-
 # synopsis: verifykeydir
 # Make sure the key dir is set up correctly.  Exits on error.
 verifykeydir() {
@@ -251,7 +238,9 @@ findpids() {
 	# Different systems require different invocations of ps.  Try to generalize
 	# the best we can.	The only requirement is that the agent command name
 	# appears in the line, and the PID is the first item on the line.
-	[ -n "$OSTYPE" ] || getos
+	if [ -z "$OSTYPE" ]; then
+		OSTYPE=$(uname) || die 'uname failed'
+	fi
 
 	# Try systems where we know what to do first
 	case "$OSTYPE" in
@@ -484,12 +473,12 @@ write_pidfile() {
 		start_out=$(echo "$start_out" | grep -v 'Agent pid')
 		case "$start_out" in
 			setenv*)
-				warn "writing to $pidf"
+				debug "writing to $pidf"
 				echo "$start_out" >"$cshpidf"
 				echo "$start_out" | awk '{print $2"="$3" export "$2";"}' >"$pidf"
 				;;
 			*)
-				warn "writing to $pidf"
+				debug "writing to $pidf"
 				echo "$start_out" >"$pidf"
 				echo "$start_out" | sed 's/;.*/;/' | sed 's/=/ /' | sed 's/^/setenv /' >"$cshpidf"
 				echo "$start_out" | sed 's/;.*/;/' | sed 's/^\(.*\)=\(.*\);/set -e \1; set -x -U \1 \2;/' >"$fishpidf"
@@ -1074,10 +1063,11 @@ fi
 testssh							# sets $openssh, $sunssh and $gpgagent_ssh
 setagents						# verify/set $agentsopt
 verifykeydir					# sets up $keydir
-getuser							# sets $me
+me=$(id -un) || die "Who are you?  id -un doesn't know..."
 
 # --stop: kill the existing ssh-agent(s) (not gpg-agent) and quit
 if [ "$myaction" = stop ]; then
+	mesg "Stopping ssh-agent(s)..."
 	takelock || die
 	if [ "$stopwhich" = mine ] || [ "$stopwhich" = others ]; then
 		loadagents "$agentsopt"
