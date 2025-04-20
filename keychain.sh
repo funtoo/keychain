@@ -1,10 +1,17 @@
 #!/bin/sh
 
-# Distributed under the terms of the GNU General Public License v2
-# Copyright 1999-2005 Gentoo Foundation
-# Copyright 2007 Aron Griffis <agriffis@n01se.net>
-# Copyright 2009-##CUR_YEAR## Daniel Robbins, Funtoo Solutions, Inc.
-# lockfile() Copyright 2009 Parallels, Inc.
+versinfo() {
+	qprint
+	qprint "   Copyright ${CYANN}2002-2006${OFF} Gentoo Foundation;"
+	qprint "   Copyright ${CYANN}2007${OFF} Aron Griffis;"
+	qprint "   Copyright ${CYANN}2009-2025${OFF} Daniel Robbins, Funtoo Solutions, Inc;"
+	qprint "   lockfile() Copyright ${CYANN}2009${OFF} Parallels, Inc."
+	qprint
+	qprint " Keychain is free software: you can redistribute it and/or modify"
+	qprint " it under the terms of the ${CYANN}GNU General Public License version 2${OFF} as"
+	qprint " published by the Free Software Foundation."
+	qprint
+}
 
 version=##VERSION##
 
@@ -78,19 +85,14 @@ if [ -n "$LANG$LC_ALL" ] || locale 2>/dev/null | grep -E -qv '="?(|POSIX|C)"?$' 
 	export LC_ALL
 fi
 
-# synopsis: qprint "message"
 qprint() {
 	$quietopt || echo "$*" >&2
 }
 
-# synopsis: mesg "message"
-# Prettily print something to stderr, honors quietopt
 mesg() {
 	qprint " ${GREEN}*${OFF} $*"
 }
 
-# synopsis: warn "message"
-# Prettily print a warning to stderr
 warn() {
 	echo " ${RED}* Warning${OFF}: $*" >&2
 }
@@ -99,14 +101,10 @@ debug() {
 	[ "$DEBUG" -eq 1 ] && ! $evalopt && echo "${CYAN}debug> $*${OFF}" >&2
 }
 
-# synopsis: error "message"
-# Prettily print an error
 error() {
 	echo " ${RED}* Error${OFF}: $*" >&2
 }
 
-# synopsis: die "message"
-# Prettily print an error, then abort
 die() {
 	[ -n "$1" ] && error "$*"
 	qprint
@@ -114,24 +112,6 @@ die() {
 	exit 1
 }
 
-# synopsis: versinfo
-# Display the version information
-versinfo() {
-	qprint
-	qprint "   Copyright ${CYANN}2002-2006${OFF} Gentoo Foundation;"
-	qprint "   Copyright ${CYANN}2007${OFF} Aron Griffis;"
-	qprint "   Copyright ${CYANN}2009-2025${OFF} Funtoo Solutions, Inc;"
-	qprint "   lockfile() Copyright ${CYANN}2009${OFF} Parallels, Inc."
-	qprint
-	qprint " Keychain is free software: you can redistribute it and/or modify"
-	qprint " it under the terms of the ${CYANN}GNU General Public License version 2${OFF} as"
-	qprint " published by the Free Software Foundation."
-	qprint
-}
-
-# synopsis: helpinfo
-# Display the help information. There's no really good way to use qprint for
-# this...
 helpinfo() {
 	cat >&1 <<EOHELP
 INSERT_POD_OUTPUT_HERE
@@ -181,22 +161,22 @@ lockfile() {
 	# it returns 0. If it fails, it returns 1. This function retuns immediately
 	# and only tries to acquire the lock once.
 
-		tmpfile="$lockf.$$"
+	tmpfile="$lockf.$$"
 
-		echo $$ >"$tmpfile" 2>/dev/null || exit
-		if ln "$tmpfile" "$lockf" 2>/dev/null; then
-				rm -f "$tmpfile"
+	echo $$ >"$tmpfile" 2>/dev/null || exit
+	if ln "$tmpfile" "$lockf" 2>/dev/null; then
+		rm -f "$tmpfile"
 		havelock=true && return 0
-		fi
-		if kill -0 "$(cat "$lockf" 2>/dev/null)" 2>/dev/null; then
-				rm -f "$tmpfile"
-			return 1
 	fi
-		if ln "$tmpfile" "$lockf" 2>/dev/null; then
-				rm -f "$tmpfile"
+	if kill -0 "$(cat "$lockf" 2>/dev/null)" 2>/dev/null; then
+		rm -f "$tmpfile"
+		return 1
+	fi
+	if ln "$tmpfile" "$lockf" 2>/dev/null; then
+		rm -f "$tmpfile"
 		havelock=true && return 0
-		fi
-		rm -f "$tmpfile" "$lockf" && return 1
+	fi
+	rm -f "$tmpfile" "$lockf" && return 1
 }
 
 takelock() {
@@ -212,10 +192,10 @@ takelock() {
 
 	counter=0
 	mesg "Waiting $lockwait seconds for lock..."
-	while [ "$counter" -lt "$(( lockwait * 2 ))" ]
+	while [ "$counter" -lt "$(( lockwait * 10 ))" ]
 	do
 		lockfile && return 0
-		sleep 0.5; counter=$(( counter + 1 ))
+		sleep 0.1; counter=$(( counter + 1 ))
 	done 
 	rm -f "$lockf" && lockfile && return 0
 	return 1
