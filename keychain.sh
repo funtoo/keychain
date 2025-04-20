@@ -2,10 +2,10 @@
 
 versinfo() {
 	qprint
-	qprint "   Copyright ${CYANN}2002-2006${OFF} Gentoo Foundation;"
-	qprint "   Copyright ${CYANN}2007${OFF} Aron Griffis;"
-	qprint "   Copyright ${CYANN}2009-2025${OFF} Daniel Robbins, Funtoo Solutions, Inc;"
+	qprint "   Copyright ${CYANN}2009-##CUR_YEAR##${OFF} Daniel Robbins, Funtoo Solutions, Inc;"
 	qprint "   lockfile() Copyright ${CYANN}2009${OFF} Parallels, Inc."
+	qprint "   Copyright ${CYANN}2007${OFF} Aron Griffis;"
+	qprint "   Copyright ${CYANN}2002-2006${OFF} Gentoo Foundation;"
 	qprint
 	qprint " Keychain is free software: you can redistribute it and/or modify"
 	qprint " it under the terms of the ${CYANN}GNU General Public License version 2${OFF} as"
@@ -155,7 +155,7 @@ verifykeydir() {
 }
 
 lockfile() {
-	# This function originates from Parallels Inc.'s OpenVZ vpsreboot script #'
+	# This function originates from Parallels Inc.'s OpenVZ vpsreboot script.
 
 	# Description: This function attempts to acquire the lock. If it succeeds,
 	# it returns 0. If it fails, it returns 1. This function retuns immediately
@@ -1119,10 +1119,12 @@ if $clearopt; then
 			fi
 		elif [ "$a" = gpg ]; then
 			# shellcheck disable=SC2046
-			kill -1 $(findpids "${gpg_prog_name}") 2>/dev/null
-			mesg "gpg-agent: All identities removed."
-		else
-			warn "--clear not supported for ${a}-agent"
+			out="$(echo RELOADAGENT | gpg-connect-agent --no-autostart)"
+			if [ "$out" = "OK" ]; then
+				mesg "gpg-agent: All identities removed."
+			else
+				mesg "gpg-agent: Could not remove identities ($out)"
+			fi
 		fi
 	done
 	trap 'droplock' 2				# done clearing, safe to ctrl-c
