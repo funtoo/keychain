@@ -1118,7 +1118,6 @@ if $clearopt; then
 				warn "ssh-agent: $sshout"
 			fi
 		elif [ "$a" = gpg ]; then
-			# shellcheck disable=SC2046
 			out="$(echo RELOADAGENT | gpg-connect-agent --no-autostart)"
 			if [ "$out" = "OK" ]; then
 				mesg "gpg-agent: All identities removed."
