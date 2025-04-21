@@ -42,8 +42,8 @@ confallhosts=false
 quickopt=false
 quietopt=false
 clearopt=false
+noinheritopt=false
 color=true
-inheritwhich=local-once
 unset stopwhich
 unset timeout
 unset agent_socket
@@ -64,6 +64,7 @@ unset ssh_confirm
 unset GREP_OPTIONS
 gpg_prog_name="gpg"
 gpg_started=false
+ssh_allow_forwarded=false
 
 BLUE="[34;01m"
 CYAN="[36;01m"
@@ -264,80 +265,39 @@ findpids() {
 	return 1
 }
 
-# synopsis: stopagent [prog]
-# --stop tells keychain to kill the existing agent(s)
-# prog can be ssh or gpg, defaults to ssh.
-stopagent() {
-	stop_prog=${1-ssh}
-	eval stop_except=\$\{"${stop_prog}_agent_pid"\}
-	stop_mypids=$(findpids "$stop_prog") || die
+stop_ssh_agents() {
+	mesg "Stopping ssh-agent(s)..."
+	takelock || die
+	[ "$stopwhich" != all ] && loadagents ssh
+	ssh_pids=$(findpids ssh) || die
 
-	if [ -z "$stop_mypids" ]; then
-		mesg "No $stop_prog-agent(s) found running"
-		return 0
-	fi
-
-	case "$stopwhich" in
-		all)
-			# shellcheck disable=SC2086 # intentionally pass as separate arguments:
-			kill $stop_mypids >/dev/null 2>&1
-			mesg "All ${CYANN}$me${OFF}'s $stop_prog-agents stopped: ${CYANN}$stop_mypids${OFF}"
-			;;
-
-		others)
-			# Try to handle the case where we *will* inherit a pid. $stop_except is a single pid.
-			# shellcheck disable=SC2086 # intentionally pass as separate arguments:
-			kill -0 $stop_except >/dev/null 2>&1
-			ret=$?
-			if [ -z "$stop_except" ] || [ $ret != 0 ] || [ "$inheritwhich" = local ] || [ "$inheritwhich" = any ]; then
-				if [ "$inheritwhich" != none ]; then
-					eval stop_except=\$\{"inherit_${stop_prog}_agent_pid"\}
-					kill -0 "$stop_except" >/dev/null 2>&1
-					ret=$?
-					if [ -z "$stop_except" ] || [ $ret != 0 ]; then
-						# Handle ssh2
-						eval stop_except=\$\{"inherit_${stop_prog}2_agent_pid"\}
-					fi
-				fi
-			fi
-
-			# Filter out the running agent pid
-			unset stop_mynewpids
-			for stop_x in $stop_mypids; do
-				[ "$stop_x" -eq "$stop_except" ] 2>/dev/null && continue
-				stop_mynewpids="${stop_mynewpids+$stop_mynewpids }$stop_x"
+	if [ -z "$ssh_pids" ]; then
+		mesg "No ssh-agent(s) found running"
+	elif [ "$stopwhich" = all ]; then
+		# shellcheck disable=SC2086
+		kill $ssh_pids >/dev/null 2>&1
+		mesg "All ${CYANN}$me${OFF}'s ssh-agents stopped: ${CYANN}$ssh_pids${OFF}"
+	elif [ -n "$SSH_AGENT_PID" ]; then
+		if [ "$stopwhich" = mine ]; then
+			kill "$SSH_AGENT_PID" >/dev/nnull 2>&1
+			mesg "Keychain ssh-agents stopped: ${CYANN}$SSH_AGENT_PID${OFF}"
+		else # others
+			for ssh_pid in $ssh_pids; do
+				[ "$ssh_pid" = "$SSH_AGENT_PID" ] && continue
+				kill "$ssh_pid" >/dev/null 2>&1
+				killed_pids="$killed_pids $ssh_pid"
 			done
-
-			if [ -n "$stop_mynewpids" ]; then
-				# shellcheck disable=SC2086 # intentionally pass as separate arguments:
-				kill $stop_mynewpids >/dev/null 2>&1
-				mesg "Other ${CYANN}$me${OFF}'s $stop_prog-agents stopped: ${CYANN}$stop_mynewpids${OFF}"
-			else
-				mesg "No other $stop_prog-agent(s) than keychain's $stop_except found running"
-			fi
-			;;
-
-		mine)
-			if [ "$stop_except" -gt 0 ] 2>/dev/null; then
-				# shellcheck disable=SC2086 # intentionally pass as separate arguments:
-				kill $stop_except >/dev/null 2>&1
-				mesg "Keychain $stop_prog-agents stopped: ${CYANN}$stop_except${OFF}"
-			else
-				mesg "No keychain $stop_prog-agent found running"
-			fi
-			;;
-	esac
+			mesg "Other ${CYANN}$me${OFF}'s ssh-agents stopped:${CYANN}$killed_pids${OFF}"
+		fi
+	else
+		mesg "No keychain ssh-agent found running"
+	fi
 
 	# remove pid files if keychain-controlled
 	if [ "$stopwhich" != others ]; then
-		if [ "$stop_prog" != ssh ]; then
-			rm -f "${pidf}-$stop_prog" "${cshpidf}-$stop_prog" "${fishpidf}-$stop_prog" 2>/dev/null
-		else
-			rm -f "${pidf}" "${cshpidf}" "${fishpidf}" 2>/dev/null
-		fi
-
-		eval unset "${stop_prog}_agent_pid"
+		rm -f "${pidf}" "${cshpidf}" "${fishpidf}" 2>/dev/null
 	fi
+	qprint && exit 0
 }
 
 # synopsis: catpidf_shell shell
@@ -394,6 +354,7 @@ startagent_gpg() {
 }
 
 ssh_envcheck() {
+	$noinheritopt && return
 	existing_pid=none
 	if [ -n "$SSH_AUTH_SOCK" ]; then
 		if [ ! -S "$SSH_AUTH_SOCK" ]; then
@@ -436,10 +397,17 @@ startagent_ssh() {
 		eval "$(catpidf_shell sh)"
 		ssh_envcheck
 	fi
-	
-	if [ -n "$existing_pid" ] && [ "${start_mypids%% "$existing_pid"*}" != "$start_mypids" ]; then
-		mesg "Found existing ssh-agent: ${CYANN}$existing_pid${OFF}"
-		return 0
+
+	if [ -n "$existing_pid" ]; then
+		if [ "$existing_pid" = "forwarded" ]; then
+			if $ssh_allow_forwarded; then
+				mesg "Found existing ssh-agent: ${CYANN}forwarded${OFF}"
+				return 0
+			fi
+		elif [ "${start_mypids%% "$existing_pid"*}" != "$start_mypids" ]; then
+			mesg "Found existing ssh-agent: ${CYANN}$existing_pid${OFF}"
+			return 0
+		fi
 	fi
 
 	if $gpgagent_ssh; then
@@ -810,7 +778,10 @@ while [ -n "$1" ]; do
 			;;
 		--stop|-k)
 			setaction stop
-			stopwhich="$2"
+			case $2 in
+				all|mine|others) stopwhich="$2" ;;
+				*) die "Please specify 'all', 'mine' or 'others' for --stop" ;;
+			esac
 			;;
 		--version|-V)
 			setaction version
@@ -836,6 +807,9 @@ while [ -n "$1" ]; do
 			;;
 		--absolute)
 			absoluteopt=true
+			;;
+		--ssh-allow-forwarded)
+			ssh_allow_forwarded=true
 			;;
 		--dir)
 			shift
@@ -882,17 +856,10 @@ while [ -n "$1" ]; do
 			;;
 		--inherit)
 			shift
-			case "$1" in
-				local|any|local-once|any-once)
-					inheritwhich="$1"
-					;;
-				*)
-					die "--inherit requires an argument (local, any, local-once or any-once)"
-					;;
-			esac
+			warn "--inherit is deprecated, ignoring. Use --ssh-allow-forwarded, --noinherit as needed instead."
 			;;
 		--noinherit)
-			inheritwhich=none
+			noinheritopt=true
 			;;
 		--noask)
 			noaskopt=true
@@ -1051,18 +1018,7 @@ verifykeydir					# sets up $keydir
 me=$(id -un) || die "Who are you?  id -un doesn't know..."
 
 # --stop: kill the existing ssh-agent(s) (not gpg-agent) and quit
-if [ "$myaction" = stop ]; then
-	mesg "Stopping ssh-agent(s)..."
-	takelock || die
-	if [ "$stopwhich" = mine ] || [ "$stopwhich" = others ]; then
-		loadagents "$agentsopt"
-	fi
-	stopagent ssh
-	if [ "$stopwhich" != others ]; then
-		qprint				# stopagent is always successful
-	fi
-	exit 0
-fi
+[ "$myaction" = stop ] && stop_ssh_agents
 
 # --agent-socket translates argument into `-a` argument to set static SSH_AUTH_SOCKET
 if [ -n "$timeout" ] && wantagent ssh; then

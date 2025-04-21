@@ -151,37 +151,12 @@ keys might not be available on every machine where keychain is run.
 
 =item B<--inherit> I<which>
 
-Attempt to inherit agent variables from the environment.  This can be
-useful in a variety of circumstances, for example when ssh-agent is
-started by gdm.  The following values are valid for "which":
+This is a deprecated and now unsupported option and will print an
+error if used (it was removed because it was overly complex, and
+didn't make sense for gpg-agent in many cases.)
 
-=over 12
-
-=item B<local>
-
-Inherit when a pid (e.g. SSH_AGENT_PID) is set in the environment.
-This disallows inheriting a forwarded agent.
-
-=item B<any>
-
-Inherit when a sock (e.g. SSH_AUTH_SOCK) is set in the environment.
-This allows inheriting a forwarded agent.
-
-=item B<local-once>
-
-Same as "local", but only inherit if keychain isn't already providing
-an agent.
-
-=item B<any-once>
-
-Same as "any", but only inherit if keychain isn't already providing an
-agent.
-
-=back
-
-By default, keychain-2.5.0 and later will behave as if "--inherit
-local-once" is specified.  You should specify "--noinherit" if you
-want the older behavior.
+Consider using the "--noinherit" and "--ssh-allow-forwarded" options
+as necessary to get equivalent behavior.
 
 =item B<-l --list>
 
@@ -216,8 +191,9 @@ prompt on the terminal instead of using a graphical program.
 
 =item B<--noinherit>
 
-Don't inherit any agent processes, overriding the default 
-"--inherit local-once"
+Don't inherit any agent processes, overriding the default behavior
+of inheriting all non-forwarded ssh-agent and any existing
+gpg-agent processes.
 
 =item B<--nolock>
 
@@ -233,14 +209,22 @@ programs, so only ssh-agent will be used for SSH support, etc.
 
 =item B<-k --stop> I<which>
 
-Kill currently running ssh-agent processes.  The following values are
-valid for "which":
+Kill currently running ssh-agent processes and exit immediately. 
+
+Note that previous versions of keychain (2.8.5 and earlier) allowed
+killing of gpg-agent as well. This functionality was removed as
+ssh-agent and gpg-agent have a bit different design philosophies
+and you almost always only have at most one gpg-agent running at
+a time. Use "killall gpg-agent" if you really want to kill gpg-agent.
+
+The following values are valid for "which" which controls which
+ssh-agents to target:
 
 =over 9
 
 =item all
 
-Kill all agent processes and quit keychain immediately.  Prior to
+Kill all ssh-agent processes and quit keychain immediately.  Prior to
 keychain-2.5.0, this was the behavior of the bare "--stop" option.
 
 =item others
@@ -254,6 +238,13 @@ behavior requires that you specify it explicitly if you want it.
 Kill keychain's agent processes, leaving other agents alone.
 
 =back
+
+=item B<--ssh-allow-forwarded>
+
+By default, keychain will not use a forwarded ssh-agent connection,
+which is a ssh-agent socket created by SSH that has no associated
+local process. To permit keychain to use a forwarded ssh-agent
+connection, specify this option.
 
 =item B<--systemd>
 
