@@ -279,7 +279,7 @@ stop_ssh_agents() {
 		mesg "All ${CYANN}$me${OFF}'s ssh-agents stopped: ${CYANN}$ssh_pids${OFF}"
 	elif [ -n "$SSH_AGENT_PID" ]; then
 		if [ "$stopwhich" = mine ]; then
-			kill "$SSH_AGENT_PID" >/dev/nnull 2>&1
+			kill "$SSH_AGENT_PID" >/dev/null 2>&1
 			mesg "Keychain ssh-agents stopped: ${CYANN}$SSH_AGENT_PID${OFF}"
 		else # others
 			for ssh_pid in $ssh_pids; do
@@ -637,6 +637,7 @@ ssh_listmissing() {
 		fi
 
 		# Check if it needs to be added
+		# shellcheck disable=SC2031
 		case " $sshavail " in
 			*" $slm_finger "*)
 				# already know about this key
