@@ -420,6 +420,7 @@ ssh_envcheck() {
 # which will be done in a combined way after startagent_gpg() is called as well.
 startagent_ssh() {
 	if $quickopt; then
+		# shellcheck disable=SC2030 # This is OK because it's a quick check and we will re-set it later if needed:
 		if [ -n "$SSH_AUTH_SOCK" ] && ( sshavail=$(ssh_l) || { [ $? = 1 ] && [ -z "$mykeys" ]; }; ) then
 			mesg "Found existing ssh-agent (quick)"
 			return 0
