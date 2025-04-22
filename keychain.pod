@@ -6,7 +6,7 @@ keychain - re-use ssh-agent and/or gpg-agent between logins
 
 S<keychain [ -hklQqV ] [ --clear --confhost --confallhosts --gpg2 --help --ignore-missing --list>
 S<--noask --nocolor --nogui --nolock --quick --quiet --version ]>
-S<[ --agents I<list> ] [ --agent-socket I<list> ] [ --attempts I<num> ]>
+S<[ --agents I<list> ] [ --ssh-agent-socket I<list> ] [ --attempts I<num> ]>
 S<[ --dir I<dirname> ] [ --host I<name> ] [ --lockwait I<seconds> ]>
 S<[ --stop I<which> ] [ --timeout I<minutes> ] [ keys... ]>
 
@@ -61,11 +61,6 @@ It works with Bourne-compatible, csh-compatible and fish shells.
 Start the agents listed.  By default keychain will start ssh-agent
 and gpg-agent if they are found in your path The list should be 
 comma-separated -- for example "gpg,ssh".
-
-=item B<--agent-socket> I<path>
-
-Path for SSH_AUTH_SOCK. If set, ssh-agent will try to bind the socket to
-the given path.
 
 =item B<--attempts> I<num>
 
@@ -238,6 +233,12 @@ behavior requires that you specify it explicitly if you want it.
 Kill keychain's agent processes, leaving other agents alone.
 
 =back
+
+=item B<--ssh-agent-socket> I<path>
+
+Path for SSH_AUTH_SOCK. If set, ssh-agent will try to bind the socket to
+the given path. The older equivalent option "--agent-socket" works
+identically and is still supported.
 
 =item B<--ssh-allow-forwarded>
 
