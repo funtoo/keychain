@@ -58,9 +58,13 @@ It works with Bourne-compatible, csh-compatible and fish shells.
 
 =item B<--agents> I<list>
 
-Start the agents listed.  By default keychain will start ssh-agent
-and gpg-agent if they are found in your path The list should be 
-comma-separated -- for example "gpg,ssh".
+Start the agents listed. By default, this is set to "gpg,ssh"
+which will result in keychain attempting to start an agent with
+SSH support as well as gpg-agent. Note that modern versions of
+gpg-agent support SSH, so the default setting will actually
+cause just gpg-agent to be run as a daemon, and then used as the
+ssh-agent, as well as for GPG. To force use of ssh-agent
+specifically, use the "--nosub" option.
 
 =item B<--attempts> I<num>
 
@@ -144,7 +148,7 @@ Don't warn if some keys on the command-line can't be found.  This is
 useful for situations where you have a shared .bash_profile, but your
 keys might not be available on every machine where keychain is run.
 
-=item B<--inherit> I<which>
+=item B<--inherit> I<which> [DEPRECATED]
 
 This is a deprecated and now unsupported option and will print an
 error if used (it was removed because it was overly complex, and
