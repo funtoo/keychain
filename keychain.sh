@@ -46,7 +46,7 @@ noinheritopt=false
 color=true
 unset stopwhich
 unset timeout
-unset agent_socket
+unset ssh_agent_socket
 unset ssh_timeout
 attempts=1
 unset sshavail
@@ -65,6 +65,7 @@ unset GREP_OPTIONS
 gpg_prog_name="gpg"
 gpg_started=false
 ssh_allow_forwarded=false
+debugopt=false
 
 BLUE="[34;01m"
 CYAN="[36;01m"
@@ -73,7 +74,6 @@ GREEN="[32;01m"
 RED="[31;01m"
 PURP="[35;01m"
 OFF="[0m"
-DEBUG=0
 
 # GNU awk and sed have regex issues in a multibyte environment.  If any locale
 # variables are set, then override by setting LC_ALL
@@ -99,7 +99,7 @@ warn() {
 }
 
 debug() {
-	[ "$DEBUG" -eq 1 ] && ! $evalopt && echo "${CYAN}debug> $*${OFF}" >&2
+	$debugopt && ! $evalopt && echo "${CYAN}debug> $*${OFF}" >&2
 }
 
 error() {
@@ -234,10 +234,10 @@ findpids() {
 				[56]*)
 					fp_psout=$(ps -u "$me" 2>/dev/null) ;; # SysV syntax
 				*)
-					fp_psout=$(ps x 2>/dev/null) ;;		# BSD syntax
+					fp_psout=$(ps x 2>/dev/null) ;; # BSD syntax
 			esac ;;
 		GNU|gnu)
-			fp_psout=$(ps -g 2>/dev/null) ;;		# GNU Hurd syntax
+			fp_psout=$(ps -g 2>/dev/null) ;; # GNU Hurd syntax
 	esac
 
 	# If we didn't get a match above, try a list of possibilities...
@@ -303,7 +303,6 @@ stop_ssh_agents() {
 # synopsis: catpidf_shell shell
 # cat the pid file for the specified shell.
 catpidf_shell() {
-	debug catpidf_shell "$*"
 	case "$1" in
 		*/fish|fish) cp_pidf="$fishpidf" ;;
 		*csh)		 cp_pidf="$cshpidf" ;;
@@ -331,17 +330,8 @@ startagent_gpg() {
 	else
 		gpg_started=true
 	fi
-	[ "$1" = "ssh" ] && mesg "Using gpg-agent for ssh..."
-	if [ ! -S "${GNUPGHOME:=$HOME/.gnupg}/S.gpg-agent" ]; then
-		gpg_socket_dir="${XDG_RUNTIME_DIR}/gnupg"
-	else
-		gpg_socket_dir="${GNUPGHOME:=$HOME/.gnupg}"
-	fi
-	if [ -S "${gpg_socket_dir}/S.gpg-agent" ]; then
-		gpg_agent_pid=$(findpids "${gpg_prog_name}")
-	fi
-	if [ -n "$gpg_agent_pid" ]; then
-		mesg "Found existing gpg-agent: ${CYANN}$gpg_agent_pid${OFF}"
+	if gpg_agent_sock="$( echo "GETINFO socket_name" | gpg-connect-agent --no-autostart 2>/dev/null | head -n1 | sed -n 's/^D //;1p' )" && [ -S "$gpg_agent_sock" ]; then
+		mesg "Using existing gpg-agent: ${CYANN}$gpg_agent_sock${OFF}"
 	else
 		gpg_opts="--daemon"
 		[ -n "${timeout}" ] && gpg_opts="$gpg_opts --default-cache-ttl $(( timeout * 60 )) --max-cache-ttl $(( timeout * 60 ))"
@@ -354,22 +344,28 @@ startagent_gpg() {
 }
 
 ssh_envcheck() {
+	envcheck_echo=true
+	[ "$1" = "quiet" ] && envcheck_echo=false
 	$noinheritopt && return
 	existing_pid=none
 	if [ -n "$SSH_AUTH_SOCK" ]; then
 		if [ ! -S "$SSH_AUTH_SOCK" ]; then
-			warn "SSH_AUTH_SOCK in environment is invalid; ignoring it"
+			$envcheck_echo && warn "SSH_AUTH_SOCK in environment is invalid; ignoring it"
 			unset SSH_AUTH_SOCK
 		else
 			if [ -n "$SSH_AGENT_PID" ]; then
 				if ! kill -0 "$SSH_AGENT_PID" >/dev/null 2>&1; then
-					warn "SSH_AGENT_PID in environment is invalid; ignoring it"
+					$envcheck_echo && warn "SSH_AGENT_PID in environment is invalid; ignoring it"
 					unset SSH_AGENT_PID
 				else
 					existing_pid="$SSH_AGENT_PID"
 				fi
 			else
-				existing_pid="forwarded"
+				if gpg_socket="$( echo "GETINFO ssh_socket_name" | gpg-connect-agent --no-autostart 2>/dev/null | head -n1 | sed -n 's/^D //;1p' )" && [ "$gpg_socket" = "$SSH_AUTH_SOCK" ]; then
+					existing_pid="gpg-socket"
+				else
+					existing_pid="forwarded"
+				fi
 			fi
 		fi
 	fi
@@ -379,6 +375,7 @@ ssh_envcheck() {
 # This function specifically handles (potential) starting of ssh-agent. Unlike the
 # classic startagent function, it does not handle writing out contents of pidfiles,
 # which will be done in a combined way after startagent_gpg() is called as well.
+
 startagent_ssh() {
 	if $quickopt; then
 		# shellcheck disable=SC2030 # This is OK because it's a quick check and we will re-set it later if needed:
@@ -386,27 +383,34 @@ startagent_ssh() {
 			mesg "Found existing ssh-agent (quick)"
 			return 0
 		else
-			warn "Tried quick start, now doing regular start..."
+			warn "Quick start unsuccessful -- doing regular start..."
 		fi
 	fi
 	
-	takelock || warn "no locky"
+	takelock || die
 	start_mypids=$(findpids ssh) || die
 	ssh_envcheck
 	if [ -z "$SSH_AUTH_SOCK" ]; then
 		eval "$(catpidf_shell sh)"
-		ssh_envcheck
+		ssh_envcheck quiet  # Don't print warnings about stale .keychain info, just ignore...
 	fi
-
 	if [ -n "$existing_pid" ]; then
-		if [ "$existing_pid" = "forwarded" ]; then
+		if [ "$existing_pid" = "gpg-socket" ]; then
+			mesg "Using existing ssh-agent: ${CYANN}$gpg_socket${OFF}"
+		elif [ "$existing_pid"  = "forwarded" ]; then
 			if $ssh_allow_forwarded; then
-				mesg "Found existing ssh-agent: ${CYANN}forwarded${OFF}"
+				mesg "Using ${GREEN}forwarded${OFF} ssh-agent: ${GREEN}$SSH_AUTH_SOCK${OFF}"
 				return 0
+			else
+				warn "Ignoring forwarded socket $SSH_AUTH_SOCK; use --ssh-allow-forwarded to allow use"
 			fi
-		elif [ "${start_mypids%% "$existing_pid"*}" != "$start_mypids" ]; then
-			mesg "Found existing ssh-agent: ${CYANN}$existing_pid${OFF}"
-			return 0
+		else
+			for pid in $start_mypids; do
+				if [ "$pid" = "$existing_pid" ]; then
+					mesg "Using existing ssh-agent: ${CYANN}$existing_pid${OFF}"
+					return 0
+				fi
+			done
 		fi
 	fi
 
@@ -426,12 +430,10 @@ write_pidfile() {
 		start_out=$(echo "$start_out" | grep -v 'Agent pid')
 		case "$start_out" in
 			setenv*)
-				debug "writing to $pidf"
 				echo "$start_out" >"$cshpidf"
 				echo "$start_out" | awk '{print $2"="$3" export "$2";"}' >"$pidf"
 				;;
 			*)
-				debug "writing to $pidf"
 				echo "$start_out" >"$pidf"
 				echo "$start_out" | sed 's/;.*/;/' | sed 's/=/ /' | sed 's/^/setenv /' >"$cshpidf"
 				echo "$start_out" | sed 's/;.*/;/' | sed 's/^\(.*\)=\(.*\);/set -e \1; set -x -U \1 \2;/' >"$fishpidf"
@@ -774,22 +776,37 @@ wantagent() {
 # parse the command-line
 while [ -n "$1" ]; do
 	case "$1" in
-		--help|-h)
-			setaction help
-			;;
+		--absolute) absoluteopt=true ;;
+		--agents) shift; agentsopt="$1" ;;
+		--agent-socket) shift; ssh_agent_socket="-a $1" ;;
+		--confirm) confirmopt=true ;;
+		--debug|-D) debugopt=true ;;
+		--eval) evalopt=true ;;
+		--gpg2) gpg_prog_name="gpg2" ;;
+		--help|-h) setaction help ;;
+		--host) shift; hostopt="$1" ;;
+		--ignore-missing) ignoreopt=true ;;
+		--inherit) shift; warn "--inherit is deprecated, ignoring. Use --ssh-allow-forwarded, --noinherit as needed instead.";;
+		--list|-l) ssh-add -l; quietopt=true ;;
+		--list-fp|-L) ssh-add -L; quietopt=true ;;
+		--noask) noaskopt=true ;;
+		--nocolor) color=false ;;
+		--nogui) noguiopt=true ;;
+		--noinherit) noinheritopt=true ;;
+		--nolock) nolockopt=true ;;
+		--nosub) nosubopt=true ;;
+		--query) queryopt=true ;;
+		--quiet|-q) quietopt=true ;;
+		--ssh-agent-socket) shift; ssh_agent_socket="-a $1" ;;
+		--ssh-allow-forwarded) ssh_allow_forwarded=true ;;
+		--systemd) systemdopt=true ;;
+		--version|-V) setaction version ;;
 		--stop|-k)
 			setaction stop
 			case $2 in
 				all|mine|others) stopwhich="$2" ;;
 				*) die "Please specify 'all', 'mine' or 'others' for --stop" ;;
 			esac
-			;;
-		--version|-V)
-			setaction version
-			;;
-		--agents)
-			shift
-			agentsopt="$1"
 			;;
 		--attempts)
 			shift
@@ -802,15 +819,6 @@ while [ -n "$1" ]; do
 		--clear)
 			clearopt=true
 			$quickopt && die "--quick and --clear are not compatible"
-			;;
-		--confirm)
-			confirmopt=true
-			;;
-		--absolute)
-			absoluteopt=true
-			;;
-		--ssh-allow-forwarded)
-			ssh_allow_forwarded=true
 			;;
 		--dir)
 			shift
@@ -834,46 +842,6 @@ while [ -n "$1" ]; do
 				envf="$1"
 			fi
 			;;
-		--eval)
-			evalopt=true
-			;;
-		--list|-l)
-			ssh-add -l
-			quietopt=true
-			;;
-		--list-fp|-L)
-			ssh-add -L
-			quietopt=true
-			;;
-		--query)
-			queryopt=true
-			;;
-		--host)
-			shift
-			hostopt="$1"
-			;;
-		--ignore-missing)
-			ignoreopt=true
-			;;
-		--inherit)
-			shift
-			warn "--inherit is deprecated, ignoring. Use --ssh-allow-forwarded, --noinherit as needed instead."
-			;;
-		--noinherit)
-			noinheritopt=true
-			;;
-		--noask)
-			noaskopt=true
-			;;
-		--nogui)
-			noguiopt=true
-			;;
-		--nolock)
-			nolockopt=true
-			;;
-		--nosub)
-			nosubopt=true
-			;;
 		--lockwait)
 			shift
 			if [ "$1" -ge 0 ] 2>/dev/null; then
@@ -886,9 +854,6 @@ while [ -n "$1" ]; do
 			quickopt=true
 			$clearopt && die "--quick and --clear are not compatible"
 			;;
-		--quiet|-q)
-			quietopt=true
-			;;
 		--confhost|-c)
 			if [ -e ~/.ssh/config ]; then
 				sshconfig=true
@@ -898,21 +863,14 @@ while [ -n "$1" ]; do
 				warn "~/.ssh/config not found; --confhost/-c option ignored."
 			fi
 			;;
-    --confallhosts|-C)
+		--confallhosts|-C)
 			if [ -e ~/.ssh/config ]; then
 				sshconfig=true
-        confallhosts=true
+				confallhosts=true
 			else
 				# shellcheck disable=SC2088
 				warn "~/.ssh/config not found; --confallhosts/-C option ignored."
 			fi
-			;;
-		--nocolor)
-			color=false
-			;;
-		--agent-socket)
-			shift
-			agent_socket=$1
 			;;
 		--timeout)
 			shift
@@ -922,12 +880,6 @@ while [ -n "$1" ]; do
 				die "--timeout requires a numeric argument greater than zero"
 			fi
 			;;
-		--systemd)
-			systemdopt=true
-			;;
-		--gpg2)
-		    gpg_prog_name="gpg2"
-		    ;;
 		--)
 			shift
 			IFS="
@@ -1021,11 +973,6 @@ me=$(id -un) || die "Who are you?  id -un doesn't know..."
 # --stop: kill the existing ssh-agent(s) (not gpg-agent) and quit
 [ "$myaction" = stop ] && stop_ssh_agents
 
-# --agent-socket translates argument into `-a` argument to set static SSH_AUTH_SOCKET
-if [ -n "$timeout" ] && wantagent ssh; then
-	ssh_agent_socket="-a $agent_socket"
-fi
-
 # --timeout translates almost directly to ssh-add/ssh-agent -t, but ssh.com uses
 # minutes and OpenSSH uses seconds
 if [ -n "$timeout" ] && wantagent ssh; then
@@ -1076,7 +1023,7 @@ if $clearopt; then
 				warn "ssh-agent: $sshout"
 			fi
 		elif [ "$a" = gpg ]; then
-			out="$(echo RELOADAGENT | gpg-connect-agent --no-autostart)"
+			out="$( echo RELOADAGENT | gpg-connect-agent --no-autostart 2>/dev/null )"
 			if [ "$out" = "OK" ]; then
 				mesg "gpg-agent: All identities removed."
 			else
