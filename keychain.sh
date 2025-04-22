@@ -334,9 +334,10 @@ startagent_gpg() {
 		mesg "Using existing gpg-agent: ${CYANN}$gpg_agent_sock${OFF}"
 	else
 		gpg_opts="--daemon"
+		gpg_out="gpg-agent"
 		[ -n "${timeout}" ] && gpg_opts="$gpg_opts --default-cache-ttl $(( timeout * 60 )) --max-cache-ttl $(( timeout * 60 ))"
-		$gpgagent_ssh && gpg_opts="$gpg_opts --enable-ssh-support"
-		mesg "Starting gpg-agent..."
+		$gpgagent_ssh && gpg_opts="$gpg_opts --enable-ssh-support" && gpg_out="gpg-agent for gpg and ssh"
+		mesg "Starting $gpg_out..."
 		# shellcheck disable=SC2086 # this is intentionalh
 		start_out="$(gpg-agent --sh $gpg_opts)"
 		return $?
@@ -395,7 +396,7 @@ startagent_ssh() {
 		ssh_envcheck quiet  # Don't print warnings about stale .keychain info, just ignore...
 	fi
 	if [ -n "$existing_pid" ]; then
-		if [ "$existing_pid" = "gpg-socket" ]; then
+		if $gpgagent_ssh && [ "$existing_pid" = "gpg-socket" ]; then
 			mesg "Using existing ssh-agent: ${CYANN}$gpg_socket${OFF}"
 		elif [ "$existing_pid"  = "forwarded" ]; then
 			if $ssh_allow_forwarded; then
@@ -801,13 +802,6 @@ while [ -n "$1" ]; do
 		--ssh-allow-forwarded) ssh_allow_forwarded=true ;;
 		--systemd) systemdopt=true ;;
 		--version|-V) setaction version ;;
-		--stop|-k)
-			setaction stop
-			case $2 in
-				all|mine|others) stopwhich="$2" ;;
-				*) die "Please specify 'all', 'mine' or 'others' for --stop" ;;
-			esac
-			;;
 		--attempts)
 			shift
 			if [ "$1" -gt 0 ] 2>/dev/null; then
@@ -819,6 +813,24 @@ while [ -n "$1" ]; do
 		--clear)
 			clearopt=true
 			$quickopt && die "--quick and --clear are not compatible"
+			;;
+		--confallhosts|-C)
+			if [ -e ~/.ssh/config ]; then
+				sshconfig=true
+				confallhosts=true
+			else
+				# shellcheck disable=SC2088
+				warn "~/.ssh/config not found; --confallhosts/-C option ignored."
+			fi
+			;;
+		--confhost|-c)
+			if [ -e ~/.ssh/config ]; then
+				sshconfig=true
+				confhost="$2"
+			else
+				# shellcheck disable=SC2088
+				warn "~/.ssh/config not found; --confhost/-c option ignored."
+			fi
 			;;
 		--dir)
 			shift
@@ -854,23 +866,12 @@ while [ -n "$1" ]; do
 			quickopt=true
 			$clearopt && die "--quick and --clear are not compatible"
 			;;
-		--confhost|-c)
-			if [ -e ~/.ssh/config ]; then
-				sshconfig=true
-				confhost="$2"
-			else
-				# shellcheck disable=SC2088
-				warn "~/.ssh/config not found; --confhost/-c option ignored."
-			fi
-			;;
-		--confallhosts|-C)
-			if [ -e ~/.ssh/config ]; then
-				sshconfig=true
-				confallhosts=true
-			else
-				# shellcheck disable=SC2088
-				warn "~/.ssh/config not found; --confallhosts/-C option ignored."
-			fi
+		--stop|-k)
+			setaction stop
+			case $2 in
+				all|mine|others) stopwhich="$2" ;;
+				*) die "Please specify 'all', 'mine' or 'others' for --stop" ;;
+			esac
 			;;
 		--timeout)
 			shift
@@ -1071,14 +1072,14 @@ parse_mykeys "$pkeypaths" || die
 
 # Load ssh keys
 if wantagent ssh; then
-	sshavail=$(ssh_l)				# update sshavail now that we're locked
+	sshavail=$(ssh_l) # update sshavail now that we're locked
 	if [ "$myaction" = "list" ]; then
 		for key in $sshavail end; do
 			[ "$key" = "end" ] && continue
 			echo "$key"
 		done
 	else
-		sshkeys="$(ssh_listmissing)"		# cache list of missing keys, newline-separated
+		sshkeys="$(ssh_listmissing)" # cache list of missing keys, newline-separated
 		sshattempts=$attempts
 		savedisplay="$DISPLAY"
 
@@ -1141,12 +1142,12 @@ fi
 
 # Load gpg keys
 if wantagent gpg; then
-	gpgkeys="$(gpg_listmissing)"		# cache list of missing keys, newline-separated
+	gpgkeys="$(gpg_listmissing)" # cache list of missing keys, newline-separated
 	gpgattempts=$attempts
 
 	$noguiopt && unset DISPLAY
-	[ -n "$DISPLAY" ] || unset DISPLAY	# DISPLAY="" can cause problems
-	GPG_TTY=$(tty) ; export GPG_TTY		# fall back to ncurses pinentry
+	[ -n "$DISPLAY" ] || unset DISPLAY # DISPLAY="" can cause problems
+	GPG_TTY=$(tty) ; export GPG_TTY # fall back to ncurses pinentry
 
 	# Attempt to add the keys
 	while [ -n "$gpgkeys" ]; do
