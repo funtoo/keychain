@@ -337,9 +337,7 @@ abort unless id_dsa is available:
 
 =head1 SEE ALSO
 
-L<ssh-agent(1)>
-L<gpg-agent(1)>
-L<ssh-add(1)>
+L<ssh-agent(1)>, L<gpg-agent(1)>, L<ssh-add(1)>, L<ssh(1)>
 
 =head1 NOTES
 
