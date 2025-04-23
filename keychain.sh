@@ -99,7 +99,7 @@ warn() {
 }
 
 debug() {
-	$debugopt && ! $evalopt && echo "${CYAN}debug> $*${OFF}" >&2
+	$debugopt && echo "${CYAN}debug> $*${OFF}" >&2
 }
 
 error() {
@@ -661,60 +661,40 @@ $slm_k"
 	echo "$slm_missing"
 }
 
-# synopsis: add_gpgkey
-# Adds a key to $gpgkeys
-add_gpgkey() {
-	gpgkeys=${gpgkeys+"$gpgkeys
-"}"$1"
+cat_ssh_config_keys() {
+	if $sshconfig; then
+		if $confallhosts; then
+			while IFS= read -r line; do
+			case $line in
+				*IdentityFile*)
+				echo "$line" | awk '{print $2}'
+			esac
+			done < ~/.ssh/config
+		else
+			confpath "$confhost"
+		fi
+	fi
 }
 
-# synopsis: add_sshkey
-# Adds a key to $sshkeys
-add_sshkey() {
-	sshkeys=${sshkeys+"$sshkeys
-"}"$1"
-}
-
-# synopsis: parse_mykeys
-# Sets $sshkeys and $gpgkeys based on $mykeys
 parse_mykeys() {
-  for pkeypath in "$@"; do
-    mykeys=${mykeys+"$mykeys
-"}"$pkeypath"
-  done
-
-	# Parse $mykeys into positional params to preserve spaces in filenames
-	set -f		   # disable globbing
-	pm_IFS="$IFS"  # save current IFS
-	IFS="
-"				   # set IFS to newline
-	# shellcheck disable=SC2086
-	set -- $mykeys
-	IFS="$pm_IFS"  # restore IFS
-	set +f		   # re-enable globbing
-
-	for pm_k in "$@"; do
-		# Check for ssh
+	while IFS= read -r pm_k; do
+		[ -z "$pm_k" ] && continue
 		if wantagent ssh; then
 			if [ -f "$pm_k" ]; then
-				add_sshkey "$pm_k" ; continue
+				[ "$1" = ssh ] && echo "$pm_k" ; continue
 			elif [ -f "$HOME/.ssh/$pm_k" ]; then
-				add_sshkey "$HOME/.ssh/$pm_k" ; continue
+				[ "$1" = ssh ] && echo "$HOME/.ssh/$pm_k" ; continue
 			fi
 		fi
-
 		# Check for gpg
 		if wantagent gpg; then
 			 if "${gpg_prog_name}" --list-secret-keys "$pm_k" >/dev/null 2>&1; then
-				add_gpgkey "$pm_k" ; continue
+				[ "$1" = gpg ] && echo "$pm_k" ; continue
 			fi
 		fi
-
 		$ignoreopt || warn "can't find $pm_k; skipping"
 		continue
 	done
-
-	return 0
 }
 
 # synopsis: setaction
@@ -788,15 +768,15 @@ while [ -n "$1" ]; do
 		--host) shift; hostopt="$1" ;;
 		--ignore-missing) ignoreopt=true ;;
 		--inherit) shift; warn "--inherit is deprecated, ignoring. Use --ssh-allow-forwarded, --noinherit as needed instead.";;
-		--list|-l) ssh-add -l; quietopt=true ;;
-		--list-fp|-L) ssh-add -L; quietopt=true ;;
+		--list|-l) setaction list ;;
+		--list-fp|-L) setaction list-fp ;;
 		--noask) noaskopt=true ;;
 		--nocolor) color=false ;;
 		--nogui) noguiopt=true ;;
 		--noinherit) noinheritopt=true ;;
 		--nolock) nolockopt=true ;;
 		--nosub) nosubopt=true ;;
-		--query) queryopt=true ;;
+		--query) queryopt=true; quietopt=true ;;
 		--quiet|-q) quietopt=true ;;
 		--ssh-agent-socket) shift; ssh_agent_socket="-a $1" ;;
 		--ssh-allow-forwarded) ssh_allow_forwarded=true ;;
@@ -947,10 +927,13 @@ fi
 
 $color || unset BLUE CYAN CYANN GREEN PURP OFF RED
 
-if ! $evalopt; then
+[ "$myaction" = list ] && eval "$(catpidf sh)" && exec ssh-add -l
+[ "$myaction" = list-fp ] && eval "$(catpidf sh)" && exec ssh-add -L
+
+#if ! $evalopt; then
 	qprint #initial newline
 	mesg "${PURP}keychain ${OFF}${CYANN}${version}${OFF} ~ ${GREEN}http://www.funtoo.org/Funtoo:Keychain${OFF}"
-fi
+#fi
 [ "$myaction" = version ] && { versinfo; exit 0; }
 [ "$myaction" = help ] && { versinfo; helpinfo; exit 0; }
 
@@ -974,6 +957,8 @@ me=$(id -un) || die "Who are you?  id -un doesn't know..."
 # --stop: kill the existing ssh-agent(s) (not gpg-agent) and quit
 [ "$myaction" = stop ] && stop_ssh_agents
 
+
+
 # --timeout translates almost directly to ssh-add/ssh-agent -t, but ssh.com uses
 # minutes and OpenSSH uses seconds
 if [ -n "$timeout" ] && wantagent ssh; then
@@ -984,38 +969,12 @@ if [ -n "$timeout" ] && wantagent ssh; then
 	ssh_timeout="-t $ssh_timeout"
 fi
 
-if $evalopt; then
-	catpidf_shell ssh
-elif $queryopt; then
-	catpidf_shell sh | cut -d\; -f1
-else
-	if wantagent ssh; then
-		# This will start gpg-agent as an ssh-agent if such functionality is enabled (default)
-		startagent_ssh || warn "Unable to start an ssh-agent ($?)"
-	fi
-	[ -n "$start_out" ] && write_pidfile
-	if ! $gpg_started && wantagent gpg; then
-		# If we also want gpg, and it hasn't been started yet, start it also. We don't need to
-		# look for pidfile output, as this would have been output from the startagent_ssh->startagent_gpg
-		# call above, and gpg doesn't use pidfiles for gpg stuff anymore.
-		startagent_gpg || warn "Unable to start gpg-agent ($?)"
-	fi
-fi
+# Each section of this conditional should handle arguments that are orthogonal to actually
+# starting new agents, which is done in the last "else" section. For example, --clear clears
+# keys, but doesn't start new agents.
 
-$queryopt && exit 0
-$evalopt && exit 0
-
-# --confirm translates to ssh-add -c
-if $confirmopt && wantagent ssh; then
-	if $openssh || $sunssh; then
-		ssh_confirm=-c
-	else
-		warn "--confirm only works with OpenSSH"
-	fi
-fi
-
-# --clear: remove all keys from the agent(s)
 if $clearopt; then
+	eval "$(catpidf sh)"
 	for a in ${agentsopt}; do
 		if [ "$a" = ssh ]; then
 			if sshout=$(ssh-add -D 2>&1); then
@@ -1032,7 +991,27 @@ if $clearopt; then
 			fi
 		fi
 	done
-	trap 'droplock' 2				# done clearing, safe to ctrl-c
+	trap 'droplock' 2 # done clearing, safe to ctrl-c
+elif $queryopt; then
+	catpidf_shell sh | cut -d\; -f1 && exit 0
+else
+	if wantagent ssh; then
+		# This will start gpg-agent as an ssh-agent if such functionality is enabled (default)
+		startagent_ssh || warn "Unable to start an ssh-agent (error code: $?)"
+	fi
+	[ -n "$start_out" ] && write_pidfile && eval "$start_out" > /dev/null
+	if ! $gpg_started && wantagent gpg; then
+		# If we also want gpg, and it hasn't been started yet, start it also. We don't need to
+		# look for pidfile output, as this would have been output from the startagent_ssh->startagent_gpg
+		# call above, and gpg doesn't use pidfiles for gpg stuff anymore.
+		startagent_gpg || warn "Unable to start gpg-agent (error code: $?)"
+	fi
+fi
+
+# List options/actions here that permit agents to be started prior to executing:
+if $evalopt; then
+	catpidf_shell sh
+	# && qprint && exit 0
 fi
 
 if $systemdopt; then
@@ -1043,101 +1022,81 @@ fi
 $noaskopt && { qprint; exit 0; }
 $quickopt && { qprint; exit 0; }
 
-# If the --confhost or the --confallhosts option used, and the .ssh/config
-# file exists, either load host key or all keys defined
-if $sshconfig; then
-  if $confallhosts; then
-    # If the --confallhosts option used, load all the private keys defined in
-    # the .ssh/config file and add them to ssh-add
-    while IFS= read -r line; do
-      case $line in
-        *IdentityFile*)
-        currentpath="$(echo "$line" | awk '{print $2}')"
-        eval currentpath="$currentpath"
-        pkeypaths=${pkeypaths+"$pkeypaths
-"}"$currentpath"   
-      esac
-    done < ~/.ssh/config
-  else
-    # If the --confhost option is used, find the private key through 
-    # .ssh/config file and load it with ssh-add
-    pkeypaths=$(confpath "$confhost")
-	  eval pkeypaths="$pkeypaths"
-  fi
-fi
+# Get keys from SSH configuration files if --confhost/--confallhost are specified, as well as command-line:
+sshkeys="$(cat_ssh_config_keys | parse_mykeys ssh)
+$(echo "$mykeys" | parse_mykeys ssh)"
+gpgkeys="$(echo "$mykeys" | parse_mykeys gpg)"
+# These keys will be processed further by ssh_listmissing and gpg_listmissing...
 
-# Parse $mykeys into ssh vs. gpg keys; it may be necessary in the future to
-# differentiate on the cmdline
-parse_mykeys "$pkeypaths" || die
-
-# Load ssh keys
 if wantagent ssh; then
 	sshavail=$(ssh_l) # update sshavail now that we're locked
-	if [ "$myaction" = "list" ]; then
-		for key in $sshavail end; do
-			[ "$key" = "end" ] && continue
-			echo "$key"
-		done
-	else
-		sshkeys="$(ssh_listmissing)" # cache list of missing keys, newline-separated
-		sshattempts=$attempts
-		savedisplay="$DISPLAY"
+	sshkeys="$(ssh_listmissing)" # cache list of missing keys, newline-separated
+	sshattempts=$attempts
+	savedisplay="$DISPLAY"
 
-		# Attempt to add the keys
-		while [ -n "$sshkeys" ]; do
+	# Attempt to add the keys
+	while [ -n "$sshkeys" ]; do
 
-			mesg "Adding ${CYANN}$(echo "$sshkeys" | wc -l)${OFF} ssh key(s): $sshkeys"
-
-			# Parse $sshkeys into positional params to preserve spaces in filenames.
-			# This *must* happen after any calls to subroutines because pure Bourne
-			# shell doesn't restore "$@" following a call.	Eeeeek!
-			set -f			# disable globbing
-			old_IFS="$IFS"	# save current IFS
-			IFS="
-	"						# set IFS to newline
-			# shellcheck disable=SC2086
-			set -- $sshkeys
-			IFS="$old_IFS"	# restore IFS
-			set +f			# re-enable globbing
-
-			if $noguiopt || [ -z "$SSH_ASKPASS" ] || [ -z "$DISPLAY" ]; then
-				unset DISPLAY		# DISPLAY="" can cause problems
-				unset SSH_ASKPASS	# make sure ssh-add doesn't try SSH_ASKPASS
-				
-				# shellcheck disable=SC2086 # this is intentional:
-				sshout=$(ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1)
-				ret=$?
+		# --confirm translates to ssh-add -c
+		if $confirmopt && wantagent ssh; then
+			if $openssh || $sunssh; then
+				ssh_confirm=-c
 			else
-				# shellcheck disable=SC2086 # this is intentional:
-				sshout=$(ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1 </dev/null)
-				ret=$?
+				warn "--confirm only works with OpenSSH"
 			fi
-			if [ $ret = 0 ]
-			then
-				blurb=""
-				[ -n "$timeout" ] && blurb="life=${timeout}m"
-				[ -n "$timeout" ] && $confirmopt && blurb="${blurb},"
-				$confirmopt && blurb="${blurb}confirm"
-				[ -n "$blurb" ] && blurb=" (${blurb})"
-				mesg "ssh-add: Identities added: $sshkeys${blurb}"
-				break
-			fi
-			if [ "$sshattempts" = 1 ]; then
-				die "Problem adding; giving up"
-			else
-				warn "Problem adding; trying again"
-			fi
+		fi
 
-			# Update the list of missing keys
-			sshavail=$(ssh_l) || die "problem running ssh-add -l"
-			sshkeys="$(ssh_listmissing)"  # remember, newline-separated
+		mesg "Adding ${CYANN}$(echo "$sshkeys" | wc -l)${OFF} ssh key(s): $sshkeys"
 
-			# Decrement the countdown
-			sshattempts=$(( sshattempts -1 ))
-		done
+		# Parse $sshkeys into positional params to preserve spaces in filenames.
+		# This *must* happen after any calls to subroutines because pure Bourne
+		# shell doesn't restore "$@" following a call.	Eeeeek!
+		set -f			# disable globbing
+		old_IFS="$IFS"	# save current IFS
+		IFS="
+"						# set IFS to newline
+		# shellcheck disable=SC2086
+		set -- $sshkeys
+		IFS="$old_IFS"	# restore IFS
+		set +f			# re-enable globbing
 
-		[ -n "$savedisplay" ] && DISPLAY="$savedisplay"
-	fi
+		if $noguiopt || [ -z "$SSH_ASKPASS" ] || [ -z "$DISPLAY" ]; then
+			unset DISPLAY		# DISPLAY="" can cause problems
+			unset SSH_ASKPASS	# make sure ssh-add doesn't try SSH_ASKPASS
+			
+			# shellcheck disable=SC2086 # this is intentional:
+			sshout=$(ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1)
+			ret=$?
+		else
+			# shellcheck disable=SC2086 # this is intentional:
+			sshout=$(ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1 </dev/null)
+			ret=$?
+		fi
+		if [ $ret = 0 ]
+		then
+			blurb=""
+			[ -n "$timeout" ] && blurb="life=${timeout}m"
+			[ -n "$timeout" ] && $confirmopt && blurb="${blurb},"
+			$confirmopt && blurb="${blurb}confirm"
+			[ -n "$blurb" ] && blurb=" (${blurb})"
+			mesg "ssh-add: Identities added: $sshkeys${blurb}"
+			break
+		fi
+		if [ "$sshattempts" = 1 ]; then
+			die "Problem adding; giving up (error code: $ret)"
+		else
+			warn "Problem adding; trying again (error code: $ret)"
+		fi
+
+		# Update the list of missing keys
+		sshavail=$(ssh_l) || die "problem running ssh-add -l"
+		sshkeys="$(ssh_listmissing)"  # remember, newline-separated
+
+		# Decrement the countdown
+		sshattempts=$(( sshattempts -1 ))
+	done
+
+	[ -n "$savedisplay" ] && DISPLAY="$savedisplay"
 fi
 
 # Load gpg keys
