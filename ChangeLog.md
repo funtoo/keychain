@@ -1,7 +1,22 @@
 # ChangeLog for Keychain
 http://www.funtoo.org/Funtoo:Keychain
 
-## keychain 2.9.0_beta1 (15 Apr 2015)
+## keychain 2.9.0_beta2 (23 Apr 2025)
+
+* Code has been overhauled to be more maintainable and various parts of the codebase have been rewritten. During this
+  process, which started with 2.9.0_alpha1, various things were broken. THIS IS THE FIRST POTENTIALLY VIABLE WORKING
+  RELEASE since 2.8.5, so PLEASE TEST AND PROVIDE FEEDBACK. It will be marked as a non-prerelease on GitHub to get
+  more active testing and feedback.
+* Please note -- this version of keychain uses gpg-agent by default, if available. We are evaluating the consequences
+  of this change at the moment, request feedback on complications related to this change, and THIS DECISION MAY BE
+  REVERSED in the final release of 2.9.0 (we may go back to defaulting to ssh-agent, and have an option to use gpg-agent
+  in place of ssh-agent, instead of just automatically using gpg-agent.) Please provide feedback in GitHub issues
+  based on your experience. We have already found some challenges with the gpg-agent-by-default strategy, so no need
+  to convince anyone. Just share your feedback/opinion.
+* ChangeLog has been converted to ChangeLog.md (thanks @d4g33z) to facilitate better interoperability with GitHub and
+  modern conventions.
+
+## keychain 2.9.0_beta1 (15 Apr 2025)
 
 * Keychain will now detect when gpg-agent is available and has ssh-agent functionality, and use gpg-agent by default. To disable this behavior, use the '--nosub' option to disable auto-substitution of gpg-agent for ssh-agent. This implements GitHub issue #67 requested by Martin Väth.
 * Begin removal of support for gpg-agent earlier than 2.1. This release is about 9 years old at this point, and if you have a newer version of keychain on a system, it's likely you also have updated GNUPG.
@@ -11,7 +26,7 @@ http://www.funtoo.org/Funtoo:Keychain
 
 * Daniel Robbins returns as keychain maintainer.
 * 'keychain' and 'keychain.1' removed from git repo and added to .gitignore.
-* Make 'keychain.sh' fully-compliant with ShellCheck, and add necessary exception comments to the codebase. These changes require testing, as some of the suggested fixes are not desired, and I tried to catch all of these. Thus the _alpha1 status.
+* Make 'keychain.sh' fully-compliant with ShellCheck, and add necessary exception comments to the codebase. These changes require testing, as some of the suggested fixes are not desired, and I tried to catch all of these. Thus the \_alpha1 status.
 * Merge in typographical errors from Peter Pentchev (@ppentchev). (commit d8a566d6402a2e93ce1664cb9c7e9df3233323de)
 * Merge in validity checking for malformed SSH public key files, also from Peter Pentchev (@ppentchev). (commit 2722fdcc5d86725dd72995a83694862849494471)
 * Merge in support for --agents, which adds detection of gpg-agent which was disabled. From Mikko Koivunalho (@mikkoi). (commit 1d170da33be908c742a0840191533fe90b82db5b)
@@ -97,12 +112,12 @@ http://www.funtoo.org/Funtoo:Keychain
 ## keychain 2.6.8 (24 Oct 2006)
 
 * 24 Oct 2006; Aron Griffis <agriffis@gentoo.org>:
-    Save LC_ALL for gpg invocation so that pinentry-curses works. This affected peper and kloeri, though it seems to work for me in any case.
+    Save `LC_ALL` for gpg invocation so that pinentry-curses works. This affected peper and kloeri, though it seems to work for me in any case.
 
 ## keychain 2.6.7 (24 Oct 2006)
 
 * 24 Oct 2006; Aron Griffis <agriffis@gentoo.org>:
-    Prevent gpg_listmissing from accidentally loading keys
+    Prevent `gpg_listmissing` from accidentally loading keys
 
 ## keychain 2.6.6 (08 Sep 2006)
 
@@ -113,16 +128,16 @@ http://www.funtoo.org/Funtoo:Keychain
 
 * 08 Sep 2006; Aron Griffis <agriffis@gentoo.org>:
     Break out of loop when empty lockfile can't be removed #127471. Add locking regression tests:
-    * 100_lock_stale 101_lock_held 102_lock_empty 103_lock_empty_cant_remove
+    `100_lock_stale` `101_lock_held` `102_lock_empty` `103_lock_empty_cant_remove`
 
 ## keychain 2.6.4 (08 Sep 2006)
 
 * 08 Sep 2006; Aron Griffis <agriffis@gentoo.org>:
-    Add validinherit function so that validity of SSH_AUTH_SOCK and friends can be validated from startagent rather than up front. The advantage is that warning messages aren't emitted unnecessarily when --inherit *-once.
-    Fix --eval for fish, and add new testcases:
-    * 053_start_with_--eval_ksh
-    * 054_start_with_--eval_fish
-    * 055_start_with_--eval_csh
+    Add validinherit function so that validity of `SSH_AUTH_SOCK` and friends can be validated from startagent rather than up front. The advantage is that warning messages aren't emitted unnecessarily when `--inherit *-once`.
+    Fix `--eval` for fish, and add new testcases:
+    * `053_start_with_--eval_ksh`
+    * `054_start_with_--eval_fish`
+    * `055_start_with_--eval_csh`
 
 ## keychain 2.6.3 (07 Sep 2006)
 
@@ -133,22 +148,22 @@ http://www.funtoo.org/Funtoo:Keychain
 ## keychain 2.6.2 (20 Mar 2006)
 
 * 20 Mar 2006; Aron Griffis <agriffis@gentoo.org>:
-    Add --confirm option and corresponding regression tests for Debian bug 296382. Thanks to Liyang HU for the patch. Also add initialization for \$ssh_timeout which was being inherited from the environment and add regression tests for --timeout
+    Add `--confirm` option and corresponding regression tests for Debian bug 296382. Thanks to Liyang HU for the patch. Also add initialization for `$ssh_timeout` which was being inherited from the environment and add regression tests for `--timeout`
 
 ## keychain 2.6.1 (10 Oct 2005)
 
 * 10 Oct 2005; Aron Griffis <agriffis@gentoo.org>:
-    Change "unset evalopt" to "evalopt=false" and run through *all* the regression tests instead of just the new ones. *sigh*
+    Change `unset evalopt` to `evalopt=false` and run through *all* the regression tests instead of just the new ones. *sigh*
 
 ## keychain 2.6.0 (10 Oct 2005)
 
 * 10 Oct 2005; Aron Griffis <agriffis@gentoo.org>:
-    Add the --eval option which makes keychain startup easier. See the man-page for examples. Get rid of the release notes from README, so now this file is where changes are tracked.
+    Add the `--eval` option which makes keychain startup easier. See the man-page for examples. Get rid of the release notes from README, so now this file is where changes are tracked.
 
 ## keychain 2.5.5 (28 Jul 2005)
 
 * 28 Jul 2005; Aron Griffis <agriffis@gentoo.org>:
-    Add the --env option and automatic reading of .keychain/env. This allows variables such as PATH to be overridden for peculiar environments
+    Add the `--env` option and automatic reading of `.keychain/env`. This allows variables such as PATH to be overridden for peculiar environments
 
 ## keychain 2.5.4.1 (11 May 2005)
 
@@ -158,7 +173,7 @@ http://www.funtoo.org/Funtoo:Keychain
 ## keychain 2.5.4 (11 May 2005)
 
 * 11 May 2005; Aron Griffis <agriffis@gentoo.org>:
-    Fix bug 92316: If any locale variables are set, override them with LC_ALL=C. This fixes a multibyte issue with awk that could keep a running ssh-agent from being found.
+    Fix bug 92316: If any locale variables are set, override them with `LC_ALL=C`. This fixes a multibyte issue with awk that could keep a running ssh-agent from being found.
     Fix bug 87340: Use files instead of symlinks for locking, since symlink creation is not atomic on cygwin.
 
 ## keychain 2.5.3.1 (10 Mar 2005)
@@ -169,12 +184,12 @@ http://www.funtoo.org/Funtoo:Keychain
 ## keychain 2.5.3 (09 Mar 2005)
 
 * 09 Mar 2005; Aron Griffis <agriffis@gentoo.org>:
-    Improve handling of DISPLAY by unsetting if blank. Call gpg with --use-agent explicitly.
+    Improve handling of DISPLAY by unsetting if blank. Call gpg with `--use-agent` explicitly.
 
 ## keychain 2.5.2 (06 Mar 2005)
 
 * 06 Mar 2005; Aron Griffis <agriffis@gentoo.org>:
-    Fix bug 78974 "keychain errors on Big/IP (x86 BSD variant)" by refraining from using ! in conditional expressions. Fix RSA fingerprint extraction on Solaris, reported in email by Travis Fitch. Use \$HOSTNAME when possible instead of calling uname -n to improve bash_profile compatibility.
+    Fix bug 78974 "keychain errors on Big/IP (x86 BSD variant)" by refraining from using ! in conditional expressions. Fix RSA fingerprint extraction on Solaris, reported in email by Travis Fitch. Use \$HOSTNAME when possible instead of calling `uname -n` to improve bash_profile compatibility.
 
 ## keychain 2.5.1 (12 Jan 2005)
 
@@ -253,7 +268,7 @@ http://www.funtoo.org/Funtoo:Keychain
 ## keychain 2.2.2 (03 May 2004)
 
 * 03 May 2004; Aron Griffis <agriffis@gentoo.org>:
-    Call loadagent prior to generating HOSTNAME-csh file so that variables are set.
+    Call loadagent prior to generating `$HOSTNAME-csh` file so that variables are set.
 
 ## keychain 2.2.1 (27 Apr 2004)
 
