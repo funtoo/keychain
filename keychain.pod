@@ -5,135 +5,152 @@ keychain - Manager for ssh-agent, gpg-agent and private keys. Compatible with PO
 =head1 SYNOPSIS
 
 S<keychain [ -hklQqV ] [ --clear --confhost --confallhosts --gpg2 --help --ignore-missing --list>
-S<--noask --nocolor --nogui --noinherit --nolock --quick --quiet --ssh-allow-forwarded --systemd --version ]>
-S<[ --agents I<list> ] [ --ssh-agent-socket I<list> ] [ --attempts I<num> ]>
+S<--noask --nocolor --nogui --noinherit --nolock --quick --quiet --ssh-allow-forwarded --ssh-use-gpg --systemd --version ]>
+S<[ --ssh-agent-socket I<list> ] [ --attempts I<num> ]>
 S<[ --dir I<dirname> ] [ --host I<name> ] [ --lockwait I<seconds> ]>
 S<[ --stop I<which> ] [ --timeout I<minutes> ] [ keys... ]>
 
 =head1 DESCRIPTION
 
-keychain is a manager for ssh-agent, typically run from ~/.bash_profile.  It
-allows your shells and cron jobs to easily share a single ssh-agent process,
+Keychain is a manager for ssh-agent and is typically run from ~/.bash_profile.
+It allows your shells and cron jobs to easily share a single ssh-agent process,
 and ensure any necessary private keys are loaded and available for use. By
-default, the agent started by keychain is long-running and will continue to
+default, the ssh-agent started by keychain is long-running and will continue to
 run, even after you have logged out from the system.
 
 Keychain also supports GnuPG 2.1 and later, and will automatically start
-gpg-agent and allow ensure GPG keys are cached in memory and available for
-use.
+gpg-agent if any GPG keys are referenced on the command-line, and will ensure
+these credentials are cached in memory and available for use.
 
-Keychain supports most UNIX-like operating systems, including Cygwin.
+Keychain supports most UNIX-like operating systems.
 It works with Bourne-compatible, csh-compatible and fish shells.
 
 =head1 LIFECYCLE
 
-Typically, you configure keychain to run -- and start an agent if one is not
-yet running -- when you first log in to a system. Keychain then checks to make
-sure your private keys are loaded into the agent. If they are not, you are
-prompted for any passphrase necessary to decrypt them, so that they are 
-cached in memory and available for use.
+Typically, you configure keychain to run when you first log in to a system.
+If you are using Bourne shell or bash, you will create a ~/.profile or 
+~/.bash_profile file and include the following line in it:
 
-When keychain starts ssh-agent, saves the ssh-agent environment variables to
+    eval "$(keychain --eval id_rsa)"
+
+Keychain will start ssh-agent if one isn't already running. Keychain then
+checks to make sure your private keys (in this example, "id_rsa") are loaded
+into the agent. If they are not, you are prompted for any passphrase necessary
+to decrypt them, so that they are cached in memory and available for use. 
+
+In addition to printing some user-friendly output to your terminal, keychain
+will also output important ssh-agent environment variables, which the "$( )"
+(you can also use "` `"") captures, and the "eval" evaluates, setting these
+variables in your current shell.
+
+These ssh-agent environment variables are also written to
 ~/.keychain/${HOSTNAME}-sh, so that subsequent logins and non-interactive
 shells such as cron jobs can source the file and make passwordless ssh
-connections using the cached private keys.
+connections using the cached private keys even when you are logged out.
 
-In addition, when keychain runs, it verifies that the key files specified on
-the command-line are known to ssh-agent, otherwise it loads them, prompting you
-for a password if necessary:
+The key files specified on the command-line will be searched for in the
+~/.ssh/ directory, and keychain will expect to find the private key file
+with the same name, as well as a '.pub' public key.
 
-    $ keychain id_rsa id_ed25519 id_drobbins_rsa
-    
 Typically, private key files are specified by filename only, without path, 
 although it is possible to specify an absolute or relative
-path to the private key file as well. 
+path to the private key file as well. Private key files can be symlinks
+to the actual key as long as your system has the 'readlink' command available.
+More advanced features are available for specifying keys as well -- see the
+ --confhost and --confallhosts options for more information.
 
-For SSH key pairs, just a private key filename is used,
-which is typical usage, keychain will look for the specified private key
-files in ~/.ssh, ~/.ssh2, or with the -c/--confhost option, inspect the
-~/.ssh/config file and use the IdentityFile option to determine the location of
-the private key. Private keys can be symlinks to the actual private key.
+In addition, if a GPG key is specified and found in ~/.gnupg, a gpg-agent
+will be started, and similar steps will be taken to ensure that gpg-agent
+has the GPG key loaded and ready for use.
 
-For SSH key pairs, associated public key files to exist in the same directory as
-the private key files, with a .pub extension.  If the private key is a symlink,
-the public key can be found alongside the symlink, or in the same directory as
-the symlink target (This capability requires the 'readlink' command to be
-available on the system.) As an additional feature, if a private key has an 
-extension ".ext", keychain will look for privkey.ext.pub first, and if not found,
-will look for privkey.pub.
+=head1 STREAMLINING AND SIMPLIFICATION
 
-For GPG key pairs, keychain calls GPG commands which expect them to exist 
-in the standard ~/.gnupg directory structure used by GnuPG.
+Keychain 2.9.0 has been streamlined, and with this maintenance several
+command-line options have been retired as they are not completely necessary.
+This simplifies the use of the tool by making it more intuitive to use.
+The files created in ~/.keychain have also been cleaned up. This section
+details all the important changes.
 
-=head1 STARTING
+=head2 PIDFILE CHANGES
 
-Keychain 2.9.0 and onwards adds support for using gpg-agent's
-built-in ssh-agent functionality. In fact, this feature is enabled by default,
-which means that by default, only gpg-agent is started if it not yet running,
-and it is used for both GPG and SSH agent functionality -- and no ssh-agent
-is started at all. Please see the following examples to understand the changes
-and how to affect startup behavior.
+"Pidfile" is the nickname for files created in ~/.keychain which can then
+be sourced by your scripts to access a running agent.
 
-By default, keychain with no arguments will start a gpg-agent if available,
-which will function for both GPG and SSH keys. It is essentially a drop-in
-replacement for ssh-agent:
+When using gpg-agent for GPG keys, keychain will no longer create a
+~/.keychain/${HOSTNAME}-sh-gpg pidfile. This file is no longer needed
+as the canonical GPG socket inside ~/.gnupg/ will be used to detect the
+running gpg-agent, which is the modern convention. GnuPG 2.1 and later 
+have stopped using environment variables to find the agent. 
 
-    $ ./keychain
-    
-      * keychain 2.9.0 ~ http://www.funtoo.org/Funtoo:Keychain
-      * Starting gpg-agent for gpg and ssh...
+=head2 DISPLAY CHANGES
 
-If gpg-agent is not available, then GPG support will be disabled, and keychain
-will fall back to ssh-agent and SSH-only support. If you would like to force
-the use of ssh-agent specifically, you can use the '--nosub' option, which
-disables "substitutions" (meaning: substituting gpg-agent for ssh-agent):
+When keychain
+uses gpg-agent for either GnuPG or SSH support, then keychain will display
+the GnuPG socket file in its output, rather than the PID. Since the socket
+file has the ~/.gnupg path in it, this communicates to you that gpg-agent,
+not ssh-agent, is active. If you see an integer PID, this means that ssh-agent
+is being used.
 
-    $ ./keychain --nosub
+=head2 SIMPLIFIED OPTIONS
 
-      * keychain 2.9.0 ~ http://www.funtoo.org/Funtoo:Keychain
-      * Starting ssh-agent...
-      * Starting gpg-agent...
+The "--agents" option is now deprecated. Keychain will always ensure an
+ssh-agent is running (or if "--ssh-use-gpg" is used, that a gpg-agent is
+running to provide ssh-agent functionality -- see STREAMLINED STARTUP, below
+.) 
 
-This is the default behavior for keychain 2.8.5 and earlier, where two agents
-were started.
+Specifying a GPG key on the command-line will instruct keychain to 
+enable gpg-agent functionality automatically. This eliminates an option 
+that you need to specify when invoking keychain, and likely will avoid
+spawning a daemon you may not be using. Specifying the "--agents" option 
+will now display a warning that it's deprecated, but keychain will not
+abort.
 
-If you would like to completely disable the use of gpg-agent, even if it is
-running and/or available on your system, use the combination of "--agents ssh"
-and "--nosub", which disables GPG support and ensures that the official ssh-agent
-is the only agent that is started:
+The "--inherit" option, which took one of four arguments, has been 
+deprecated. Keychain's default behavior remains that of "local-once",
+and you can influence keychain's behavior via the still-present 
+"--noinherit" option as well as the "--ssh-allow-forwarded" options, 
+which will allow SSH-forwarded authentication sockets to be used by keychain,
+which are disabled by default. If this option is specified, keychain
+will print a warning but will not abort.
 
-    $ ./keychain --nosub --agents ssh
+The "--clear" option is still available, but isn't intended to be a 
+"standalone" option, meaning that it is used to perform an initial clearing
+of cached keys before loading any specified keys when Keychain is run.
 
-      * keychain 2.9.0 ~ http://www.funtoo.org/Funtoo:Keychain
-      * Starting ssh-agent...
+The "--stop" option will now only stop any running ssh-agent processes,
+and still supports three possible options: "mine", "others" and "all".
+It no longer stops gpg-agent processes, which tend to get auto-respawned
+by GPG tools, so killing gpg-agent typically doesn't make a lot of sense.
 
-=head1 SOCKETS AND PIDS
+=head2 BETTER GnuPG INTEGRATION
 
-Keychain 2.8.5 and earlier used to create a ~/.keychain/localhost-sh-gpg file
-for gpg-agent. This file is no longer created, since versions of GPG since 2.1
-have moved away from using environment variables and use an official socket
-file location as a means to find a running gpg-agent.
+Behind the scenes, keychain now uses the gpg-connect-agent executable to
+restart the agent, get official PID and socket information, etc.
 
-In earlier versions of keychain (2.8.5 and earlier), the internal code was
-very focused on the process ID of each individual ssh-agent process, and would
-display the PID(s) of running ssh-agents. With keychain 2.9.0 and onwards, 
-a shift has been made to more prominently display the socket file that is used 
-to connect to the agent. This socket file path helps users to understand whether
-their ssh-agent functionality is coming from gpg-agent or ssh-agent itself, 
-so it is helpful to display this instead of the PID.
+=head2 STREAMLINED STARTUP
 
-Now, in most cases, the path to the socket file will be displayed. The only 
-exception to this rule is for an ssh-agent (not gpg-agent) which was detected 
-via a SSH_AGENT_PID environment variable, where we follow the "classic" display
-of the ssh-agent PID when detected.
+By default, keychain will always ensure that an ssh-agent should be started.
+It will only start a gpg-agent if a GPG key is referenced on the command-line.
 
-Another change with keychain 2.9.0 related to process IDs is that "keychain --stop"
-will no longer stop running gpg-agent processes and will handle just official
-ssh-agent processes exclusively. To kill gpg-agent, a command like
-"killall gpg-agent" can be used. Typically, gpg-agent processes do not need
-to be cleaned up in this way, as they will often just be auto-respawned. Best
-practice is to use the "--clear" option in place of any situations where you
-were killing your gpg-agent processes to achieve the same effect.
+Modern versions of gpg-agent also support the caching of SSH keys, allowing it
+to be a drop-in replacement for ssh-agent. With keychain 2.9.0, a new 
+"--ssh-use-gpg" option has been added, which when specified will tell keychain
+to start gpg-agent in place of ssh-agent. 
+
+Please note that while gpg-agent
+provides full compatibility with ssh-agent, you should definitely test systems
+if you decide to start using the new "--ssh-use-gpg" option. In particular,
+gpg-agent uses its own pinentry program to ask for passphrases, and also will
+ask you for a password to encrypt your stored keys. For this reason, consider
+this new feature experimental, and use GitHub issues to report back any 
+anomalies or suggested improvements for gpg-agent integration.
+
+=head2 CODE OPTIMIZATION
+
+With keychain 2.9.0, there has been significant code cleanup, reducing the size
+of the script from 1500 lines to about 1100 lines. In addition, the script is
+now fully compliant with L<ShellCheck|https://shellcheck.net>, which will be
+hugely helpful to ensure continued POSIX shell compatibility moving forward.
 
 =head1 OPTIONS
 
