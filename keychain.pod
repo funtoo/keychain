@@ -155,11 +155,12 @@ Try num times to add keys before giving up.  The default is 1.
 
 =item B<--clear>
 
-Delete all of ssh-agent's keys.  Typically this is used in
-.bash_profile.  The theory behind this is that keychain should assume
-that you are an intruder until proven otherwise.  However, while this
-option increases security, it still allows your cron jobs to use your
-ssh keys when you're logged out.
+Ensure that keys for the agents are wiped initially. This is intended
+to be used alongside keychain --eval to ensure that only the specified
+keys are loaded, and that keychain should assume that you are an intruder
+until proven otherwise and force all interactive logins to specify valid
+passphrases.  This option increases security and  still allows your 
+cron jobs to use your ssh keys when you're logged out.
 
 =item B<--confhost>
 

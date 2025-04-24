@@ -24,14 +24,12 @@ fi
 
 unset mesglog
 unset myaction
-agentsopt=ssh,gpg
 havelock=false
 unset hostopt
 ignoreopt=false
 noaskopt=false
 noguiopt=false
 nolockopt=false
-nosubopt=false
 lockwait=5
 openssh=unknown
 sunssh=unknown
@@ -65,6 +63,7 @@ unset GREP_OPTIONS
 gpg_prog_name="gpg"
 gpg_started=false
 ssh_allow_forwarded=false
+ssh_use_gpg=false
 debugopt=false
 
 BLUE="[34;01m"
@@ -132,7 +131,7 @@ testssh() {
 		*Sun?SSH*) sunssh=true ;;
 	esac
 	# See if gpg-agent is available and provides ssh-agent functionality:
-	if ! $nosubopt && out="$(gpg-agent --help | grep enable-ssh-support)" && [ -n "$out" ]; then
+	if $ssh_use_gpg && out="$(gpg-agent --help | grep enable-ssh-support)" && [ -n "$out" ]; then
 		gpgagent_ssh=true
 	fi
 }
@@ -707,17 +706,6 @@ setaction() {
 	fi
 }
 
-setagents() {
-	final_agents=""
-	if [ "${agentsopt%%ssh*}" != "${agentsopt}" ]; then
-		final_agents="ssh"
-	fi
-	if [ "${agentsopt%%gpg*}" != "${agentsopt}" ]; then
-		final_agents="$final_agents gpg"
-	fi
-	agentsopt="${final_agents#*( )}"
-}
-
 # synopsis: confpath
 # Return private key path if found in ~/.ssh/config SSH configuration file.
 # Input: the name of the host we would like to connect to.
@@ -738,16 +726,11 @@ confpath() {
 	done < ~/.ssh/config
 }
 
-# synopsis: wantagent prog
-# Return 0 (true) or 1 (false) depending on whether prog is one of the agents in
-# agentsopt
 wantagent() {
-	case "$agentsopt" in
-		"$1"|"$1 "*|*" $1 "*|*" $1")
-			return 0 ;;
-		*)
-			return 1 ;;
-	esac
+	[ "$1" = "gpg" ] && [ -n "$gpgkeys" ] && debug wantagent gpg :$gpgkeys: && return 0
+	[ "$1" = "ssh" ] && return 0
+	#[ -n "$sshkeys" ] && debug wantagent ssh :$sshkeys: && return 0 
+	return 1
 }
 
 #
@@ -758,7 +741,7 @@ wantagent() {
 while [ -n "$1" ]; do
 	case "$1" in
 		--absolute) absoluteopt=true ;;
-		--agents) shift; agentsopt="$1" ;;
+		--agents) warn "--agents is deprecated, ignoring." ;;
 		--agent-socket) shift; ssh_agent_socket="-a $1" ;;
 		--confirm) confirmopt=true ;;
 		--debug|-D) debugopt=true ;;
@@ -775,9 +758,9 @@ while [ -n "$1" ]; do
 		--nogui) noguiopt=true ;;
 		--noinherit) noinheritopt=true ;;
 		--nolock) nolockopt=true ;;
-		--nosub) nosubopt=true ;;
 		--query) queryopt=true; quietopt=true ;;
 		--quiet|-q) quietopt=true ;;
+		--ssh-use-gpg) ssh_use_gpg=true ;;
 		--ssh-agent-socket) shift; ssh_agent_socket="-a $1" ;;
 		--ssh-allow-forwarded) ssh_allow_forwarded=true ;;
 		--systemd) systemdopt=true ;;
@@ -950,18 +933,15 @@ else
 fi
 
 testssh							# sets $openssh, $sunssh and $gpgagent_ssh
-setagents						# verify/set $agentsopt
 verifykeydir					# sets up $keydir
 me=$(id -un) || die "Who are you?  id -un doesn't know..."
 
 # --stop: kill the existing ssh-agent(s) (not gpg-agent) and quit
 [ "$myaction" = stop ] && stop_ssh_agents
 
-
-
 # --timeout translates almost directly to ssh-add/ssh-agent -t, but ssh.com uses
 # minutes and OpenSSH uses seconds
-if [ -n "$timeout" ] && wantagent ssh; then
+if [ -n "$timeout" ]; then
 	ssh_timeout=$timeout
 	if $openssh || $sunssh; then
 		ssh_timeout=$(( ssh_timeout * 60 ))
@@ -969,32 +949,20 @@ if [ -n "$timeout" ] && wantagent ssh; then
 	ssh_timeout="-t $ssh_timeout"
 fi
 
-# Each section of this conditional should handle arguments that are orthogonal to actually
-# starting new agents, which is done in the last "else" section. For example, --clear clears
-# keys, but doesn't start new agents.
+# Get keys from SSH configuration files if --confhost/--confallhost are specified, as well as command-line:
+sshkeys="$(cat_ssh_config_keys | parse_mykeys ssh)$(echo "$mykeys" | parse_mykeys ssh)"
+gpgkeys="$(echo "$mykeys" | parse_mykeys gpg)"
+# These keys will be processed further by ssh_listmissing and gpg_listmissing...
 
-if $clearopt; then
-	eval "$(catpidf sh)"
-	for a in ${agentsopt}; do
-		if [ "$a" = ssh ]; then
-			if sshout=$(ssh-add -D 2>&1); then
-				mesg "ssh-agent: $sshout"
-			else
-				warn "ssh-agent: $sshout"
-			fi
-		elif [ "$a" = gpg ]; then
-			out="$( echo RELOADAGENT | gpg-connect-agent --no-autostart 2>/dev/null )"
-			if [ "$out" = "OK" ]; then
-				mesg "gpg-agent: All identities removed."
-			else
-				mesg "gpg-agent: Could not remove identities ($out)"
-			fi
-		fi
-	done
-	trap 'droplock' 2 # done clearing, safe to ctrl-c
-elif $queryopt; then
+# Each section of this conditional should handle arguments that are orthogonal to actually
+# starting new agents, which is done in the last "else" section. For example, --query prints
+# agent variables, but doesn't start new agents.
+if $queryopt; then
 	catpidf_shell sh | cut -d\; -f1 && exit 0
 else
+	if ! wantagent ssh && ! wantagent gpg; then
+		die "No keys specified. Nothing to do."
+	fi
 	if wantagent ssh; then
 		# This will start gpg-agent as an ssh-agent if such functionality is enabled (default)
 		startagent_ssh || warn "Unable to start an ssh-agent (error code: $?)"
@@ -1006,12 +974,28 @@ else
 		# call above, and gpg doesn't use pidfiles for gpg stuff anymore.
 		startagent_gpg || warn "Unable to start gpg-agent (error code: $?)"
 	fi
+	if $clearopt; then
+		if wantagent ssh; then
+			if sshout=$(ssh-add -D 2>&1); then
+				mesg "ssh-agent: $sshout"
+			else
+				warn "ssh-agent: $sshout"
+			fi
+		fi
+		if wantagent gpg; then
+			out="$( echo RELOADAGENT | gpg-connect-agent --no-autostart 2>/dev/null )"
+			if [ "$out" = "OK" ]; then
+				mesg "gpg-agent: All identities removed."
+			else
+				mesg "gpg-agent: Could not remove identities ($out)"
+			fi
+		fi
+		trap 'droplock' 2 # done clearing, safe to ctrl-c
+	fi
 fi
 
-# List options/actions here that permit agents to be started prior to executing:
 if $evalopt; then
 	catpidf_shell sh
-	# && qprint && exit 0
 fi
 
 if $systemdopt; then
@@ -1022,11 +1006,7 @@ fi
 $noaskopt && { qprint; exit 0; }
 $quickopt && { qprint; exit 0; }
 
-# Get keys from SSH configuration files if --confhost/--confallhost are specified, as well as command-line:
-sshkeys="$(cat_ssh_config_keys | parse_mykeys ssh)
-$(echo "$mykeys" | parse_mykeys ssh)"
-gpgkeys="$(echo "$mykeys" | parse_mykeys gpg)"
-# These keys will be processed further by ssh_listmissing and gpg_listmissing...
+# This is where we load keys as needed:
 
 if wantagent ssh; then
 	sshavail=$(ssh_l) # update sshavail now that we're locked
@@ -1038,7 +1018,7 @@ if wantagent ssh; then
 	while [ -n "$sshkeys" ]; do
 
 		# --confirm translates to ssh-add -c
-		if $confirmopt && wantagent ssh; then
+		if $confirmopt; then
 			if $openssh || $sunssh; then
 				ssh_confirm=-c
 			else
