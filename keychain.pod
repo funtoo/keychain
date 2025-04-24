@@ -396,8 +396,6 @@ doesn't use keychain's --eval feature:
     [ -z "$HOSTNAME" ] && HOSTNAME=`uname -n`
     [ -f $HOME/.keychain/$HOSTNAME-sh ] && \
 	    . $HOME/.keychain/$HOSTNAME-sh
-    [ -f $HOME/.keychain/$HOSTNAME-sh-gpg ] && \
-	    . $HOME/.keychain/$HOSTNAME-sh-gpg
 
 This is equivalent for C shell (including tcsh):
 
@@ -405,9 +403,6 @@ This is equivalent for C shell (including tcsh):
     host=`uname -n`
     if (-f $HOME/.keychain/$host-csh) then
 	    source $HOME/.keychain/$host-csh
-    endif
-    if (-f $HOME/.keychain/$host-csh-gpg) then
-	    source $HOME/.keychain/$host-csh-gpg
     endif
 
 To load keychain variables from a script (for example from cron) and
