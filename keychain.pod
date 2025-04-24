@@ -40,13 +40,14 @@ to decrypt them, so that they are cached in memory and available for use.
 
 In addition to printing some user-friendly output to your terminal, keychain
 will also output important ssh-agent environment variables, which the "$( )"
-(you can also use "` `"") captures, and the "eval" evaluates, setting these
+(you can also use "` `") captures, and the "eval" evaluates, setting these
 variables in your current shell.
 
 These ssh-agent environment variables are also written to
 ~/.keychain/${HOSTNAME}-sh, so that subsequent logins and non-interactive
-shells such as cron jobs can source the file and make passwordless ssh
-connections using the cached private keys even when you are logged out.
+shells such as cron jobs can source the file to access the running ssh-agent
+and make passwordless ssh connections using the cached private keys --
+even when you are logged out.
 
 The key files specified on the command-line will be searched for in the
 ~/.ssh/ directory, and keychain will expect to find the private key file
@@ -155,16 +156,6 @@ hugely helpful to ensure continued POSIX shell compatibility moving forward.
 =head1 OPTIONS
 
 =over
-
-=item B<--agents> I<list>
-
-Start the agents listed. By default, this is set to "gpg,ssh"
-which will result in keychain attempting to start an agent with
-SSH support as well as gpg-agent. Note that modern versions of
-gpg-agent support SSH, so the default setting will actually
-cause just gpg-agent to be run as a daemon, and then used as the
-ssh-agent, as well as for GPG. To force use of ssh-agent
-specifically, use the "--nosub" option.
 
 =item B<--attempts> I<num>
 
