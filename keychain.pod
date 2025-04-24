@@ -123,7 +123,7 @@ and still supports three possible options: "mine", "others" and "all".
 It no longer stops gpg-agent processes, which tend to get auto-respawned
 by GPG tools, so killing gpg-agent typically doesn't make a lot of sense.
 
-=head2 BETTER GnuPG INTEGRATION
+=head2 BETTER GNUPG INTEGRATION
 
 Behind the scenes, keychain now uses the gpg-connect-agent executable to
 restart the agent, get official PID and socket information, etc.
@@ -239,15 +239,6 @@ Set alternate hostname for creation of pidfiles
 Don't warn if some keys on the command-line can't be found.  This is
 useful for situations where you have a shared .bash_profile, but your
 keys might not be available on every machine where keychain is run.
-
-=item B<--inherit> I<which> [DEPRECATED]
-
-This is a deprecated and now unsupported option and will print an
-error if used (it was removed because it was overly complex, and
-didn't make sense for gpg-agent in many cases.)
-
-Consider using the "--noinherit" and "--ssh-allow-forwarded" options
-as necessary to get equivalent behavior.
 
 =item B<-l --list>
 
