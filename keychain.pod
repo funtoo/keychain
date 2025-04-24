@@ -334,6 +334,17 @@ which is a ssh-agent socket created by SSH that has no associated
 local process. To permit keychain to use a forwarded ssh-agent
 connection, specify this option.
 
+=item B<--ssh-use-gpg>
+
+This tells keychain to try to use gpg-agent for storing SSH keys,
+instead of ssh-agent. A gpg-agent will be started if one is not running,
+and keychain will ensure that SSH keys are loaded into gpg-agent.
+A ~/.keychain/${HOSTNAME}-sh pidfile will be created that contains 
+information about the gpg-agent ssh socket, which is the same filename
+created to store this information if regular ssh-agent is created.
+This means that any scripts that use this information can source
+the same file regardless of whether "--ssh-use-gpg" is used.
+
 =item B<--systemd>
 
 Inject environment variables into the systemd --user session.
