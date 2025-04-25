@@ -33,7 +33,6 @@ nolockopt=false
 lockwait=5
 openssh=unknown
 sunssh=unknown
-gpgagent_ssh=false
 confhost=unknown
 sshconfig=false
 confallhosts=false
@@ -63,7 +62,8 @@ unset GREP_OPTIONS
 gpg_prog_name="gpg"
 gpg_started=false
 ssh_allow_forwarded=false
-ssh_use_gpg=false
+ssh_allow_gpg=false
+ssh_spawn_gpg=false
 debugopt=false
 
 BLUE="[34;01m"
@@ -131,8 +131,11 @@ testssh() {
 		*Sun?SSH*) sunssh=true ;;
 	esac
 	# See if gpg-agent is available and provides ssh-agent functionality:
-	if $ssh_use_gpg && out="$(gpg-agent --help | grep enable-ssh-support)" && [ -n "$out" ]; then
-		gpgagent_ssh=true
+	if $ssh_spawn_gpg; then
+		if  ! out="$(gpg-agent --help | grep enable-ssh-support)" || [ -z "$out" ]; then
+			warn "gpg-agent ssh functionality not available; not using..."
+			ssh_spawn_gpg=false
+		fi
 	fi
 }
 
@@ -267,9 +270,8 @@ findpids() {
 stop_ssh_agents() {
 	mesg "Stopping ssh-agent(s)..."
 	takelock || die
-	[ "$stopwhich" != all ] && loadagents ssh
+	[ "$stopwhich" != all ] && eval "$(catpidf sh)" # get SSH_AGENT_PID if defined
 	ssh_pids=$(findpids ssh) || die
-
 	if [ -z "$ssh_pids" ]; then
 		mesg "No ssh-agent(s) found running"
 	elif [ "$stopwhich" = all ]; then
@@ -307,20 +309,15 @@ catpidf_shell() {
 		*csh)		 cp_pidf="$cshpidf" ;;
 		*)			 cp_pidf="$pidf" ;;
 	esac
-	shift	
-	[ -f "$cp_pidf" ] && cat "${cp_pidf}"
-	echo
-	return 0
+	shift
+	[ ! -f "$cp_pidf" ] && return 1
+	[ -f "$cp_pidf" ] && cat "${cp_pidf}" && echo && return 0
 }
 
 # synopsis: catpidf agents...
 # cat the ssh pidfile for the current shell
 catpidf() {
 	catpidf_shell "$SHELL"
-}
-
-unset_ssh_agent_vars() {
-	unset SSH_AUTH_SOCK SSH_AGENT_PID
 }
 
 startagent_gpg() {
@@ -333,41 +330,69 @@ startagent_gpg() {
 		mesg "Using existing gpg-agent: ${CYANN}$gpg_agent_sock${OFF}"
 	else
 		gpg_opts="--daemon"
-		gpg_out="gpg-agent"
 		[ -n "${timeout}" ] && gpg_opts="$gpg_opts --default-cache-ttl $(( timeout * 60 )) --max-cache-ttl $(( timeout * 60 ))"
-		$gpgagent_ssh && gpg_opts="$gpg_opts --enable-ssh-support" && gpg_out="gpg-agent for gpg and ssh"
-		mesg "Starting $gpg_out..."
+		$ssh_spawn_gpg && gpg_opts="$gpg_opts --enable-ssh-support"
+		mesg "Starting gpg-agent..."
 		# shellcheck disable=SC2086 # this is intentionalh
-		start_out="$(gpg-agent --sh $gpg_opts)"
+		pidfile_out="$(gpg-agent --sh $gpg_opts)"
 		return $?
 	fi
 }
 
 ssh_envcheck() {
-	envcheck_echo=true
+	envcheck_echo=true # if false, don't print out any warnings as we are doing a pre-check...
 	[ "$1" = "quiet" ] && envcheck_echo=false
-	$noinheritopt && return
-	existing_pid=none
-	if [ -n "$SSH_AUTH_SOCK" ]; then
-		if [ ! -S "$SSH_AUTH_SOCK" ]; then
-			$envcheck_echo && warn "SSH_AUTH_SOCK in environment is invalid; ignoring it"
-			unset SSH_AUTH_SOCK
-		else
-			if [ -n "$SSH_AGENT_PID" ] && ! kill -0 "$SSH_AGENT_PID" >/dev/null 2>&1; then
-				$envcheck_echo && warn "SSH_AGENT_PID in environment is invalid; ignoring it"
-				unset SSH_AGENT_PID
-			else
-				existing_pid="$SSH_AGENT_PID"
-			fi
-		fi
-		if [ "$existing_pid" = none ]; then
-			if gpg_socket="$( echo "GETINFO ssh_socket_name" | gpg-connect-agent --no-autostart 2>/dev/null | head -n1 | sed -n 's/^D //;1p' )" && [ "$gpg_socket" = "$SSH_AUTH_SOCK" ]; then
-				existing_pid="gpg-socket"
-			else
-				existing_pid="forwarded"
-			fi
-		fi
+	
+	# Initial circuit-breakers for known failures:
+	
+	$noinheritopt && return 1
+	[ -z "$SSH_AUTH_SOCK" ] && return 1
+	if [ ! -S "$SSH_AUTH_SOCK" ]; then
+		$envcheck_echo && warn "SSH_AUTH_SOCK in environment is invalid; ignoring it"
+		unset SSH_AUTH_SOCK
+		return 1
 	fi
+
+	# Throw away the PID with a warning if it's invalid:
+
+		if [ -n "$SSH_AGENT_PID" ] && ! kill -0 "$SSH_AGENT_PID" >/dev/null 2>&1; then
+		$envcheck_echo && warn "SSH_AGENT_PID in environment is invalid; ignoring it"
+		unset SSH_AGENT_PID
+	fi
+
+	# Now, evaluate PID alongside sockets:
+
+	if [ -z "$SSH_AGENT_PID" ]; then
+		if gpg_socket="$( echo "GETINFO ssh_socket_name" | gpg-connect-agent --no-autostart 2>/dev/null | head -n1 | sed -n 's/^D //;1p' )"; then
+			if [ "$gpg_socket" = "$SSH_AUTH_SOCK" ]; then
+				if $ssh_allow_gpg; then
+					mesg "Using existing ssh-agent: ${CYANN}$gpg_socket${OFF} (GnuPG)"
+					return 0
+				else
+					unset SSH_AUTH_SOCK
+				fi
+			fi
+		fi
+		if $ssh_allow_forwarded; then
+			SSH_AGENT_PID="forwarded"
+			mesg "Using ${GREEN}forwarded${OFF} ssh-agent: ${GREEN}$SSH_AUTH_SOCK${OFF}"
+		else
+			unset SSH_AUTH_SOCK
+		fi
+	else
+		
+		# If SSH_AGENT_PID is set and we find the process ID, we accept the socket as-is:
+		
+		found_pid=false
+		for pid in $(findpids ssh); do
+			if [ "$pid" = "$SSH_AGENT_PID" ]; then
+				found_pid=true && mesg "Using existing ssh-agent: ${CYANN}$SSH_AGENT_PID${OFF}"
+			fi
+		done
+		$found_pid || unset SSH_AUTH_SOCK SSH_AGENT_PID
+	fi
+	[ -n "$SSH_AUTH_SOCK" ] && return 0 # Found an agent socket, and potentially its pid.
+	return 1 # No valid agent found.
 }
 
 # synopsis: startagent_ssh
@@ -377,65 +402,53 @@ ssh_envcheck() {
 
 startagent_ssh() {
 	if $quickopt; then
-		# shellcheck disable=SC2030 # This is OK because it's a quick check and we will re-set it later if needed:
-		if [ -n "$SSH_AUTH_SOCK" ] && ( sshavail=$(ssh_l) || { [ $? = 1 ] && [ -z "$mykeys" ]; }; ) then
+		# shellcheck disable=SC2030 # This is fine as sshavail will be called again if needed:
+		if ( unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)" && ssh_envcheck quiet ) && ( sshavail=$(ssh_l) || { [ $? = 1 ] && [ -z "$mykeys" ]; }; ); then
 			mesg "Found existing ssh-agent (quick)"
 			return 0
 		else
 			warn "Quick start unsuccessful -- doing regular start..."
 		fi
 	fi
-	
 	takelock || die
-	start_mypids=$(findpids ssh) || die
-	ssh_envcheck
-	if [ -z "$SSH_AUTH_SOCK" ]; then
-		eval "$(catpidf_shell sh)"
-		ssh_envcheck quiet  # Don't print warnings about stale .keychain info, just ignore...
-	fi
-	if [ -n "$existing_pid" ]; then
-		if $gpgagent_ssh && [ "$existing_pid" = "gpg-socket" ]; then
-			mesg "Using existing ssh-agent: ${CYANN}$gpg_socket${OFF}"
-		elif [ "$existing_pid"  = "forwarded" ]; then
-			if $ssh_allow_forwarded; then
-				mesg "Using ${GREEN}forwarded${OFF} ssh-agent: ${GREEN}$SSH_AUTH_SOCK${OFF}"
-				return 0
-			else
-				warn "Ignoring forwarded socket $SSH_AUTH_SOCK; use --ssh-allow-forwarded to allow use"
-			fi
-		else
-			for pid in $start_mypids; do
-				if [ "$pid" = "$existing_pid" ]; then
-					mesg "Using existing ssh-agent: ${CYANN}$existing_pid${OFF}"
-					return 0
-				fi
-			done
-		fi
-	fi
-
-	if $gpgagent_ssh; then
-		startagent_gpg ssh
-		return $?
+	# See if our pidfile is valid without wiping env:
+	if ( unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)" && ssh_envcheck quiet ); then
+		# Our pidfile is valid! :) We can simply use it:
+		unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)"
 	else
-		mesg "Starting ssh-agent..."
-		# shellcheck disable=SC2086 # We purposely don't want to double-quote the args to ssh-agent so they disappear if not used:
-		start_out="$(ssh-agent ${ssh_timeout} ${ssh_agent_socket})"
-		return $?
+		if ssh_envcheck; then
+			# If our env is OK, then let's grab it for our pidfile, as long as we don't have a forwarded ssh connection:
+			if [ "$SSH_AGENT_PID" != forwarded ]; then
+				pidfile_out="SSH_AUTH_SOCK=\"$SSH_AUTH_SOCK\"; export SSH_AUTH_SOCK"
+				[ -n "$SSH_AGENT_PID" ] && pidfile_out="$pidfile_out
+SSH_AGENT_PID=$SSH_AGENT_PID; export SSH_AGENT_PID"
+			fi
+		else  # spawn, we must...
+			if $ssh_spawn_gpg; then
+				startagent_gpg ssh # this function will set pidfile_out itself
+				return $?
+			else
+				mesg "Starting ssh-agent..."
+				# shellcheck disable=SC2086 # We purposely don't want to double-quote the args to ssh-agent so they disappear if not used:
+				pidfile_out="$(ssh-agent ${ssh_timeout} ${ssh_agent_socket})"
+				return $?
+			fi
+		fi
 	fi
 }
 
 write_pidfile() {
-	if [ -n "$start_out" ]; then
-		start_out=$(echo "$start_out" | grep -v 'Agent pid')
-		case "$start_out" in
+	if [ -n "$pidfile_out" ]; then
+		pidfile_out=$(echo "$pidfile_out" | grep -v 'Agent pid')
+		case "$pidfile_out" in
 			setenv*)
-				echo "$start_out" >"$cshpidf"
-				echo "$start_out" | awk '{print $2"="$3" export "$2";"}' >"$pidf"
+				echo "$pidfile_out" >"$cshpidf"
+				echo "$pidfile_out" | awk '{print $2"="$3" export "$2";"}' >"$pidf"
 				;;
 			*)
-				echo "$start_out" >"$pidf"
-				echo "$start_out" | sed 's/;.*/;/' | sed 's/=/ /' | sed 's/^/setenv /' >"$cshpidf"
-				echo "$start_out" | sed 's/;.*/;/' | sed 's/^\(.*\)=\(.*\);/set -e \1; set -x -U \1 \2;/' >"$fishpidf"
+				echo "$pidfile_out" >"$pidf"
+				echo "$pidfile_out" | sed 's/;.*/;/' | sed 's/=/ /' | sed 's/^/setenv /' >"$cshpidf"
+				echo "$pidfile_out" | sed 's/;.*/;/' | sed 's/^\(.*\)=\(.*\);/set -e \1; set -x -U \1 \2;/' >"$fishpidf"
 				;;
 		esac
 	else
@@ -726,9 +739,8 @@ confpath() {
 }
 
 wantagent() {
-	[ "$1" = "gpg" ] && [ -n "$gpgkeys" ] && debug wantagent gpg :$gpgkeys: && return 0
+	[ "$1" = "gpg" ] && [ -n "$gpgkeys" ] && return 0
 	[ "$1" = "ssh" ] && return 0
-	#[ -n "$sshkeys" ] && debug wantagent ssh :$sshkeys: && return 0 
 	return 1
 }
 
@@ -759,7 +771,8 @@ while [ -n "$1" ]; do
 		--nolock) nolockopt=true ;;
 		--query) queryopt=true; quietopt=true ;;
 		--quiet|-q) quietopt=true ;;
-		--ssh-use-gpg) ssh_use_gpg=true ;;
+		--ssh-allow-gpg) ssh_allow_gpg=true ;;
+		--ssh-spawn-gpg) ssh_spawn_gpg=true; ssh_allow_gpg=true ;;
 		--ssh-agent-socket) shift; ssh_agent_socket="-a $1" ;;
 		--ssh-allow-forwarded) ssh_allow_forwarded=true ;;
 		--systemd) systemdopt=true ;;
@@ -931,7 +944,7 @@ else
 	trap 'droplock;' 0		# drop the lock on exit
 fi
 
-testssh							# sets $openssh, $sunssh and $gpgagent_ssh
+testssh							# sets $openssh, $sunssh and tweaks $ssh_spawn_gpg
 verifykeydir					# sets up $keydir
 me=$(id -un) || die "Who are you?  id -un doesn't know..."
 
@@ -966,7 +979,7 @@ else
 		# This will start gpg-agent as an ssh-agent if such functionality is enabled (default)
 		startagent_ssh || warn "Unable to start an ssh-agent (error code: $?)"
 	fi
-	[ -n "$start_out" ] && write_pidfile && eval "$start_out" > /dev/null
+	[ -n "$pidfile_out" ] && write_pidfile && eval "$pidfile_out" > /dev/null
 	if ! $gpg_started && wantagent gpg; then
 		# If we also want gpg, and it hasn't been started yet, start it also. We don't need to
 		# look for pidfile output, as this would have been output from the startagent_ssh->startagent_gpg

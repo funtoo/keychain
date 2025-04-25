@@ -5,7 +5,7 @@ keychain - Manager for ssh-agent, gpg-agent and private keys. Compatible with PO
 =head1 SYNOPSIS
 
 S<keychain [ -hklQqV ]> [ --clear --confhost --confallhosts --gpg2 --help --ignore-missing --list
---noask --nocolor --nogui --noinherit --nolock --quick --quiet --ssh-allow-forwarded --ssh-use-gpg
+--noask --nocolor --nogui --noinherit --nolock --quick --quiet --ssh-allow-forwarded --ssh-spawn-gpg
 --systemd --version
 S<[ --ssh-agent-socket I<path> ] [ --attempts I<num> ]>
 S<[ --dir I<dirname> ] [ --host I<name> ] [ --lockwait I<seconds> ]>
@@ -29,8 +29,8 @@ It works with Bourne-compatible, csh-compatible and fish shells.
 =head1 LIFECYCLE
 
 Typically, you configure keychain to run when you first log in to a system.
-If you are using Bourne shell or bash, you will create a ~/.profile or 
-~/.bash_profile file and include the following line in it:
+If you are using Bourne shell or bash, you will create a C<~/.profile> or 
+C<~/.bash_profile> file and include the following line in it:
 
     eval "$(keychain --eval id_rsa)"
 
@@ -45,23 +45,23 @@ will also output important ssh-agent environment variables, which the "$( )"
 variables in your current shell.
 
 These ssh-agent environment variables are also written to
-~/.keychain/${HOSTNAME}-sh, so that subsequent logins and non-interactive
+C<~/.keychain/${HOSTNAME}-sh>, so that subsequent logins and non-interactive
 shells such as cron jobs can source the file to access the running ssh-agent
 and make passwordless ssh connections using the cached private keys --
-even when you are logged out.
+even when you are logged out. These files are collectively called B<pidfiles>.
 
 The key files specified on the command-line will be searched for in the
-~/.ssh/ directory, and keychain will expect to find the private key file
-with the same name, as well as a '.pub' public key.
+C<~/.ssh/> directory, and keychain will expect to find the private key file
+with the same name, as well as a C<.pub> public key.
 
 Typically, private key files are specified by filename only, without path, 
 although it is possible to specify an absolute or relative
 path to the private key file as well. Private key files can be symlinks
-to the actual key as long as your system has the 'readlink' command available.
+to the actual key as long as your system has the C<readlink> command available.
 More advanced features are available for specifying keys as well -- see the
- --confhost and --confallhosts options for more information.
+ B<--confhost> and B<--confallhosts> options for more information.
 
-In addition, if a GPG key is specified and found in ~/.gnupg, a gpg-agent
+In addition, if a GPG key is specified and found in C<~/.gnupg>, a gpg-agent
 will be started, and similar steps will be taken to ensure that gpg-agent
 has the GPG key loaded and ready for use.
 
@@ -96,9 +96,8 @@ is being used.
 =head2 SIMPLIFIED OPTIONS
 
 The "--agents" option is now deprecated. Keychain will always ensure an
-ssh-agent is running (or if "--ssh-use-gpg" is used, that a gpg-agent is
-running to provide ssh-agent functionality -- see STREAMLINED STARTUP, below
-.) 
+ssh-agent is running, or if "--ssh-spawn-gpg" is used, potentially a
+gpg-agent if no valid ssh-agent is available.
 
 Specifying a GPG key on the command-line will instruct keychain to 
 enable gpg-agent functionality automatically. This eliminates an option 
@@ -126,8 +125,24 @@ by GPG tools, so killing gpg-agent typically doesn't make a lot of sense.
 
 =head2 BETTER GNUPG INTEGRATION
 
-Behind the scenes, keychain now uses the gpg-connect-agent executable to
-restart the agent, get official PID and socket information, etc.
+Keychain can now use an existing gpg-agent that has been started in your
+environment to store ssh keys, rather than spawning its own ssh-agent, by
+usig the "--ssh-allow-gpg" option.
+
+If you would like keychain to spawn gpg-agent instead of ssh-agent, and
+use it to store SSH keys, specify the "--ssh-spawn-gpg" option.
+
+Without either option, keychain will not use an SSH_AUTH_SOCK that is
+provided by gpg-agent, and will spawn an official ssh-agent process.
+
+In addition, behind the scenes, keychain now uses the gpg-connect-agent 
+executable to restart the agent, get official PID and socket information, etc.
+
+Please note that while gpg-agent provides full compatibility with ssh-agent,
+its password prompt is handled by pinentry and its store may encrypt your
+in-memory keys. For this reason, consider
+this new feature experimental, and use GitHub issues to report back any 
+anomalies or suggested improvements for gpg-agent integration.
 
 =head2 STREAMLINED STARTUP
 
@@ -136,16 +151,8 @@ It will only start a gpg-agent if a GPG key is referenced on the command-line.
 
 Modern versions of gpg-agent also support the caching of SSH keys, allowing it
 to be a drop-in replacement for ssh-agent. With keychain 2.9.0, a new 
-"--ssh-use-gpg" option has been added, which when specified will tell keychain
-to start gpg-agent in place of ssh-agent. 
-
-Please note that while gpg-agent
-provides full compatibility with ssh-agent, you should definitely test systems
-if you decide to start using the new "--ssh-use-gpg" option. In particular,
-gpg-agent uses its own pinentry program to ask for passphrases, and also will
-ask you for a password to encrypt your stored keys. For this reason, consider
-this new feature experimental, and use GitHub issues to report back any 
-anomalies or suggested improvements for gpg-agent integration.
+"--ssh-spawn-gpg" option has been added, which when specified will give 
+keychain permission to spawn a gpg-agent in place of ssh-agent. 
 
 =head2 CODE OPTIMIZATION
 
@@ -154,7 +161,7 @@ of the script from 1500 lines to about 1100 lines. In addition, the script is
 now fully compliant with L<ShellCheck|https://shellcheck.net>, which will be
 hugely helpful to ensure continued POSIX shell compatibility moving forward.
 
-=head1 AGENT DETECTION AND STARTUP ALGORITHM
+=head1 SSH-AGENT DETECTION AND STARTUP ALGORITHM
 
 This section documents the official algorithm used for detecting and if necessary
 starting ssh-agent.
@@ -177,42 +184,54 @@ There are several entities to define prior to discussing the algorithm:
    Pidfiles are used to persistently store C<SSH_AUTH_SOCK> and C<SSH_AGENT_PID>
    environment variables for use by other scripts, as well as by keychain itself.
 
+=item 4. Relevant B<command-line options>, which include B<--ssh-allow-gpg>, 
+    B<--ssh-use-gpg>, and B<--ssh-allow-forwarded>.
+
 =back
 
-=head2 ALGORITHM
+=head2 ALGORITHM OVERVIEW
 
 When the keychain script is run, it will first attempt to find a running ssh-agent.
 
-To do this, it will first look for an existing B<pidfile>. If one exists, it will
-be inspected, and if the C<SSH_AUTH_SOCK> variable points to an existing socket,
-and C<SSH_AGENT_PID> points to a running process, then keychain will identify this
-as the running ssh-agent. If either of these variables are not valid, then these
-variables will be ignored and the pidfiles will be removed from C<~/.keychain.>
+=over
 
-If keychain has not yet found an agent, it will inspect environment variables in
-the current environment. This check is implemented by the C<ssh_envcheck()> function
-in keychain. First, it will see if C<SSH_AUTH_SOCK> is valid, and will ignore the
-environment entirely if it is not valid. It will also look at C<SSH_AGENT_PID>. If
-it is defined, and it references a running process, then the agent will be identified
-as a locally-running agent. Next, the C<gpg-agent-connect> command will be used if
-available to get gpg-agent's running SSH socket. If this matches C<SSH_AUTH_SOCK>,
-the socket will be identified as being I<provided by gpg-agent>. Finally, if it is
-not from gpg-agent, and C<SSH_AGENT_PID> is not defined or invalid, the socket will
-be treated as a I<forwarded> socket from another SSH connection.
+=item Phase 1: pidfile: To do this, it will first look for an existing B<pidfile>. If one exists, it will
+be inspected and used to find a running agent, in alignment with specified
+B<command-line options>. If this process is successful, a "keychain-spawned" agent is 
+found and this process is complete. Otherwise, we continue to the next step.
 
-These results will then be evaluated. If the socket is provided by a I<local ssh-agent>,
-it will be used by keychain, and also will be written to keychain's pidfiles.
-If the socket is I<provided by gpg-agent> and the C<--ssh-use-gpg> option was provided
-to keychain, then this socket will be used and stored in keychain's pidfiles. If
-the socket is I<forwarded> from another SSH connection, then it will be ignored and
-not used, unless the C<--ssh-use-forwarded> option was specified to keychain, in which
-case the forwarded agent will be used, but the pidfiles will not be updated to 
-reflect the current value of C<SSH_AUTH_SOCK>.
+=item Phase 2: environment: If keychain's B<pidfile> did not yield a running agent, keychain looks at 
+B<environment variables> defined in the current environment. If an agent is found
+that is in alignment with specified B<command-line options>, then an already-running
+agent is found, is considered "B<adopted>" by keychain, and the process is complete. Otherwise, we continue to the
+next step.
 
-After this process, if an agent still isn't found, keychain will normally start an
-ssh-agent. If the C<--ssh-use-gpg> option was specified, keychain will start a gpg-agent
-instead. In both cases, the pidfiles will then be updated to contain C<SSH_AUTH_SOCK>
-and C<SSH_AGENT_PID> of the newly-started agent.
+=item Phase 3: spawn agent: In the absence of finding a keychain-spawned or existing agent that can be
+adopted, keychain will spawn a new ssh-agent, or a new gpg-agent if 
+B<--ssh-spawn-gpg> is specified and gpg-agent is available.
+
+=item Final Phase: update pidfile: In addition, the B<pidfile>s will be updated to reflect the keychain-spawned or
+B<"adopted"> agent.
+
+=item Pidfile update exception: If the B<--ssh-allow-forwarded> option was specified,
+and a forwarded SSH socket was found -- which is identified as a valid SSH
+socket defined in a C<SSH_AUTH_SOCK> variable, which has no associated or
+valid C<SSH_AGENT_PID> also defined in the environment and is also determined to not 
+be the socket of any running gpg-agent -- then this agent will simply be used, B<but not persisted> in any
+B<pidfile>. This is because this SSH-supplied
+socket will disappear when the underlying SSH connection terminates, and thus
+it cannot be relied on to be available persistently.
+
+=back
+
+=head2 THE QUICK SHORT-CIRCUIT
+
+When the B<--quick> option is specified, a special algorithm will run prior to the
+main agent-detection algorithm listed above. A pidfile, if it exists, will be
+evaluated as per Phase 1 of the main algorithm. If a valid running agent
+is found, it will be queried for valid keys. If at least one valid key is loaded
+into the agent, the quick start is considered successful, and keychain will skip
+the regular agent startup algorithm.
 
 =head2 SUMMARY AND RATIONALE
 
@@ -220,24 +239,14 @@ The keychain ssh-agent detection and startup algorithm is somewhat sophisticated
 makes it not only worth documenting technically, but also worth explaning the intent
 of its design.
 
-The algorithm has been designed to prefer an ssh-agent spawned by keychain,
-if that agent is currently available. This is by design, because other parts of the system
-could spawn ssh-agent or gpg-agent, and we want keychain to not automatically detect
-and use these new agents -- which may be defined in the local environment -- if it already
+The algorithm has been specifically designed to prefer an ssh-agent spawned by keychain,
+if that agent is currently available. This is by design, because other system software
+could spawn ssh-agent and/or gpg-agent, and we want keychain to not coerced into using
+these new agents -- which may be defined in the local environment -- if it already
 spawned an agent that is available and valid. After all, it has likely loaded your private keys
-into the agent it spawned itself, so then switching to another newly-spawned agent could result in you being
-re-prompted for your passphrases, or prevent cron jobs from working by finding the new agent
-instead of the one that keychain spawned.
-
-If an already-spawned-by-keychain agent is not available, and keychain finds a valid
-spawned agent that it is permitted to use based on the provided keychain options (gpg-agent
-sockets will only be considered valid if C<--ssh-use-gpg> was specified), it will
-use this agent, and "adopt" this agent as its own agent, recording it in keychain's pidfiles.
-
-The only exception to this rule is that of an SSH-forwarded agent connection, which is not
-guaranteed to exist beyond the current shell session. While this agent may be used temporarily
-as a legitimate agent if the C<--ssh-use-forwarded> option is specified (and not used by
-default), it will not be "adopted" in the pidfiles as a persistent agent.
+into the agent it spawned itself, so then switching to another newly-spawned agent could result
+re-prompted the user for passphrasess, or could prevent cron jobs from working due to finding
+an agent that is not populated with keys.
 
 =head1 OPTIONS
 
@@ -377,13 +386,16 @@ programs, so only ssh-agent will be used for SSH support, etc.
 
 =item B<-k --stop> I<which>
 
-Kill currently running ssh-agent processes and exit immediately. 
+Kill currently running ssh-agent processes, wipe pidfiles, and exit.
 
 Note that previous versions of keychain (2.8.5 and earlier) allowed
 killing of gpg-agent as well. This functionality was removed as
 ssh-agent and gpg-agent have a bit different design philosophies
 and you almost always only have at most one gpg-agent running at
 a time. Use "killall gpg-agent" if you really want to kill gpg-agent.
+However, since this option also removes pidfiles, it will remove
+any gpg-agent processes adopted by keychain that were being used to
+store ssh keys.
 
 The following values are valid for "which" which controls which
 ssh-agents to target:
@@ -418,18 +430,38 @@ ssh-agent will create its own socket file, typically in /tmp.
 By default, keychain will not use a forwarded ssh-agent connection,
 which is a ssh-agent socket created by SSH that has no associated
 local process. To permit keychain to use a forwarded ssh-agent
-connection, specify this option.
+connection, specify this option. If a SSH-forwarded socket is used,
+it will not be persisted in the pidfiles, as it is not likely to
+be available outside of the currently-active SSH session.
 
-=item B<--ssh-use-gpg>
+=item B<--ssh-allow-gpg>
 
-This tells keychain to try to use gpg-agent for storing SSH keys,
-instead of ssh-agent. A gpg-agent will be started if one is not running,
-and keychain will ensure that SSH keys are loaded into gpg-agent.
-A ~/.keychain/${HOSTNAME}-sh pidfile will be created that contains 
-information about the gpg-agent ssh socket, which is the same filename
-created to store this information if regular ssh-agent is created.
-This means that any scripts that use this information can source
-the same file regardless of whether "--ssh-use-gpg" is used.
+Would you like to have keychain use an existing gpg-agent rather than
+spawning a new ssh-agent, if one is already running in your environment? This option
+allows you to do so. When this option is specified, keychain will
+accept an SSH_AUTH_SOCK environment variable in its environment, even
+if it was created by gpg-agent. By default, keychain has a special
+check to filter out any ssh-agent sockets provided by gpg-agent, and
+will refuse to use them. With this option enabled, this restriction is
+turned off. Please note that keychain will not actually I<spawn> a 
+gpg-agent for storing SSH keys if none are available -- if you want that, 
+see the B<--ssh-spawn-gpg> option, below.
+
+ALSO NOTE: When a gpg-agent is adopted for ssh-agent duties in this way, the 
+C<~/.keychain/${HOSTNAME}-sh> pidfile will be updated to reference the 
+gpg-agent socket, so it will be seamlessly used by future cron jobs needing
+an ssh-agent, as well as by future invocations of keychain, as long as the
+B<--ssh-allow-gpg> or B<--ssh-spawn-gpg> (which implies B<--ssh-allow-gpg>)
+are specified.
+
+=item B<--ssh-spawn-gpg>
+
+This is the option to use if you're really on-board with using gpg-agent
+as a replacement for ssh-agent. Not only will keychain use a running
+gpg-agent if found as per the B<--ssh-allow-gpg>, but if it needs to spawn
+a new ssh-agent, it will go ahead and spawn a gpg-agent in its place, 
+and use it instead. Also see notes for the B<--ssh-allow-gpg> option,
+as this option also implies B<--ssh-allow-gpg>.
 
 =item B<--systemd>
 
@@ -440,7 +472,9 @@ Inject environment variables into the systemd --user session.
 If an ssh-agent process is running then use it.  Don't verify the list
 of keys, other than making sure it's non-empty.  This option avoids
 locking when possible so that multiple terminals can be opened
-simultaneously without waiting on each other.
+simultaneously without waiting on each other. See the 
+L</THE QUICK SHORT-CIRCUIT> section for more information regarding
+how this fits into the overall startup algorithm.
 
 =item B<-q --quiet>
 
