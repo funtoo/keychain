@@ -320,7 +320,7 @@ catpidf() {
 }
 
 unset_ssh_agent_vars() {
-	unset SSH_AUTH_SOCK SSH_AGENT_PID SSH2_AUTH_SOCK SSH2_AGENT_PID
+	unset SSH_AUTH_SOCK SSH_AGENT_PID
 }
 
 startagent_gpg() {
@@ -353,19 +353,18 @@ ssh_envcheck() {
 			$envcheck_echo && warn "SSH_AUTH_SOCK in environment is invalid; ignoring it"
 			unset SSH_AUTH_SOCK
 		else
-			if [ -n "$SSH_AGENT_PID" ]; then
-				if ! kill -0 "$SSH_AGENT_PID" >/dev/null 2>&1; then
-					$envcheck_echo && warn "SSH_AGENT_PID in environment is invalid; ignoring it"
-					unset SSH_AGENT_PID
-				else
-					existing_pid="$SSH_AGENT_PID"
-				fi
+			if [ -n "$SSH_AGENT_PID" ] && ! kill -0 "$SSH_AGENT_PID" >/dev/null 2>&1; then
+				$envcheck_echo && warn "SSH_AGENT_PID in environment is invalid; ignoring it"
+				unset SSH_AGENT_PID
 			else
-				if gpg_socket="$( echo "GETINFO ssh_socket_name" | gpg-connect-agent --no-autostart 2>/dev/null | head -n1 | sed -n 's/^D //;1p' )" && [ "$gpg_socket" = "$SSH_AUTH_SOCK" ]; then
-					existing_pid="gpg-socket"
-				else
-					existing_pid="forwarded"
-				fi
+				existing_pid="$SSH_AGENT_PID"
+			fi
+		fi
+		if [ "$existing_pid" = none ]; then
+			if gpg_socket="$( echo "GETINFO ssh_socket_name" | gpg-connect-agent --no-autostart 2>/dev/null | head -n1 | sed -n 's/^D //;1p' )" && [ "$gpg_socket" = "$SSH_AUTH_SOCK" ]; then
+				existing_pid="gpg-socket"
+			else
+				existing_pid="forwarded"
 			fi
 		fi
 	fi

@@ -4,9 +4,10 @@ keychain - Manager for ssh-agent, gpg-agent and private keys. Compatible with PO
 
 =head1 SYNOPSIS
 
-S<keychain [ -hklQqV ] [ --clear --confhost --confallhosts --gpg2 --help --ignore-missing --list>
-S<--noask --nocolor --nogui --noinherit --nolock --quick --quiet --ssh-allow-forwarded --ssh-use-gpg --systemd --version ]>
-S<[ --ssh-agent-socket I<list> ] [ --attempts I<num> ]>
+S<keychain [ -hklQqV ]> [ --clear --confhost --confallhosts --gpg2 --help --ignore-missing --list
+--noask --nocolor --nogui --noinherit --nolock --quick --quiet --ssh-allow-forwarded --ssh-use-gpg
+--systemd --version
+S<[ --ssh-agent-socket I<path> ] [ --attempts I<num> ]>
 S<[ --dir I<dirname> ] [ --host I<name> ] [ --lockwait I<seconds> ]>
 S<[ --stop I<which> ] [ --timeout I<minutes> ] [ keys... ]>
 
@@ -152,6 +153,91 @@ With keychain 2.9.0, there has been significant code cleanup, reducing the size
 of the script from 1500 lines to about 1100 lines. In addition, the script is
 now fully compliant with L<ShellCheck|https://shellcheck.net>, which will be
 hugely helpful to ensure continued POSIX shell compatibility moving forward.
+
+=head1 AGENT DETECTION AND STARTUP ALGORITHM
+
+This section documents the official algorithm used for detecting and if necessary
+starting ssh-agent.
+
+=head2 DEFINITIONS
+
+There are several entities to define prior to discussing the algorithm:
+
+=over
+
+=item 1. The B<agent>, "ssh-agent", which is a long-running daemon.
+
+=item 2. The B<environment variables> C<SSH_AUTH_SOCK>, which points to the socket file
+    used to communicate with ssh-agent, and C<SSH_AGENT_PID>, which indicates
+   its process ID if running locally.
+
+=item 3. The file C<~/.keychain/${HOSTNAME}-sh>, which is called a "B<pidfile>". 
+   The specific example above is the the Bourne/bash pidfile, and there may be 
+   others with other suffixes that are designed for other shell syntaxes. 
+   Pidfiles are used to persistently store C<SSH_AUTH_SOCK> and C<SSH_AGENT_PID>
+   environment variables for use by other scripts, as well as by keychain itself.
+
+=back
+
+=head2 ALGORITHM
+
+When the keychain script is run, it will first attempt to find a running ssh-agent.
+
+To do this, it will first look for an existing B<pidfile>. If one exists, it will
+be inspected, and if the C<SSH_AUTH_SOCK> variable points to an existing socket,
+and C<SSH_AGENT_PID> points to a running process, then keychain will identify this
+as the running ssh-agent. If either of these variables are not valid, then these
+variables will be ignored and the pidfiles will be removed from C<~/.keychain.>
+
+If keychain has not yet found an agent, it will inspect environment variables in
+the current environment. This check is implemented by the C<ssh_envcheck()> function
+in keychain. First, it will see if C<SSH_AUTH_SOCK> is valid, and will ignore the
+environment entirely if it is not valid. It will also look at C<SSH_AGENT_PID>. If
+it is defined, and it references a running process, then the agent will be identified
+as a locally-running agent. Next, the C<gpg-agent-connect> command will be used if
+available to get gpg-agent's running SSH socket. If this matches C<SSH_AUTH_SOCK>,
+the socket will be identified as being I<provided by gpg-agent>. Finally, if it is
+not from gpg-agent, and C<SSH_AGENT_PID> is not defined or invalid, the socket will
+be treated as a I<forwarded> socket from another SSH connection.
+
+These results will then be evaluated. If the socket is provided by a I<local ssh-agent>,
+it will be used by keychain, and also will be written to keychain's pidfiles.
+If the socket is I<provided by gpg-agent> and the C<--ssh-use-gpg> option was provided
+to keychain, then this socket will be used and stored in keychain's pidfiles. If
+the socket is I<forwarded> from another SSH connection, then it will be ignored and
+not used, unless the C<--ssh-use-forwarded> option was specified to keychain, in which
+case the forwarded agent will be used, but the pidfiles will not be updated to 
+reflect the current value of C<SSH_AUTH_SOCK>.
+
+After this process, if an agent still isn't found, keychain will normally start an
+ssh-agent. If the C<--ssh-use-gpg> option was specified, keychain will start a gpg-agent
+instead. In both cases, the pidfiles will then be updated to contain C<SSH_AUTH_SOCK>
+and C<SSH_AGENT_PID> of the newly-started agent.
+
+=head2 SUMMARY AND RATIONALE
+
+The keychain ssh-agent detection and startup algorithm is somewhat sophisticated, which
+makes it not only worth documenting technically, but also worth explaning the intent
+of its design.
+
+The algorithm has been designed to prefer an ssh-agent spawned by keychain,
+if that agent is currently available. This is by design, because other parts of the system
+could spawn ssh-agent or gpg-agent, and we want keychain to not automatically detect
+and use these new agents -- which may be defined in the local environment -- if it already
+spawned an agent that is available and valid. After all, it has likely loaded your private keys
+into the agent it spawned itself, so then switching to another newly-spawned agent could result in you being
+re-prompted for your passphrases, or prevent cron jobs from working by finding the new agent
+instead of the one that keychain spawned.
+
+If an already-spawned-by-keychain agent is not available, and keychain finds a valid
+spawned agent that it is permitted to use based on the provided keychain options (gpg-agent
+sockets will only be considered valid if C<--ssh-use-gpg> was specified), it will
+use this agent, and "adopt" this agent as its own agent, recording it in keychain's pidfiles.
+
+The only exception to this rule is that of an SSH-forwarded agent connection, which is not
+guaranteed to exist beyond the current shell session. While this agent may be used temporarily
+as a legitimate agent if the C<--ssh-use-forwarded> option is specified (and not used by
+default), it will not be "adopted" in the pidfiles as a persistent agent.
 
 =head1 OPTIONS
 
@@ -323,9 +409,9 @@ Kill keychain's agent processes, leaving other agents alone.
 
 =item B<--ssh-agent-socket> I<path>
 
-Path for SSH_AUTH_SOCK. If set, ssh-agent will try to bind the socket to
-the given path. The older equivalent option "--agent-socket" works
-identically and is still supported.
+Use this option to specify the path to the socket file that you would
+like ssh-agent to create and use as its official socket. By default,
+ssh-agent will create its own socket file, typically in /tmp.
 
 =item B<--ssh-allow-forwarded>
 
