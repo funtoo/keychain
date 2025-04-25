@@ -1,6 +1,22 @@
 # ChangeLog for Keychain
 http://www.funtoo.org/Funtoo:Keychain
 
+## keychain 2.9.0_beta3 (25 Apr 2025)
+
+* The previous beta of keychain attempted to use gpg-agent by default instead of ssh-agent. This behavior has been
+  changed so that now you must opt-in to using gpg-agent. There are two new options to allow you to do this:
+  `--ssh-allow-gpg` and `--ssh-spawn-gpg`, which are documented in the man page.
+* Displayed information about found/started agents has been greatly enhanced.
+* New option `--debug`, which currently allows display of more information regarding
+  keychain's decisions.
+* Full technical documentation for keychain's agent-detection algorithm in the man page.
+* Key decision points in keychain's internal code now have better comments.
+* Fixing behavior of `--noinherit` to match previous versions.
+* Fixing behavior of `--quick` to match previous versions.
+* Tweaking agent detection to match legacy `--inherit=local-once` option.
+* Many documentation updates and improvements.
+* Now at 1119 lines of code (from 1500 lines of code in keychain 2.8.5)
+
 ## keychain 2.9.0_beta2 (23 Apr 2025)
 
 * Code has been overhauled to be more maintainable and various parts of the codebase have been rewritten. During this

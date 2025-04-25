@@ -22,7 +22,7 @@ else
 	PATH=/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb
 fi
 
-unset mesglog
+unset pidfile_out
 unset myaction
 havelock=false
 unset hostopt
@@ -39,7 +39,7 @@ confallhosts=false
 quickopt=false
 quietopt=false
 clearopt=false
-noinheritopt=false
+allow_inherited=true
 color=true
 unset stopwhich
 unset timeout
@@ -341,58 +341,49 @@ startagent_gpg() {
 
 ssh_envcheck() {
 	envcheck_echo=true # if false, don't print out any warnings as we are doing a pre-check...
-	[ "$1" = "quiet" ] && envcheck_echo=false
+	[ "$2" = "quiet" ] && envcheck_echo=false
 	
-	# Initial circuit-breakers for known failures:
+	# Initial short-circuits for known abort cases:
 	
-	$noinheritopt && return 1
 	[ -z "$SSH_AUTH_SOCK" ] && return 1
 	if [ ! -S "$SSH_AUTH_SOCK" ]; then
-		$envcheck_echo && warn "SSH_AUTH_SOCK in environment is invalid; ignoring it"
-		unset SSH_AUTH_SOCK
-		return 1
+		$envcheck_echo && warn "SSH_AUTH_SOCK in $1 is invalid; ignoring it"
+		unset SSH_AUTH_SOCK && return 1
 	fi
 
-	# Throw away the PID with a warning if it's invalid:
+	# Throw away the PID with a devug warning if it's invalid:
 
-		if [ -n "$SSH_AGENT_PID" ] && ! kill -0 "$SSH_AGENT_PID" >/dev/null 2>&1; then
-		$envcheck_echo && warn "SSH_AGENT_PID in environment is invalid; ignoring it"
-		unset SSH_AGENT_PID
+	if [ -n "$SSH_AGENT_PID" ] && ! kill -0 "$SSH_AGENT_PID" >/dev/null 2>&1; then
+		unset SSH_AGENT_PID && debug "SSH_AGENT_PID in $1 is invalid; ignoring it"
 	fi
 
-	# Now, evaluate PID alongside sockets:
+	# Now, find potential agents:
 
 	if [ -z "$SSH_AGENT_PID" ]; then
+
+		# There are some cases where we can accept a socket without an associated SSH_AGENT_PID:
+
 		if gpg_socket="$( echo "GETINFO ssh_socket_name" | gpg-connect-agent --no-autostart 2>/dev/null | head -n1 | sed -n 's/^D //;1p' )"; then
 			if [ "$gpg_socket" = "$SSH_AUTH_SOCK" ]; then
 				if $ssh_allow_gpg; then
-					mesg "Using existing ssh-agent: ${CYANN}$gpg_socket${OFF} (GnuPG)"
-					return 0
+					mesg "Using ssh-agent ($1): ${CYANN}$gpg_socket${OFF} (GnuPG)" && return 0
 				else
-					unset SSH_AUTH_SOCK
+					unset SSH_AUTH_SOCK && debug "Ignoring SSH_AUTH_SOCK -- this is the GnuPG-supplied socket" && return 1
 				fi
 			fi
 		fi
+
 		if $ssh_allow_forwarded; then
 			SSH_AGENT_PID="forwarded"
-			mesg "Using ${GREEN}forwarded${OFF} ssh-agent: ${GREEN}$SSH_AUTH_SOCK${OFF}"
+			mesg "Using ${GREEN}forwarded${OFF} ssh-agent: ${GREEN}$SSH_AUTH_SOCK${OFF}" && return 0
 		else
-			unset SSH_AUTH_SOCK
+			unset SSH_AUTH_SOCK && debug "Ignoring SSH_AUTH_SOCK -- this is a forwarded socket" && return 1
 		fi
 	else
-		
-		# If SSH_AGENT_PID is set and we find the process ID, we accept the socket as-is:
-		
-		found_pid=false
-		for pid in $(findpids ssh); do
-			if [ "$pid" = "$SSH_AGENT_PID" ]; then
-				found_pid=true && mesg "Using existing ssh-agent: ${CYANN}$SSH_AGENT_PID${OFF}"
-			fi
-		done
-		$found_pid || unset SSH_AUTH_SOCK SSH_AGENT_PID
+
+		# We have valid SSH_AGENT_PID, so we accept the socket too:
+		mesg "Existing ssh-agent ($1): ${CYANN}$SSH_AGENT_PID${OFF}" && return 0
 	fi
-	[ -n "$SSH_AUTH_SOCK" ] && return 0 # Found an agent socket, and potentially its pid.
-	return 1 # No valid agent found.
 }
 
 # synopsis: startagent_ssh
@@ -403,7 +394,7 @@ ssh_envcheck() {
 startagent_ssh() {
 	if $quickopt; then
 		# shellcheck disable=SC2030 # This is fine as sshavail will be called again if needed:
-		if ( unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)" && ssh_envcheck quiet ) && ( sshavail=$(ssh_l) || { [ $? = 1 ] && [ -z "$mykeys" ]; }; ); then
+		if ( unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)" && ssh_envcheck pidfile quiet ) && ( sshavail=$(ssh_l) || { [ $? = 1 ] && [ -z "$mykeys" ]; }; ); then
 			mesg "Found existing ssh-agent (quick)"
 			return 0
 		else
@@ -412,27 +403,27 @@ startagent_ssh() {
 	fi
 	takelock || die
 	# See if our pidfile is valid without wiping env:
-	if ( unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)" && ssh_envcheck quiet ); then
+	if ( unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)" && ssh_envcheck pidfile quiet ); then
 		# Our pidfile is valid! :) We can simply use it:
 		unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)"
-	else
-		if ssh_envcheck; then
-			# If our env is OK, then let's grab it for our pidfile, as long as we don't have a forwarded ssh connection:
-			if [ "$SSH_AGENT_PID" != forwarded ]; then
-				pidfile_out="SSH_AUTH_SOCK=\"$SSH_AUTH_SOCK\"; export SSH_AUTH_SOCK"
-				[ -n "$SSH_AGENT_PID" ] && pidfile_out="$pidfile_out
+	elif $allow_inherited && ssh_envcheck env; then
+		# If our env is OK, then let's grab it for our pidfile, as long as we don't have a forwarded ssh connection:
+		if [ "$SSH_AGENT_PID" != forwarded ]; then
+			pidfile_out="SSH_AUTH_SOCK=\"$SSH_AUTH_SOCK\"; export SSH_AUTH_SOCK"
+			if [ -n "$SSH_AGENT_PID" ]; then
+				pidfile_out="$pidfile_out
 SSH_AGENT_PID=$SSH_AGENT_PID; export SSH_AGENT_PID"
 			fi
-		else  # spawn, we must...
-			if $ssh_spawn_gpg; then
-				startagent_gpg ssh # this function will set pidfile_out itself
-				return $?
-			else
-				mesg "Starting ssh-agent..."
-				# shellcheck disable=SC2086 # We purposely don't want to double-quote the args to ssh-agent so they disappear if not used:
-				pidfile_out="$(ssh-agent ${ssh_timeout} ${ssh_agent_socket})"
-				return $?
-			fi
+		fi
+	else  # spawn, we must...
+		if $ssh_spawn_gpg; then
+			startagent_gpg ssh # this function will set pidfile_out itself
+			return $?
+		else
+			mesg "Starting ssh-agent..."
+			# shellcheck disable=SC2086 # We purposely don't want to double-quote the args to ssh-agent so they disappear if not used:
+			pidfile_out="$(ssh-agent ${ssh_timeout} ${ssh_agent_socket})"
+			return $?
 		fi
 	fi
 }
@@ -767,7 +758,7 @@ while [ -n "$1" ]; do
 		--noask) noaskopt=true ;;
 		--nocolor) color=false ;;
 		--nogui) noguiopt=true ;;
-		--noinherit) noinheritopt=true ;;
+		--noinherit) allow_inherited=false ;;
 		--nolock) nolockopt=true ;;
 		--query) queryopt=true; quietopt=true ;;
 		--quiet|-q) quietopt=true ;;
@@ -879,15 +870,6 @@ while [ -n "$1" ]; do
 	shift
 done
 
-# Set filenames *after* parsing command-line options to allow
-# modification of $keydir and/or $hostopt
-#
-# pidf holds the specific name of the keychain .ssh-agent-myhostname file.
-# We use the new hostname extension for NFS compatibility. cshpidf is the
-# .ssh-agent file with csh-compatible syntax. fishpidf is the .ssh-agent
-# file with fish-compatible syntax. lockf is the lockfile, used
-# to serialize the execution of multiple ssh-agent processes started
-# simultaneously
 if [ -z "$hostopt" ]; then
 	if [ -z "$HOSTNAME" ]; then
 		hostopt=$(uname -n 2>/dev/null || echo unknown)
@@ -901,8 +883,7 @@ cshpidf="${keydir}/${hostopt}-csh"
 fishpidf="${keydir}/${hostopt}-fish"
 lockf="${keydir}/${hostopt}-lockf"
 
-# Read the env snippet (especially for things like PATH, but could modify
-# basically anything)
+# Read the env snippet (especially for things like PATH, but could modify basically anything)
 if [ -z "$envf" ]; then
 	envf="${keydir}/${hostopt}-env"
 	[ -f "$envf" ] || envf="${keydir}/env"
@@ -925,10 +906,9 @@ $color || unset BLUE CYAN CYANN GREEN PURP OFF RED
 [ "$myaction" = list ] && eval "$(catpidf sh)" && exec ssh-add -l
 [ "$myaction" = list-fp ] && eval "$(catpidf sh)" && exec ssh-add -L
 
-#if ! $evalopt; then
-	qprint #initial newline
-	mesg "${PURP}keychain ${OFF}${CYANN}${version}${OFF} ~ ${GREEN}http://www.funtoo.org/Funtoo:Keychain${OFF}"
-#fi
+qprint #initial newline
+mesg "${PURP}keychain ${OFF}${CYANN}${version}${OFF} ~ ${GREEN}http://www.funtoo.org/Funtoo:Keychain${OFF}"
+
 [ "$myaction" = version ] && { versinfo; exit 0; }
 [ "$myaction" = help ] && { versinfo; helpinfo; exit 0; }
 
