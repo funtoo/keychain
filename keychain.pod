@@ -559,6 +559,14 @@ This is equivalent for C shell (including tcsh):
 	    source $HOME/.keychain/$host-csh
     endif
 
+Likewise, the following commands can be used in fish:
+
+    keychain id_rsa id_dsa 0123ABCD
+    test -z "$hostname"; and set hostname (uname -n)
+    if test -f "$HOME/.keychain/$hostname-fish"
+        source $HOME/.keychain/$hostname-fish
+    end
+
 To load keychain variables from a script (for example from cron) and
 abort unless id_dsa is available:
 
