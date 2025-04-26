@@ -668,7 +668,7 @@ cat_ssh_config_keys() {
 		if $confallhosts; then
 			while IFS= read -r line; do
 			case $line in
-				*IdentityFile*)
+				*[Ii][Dd][Ee][Nn][Tt][Ii][Tt][Yy][Ff][Ii][Ll][Ee]*)
 				echo "$line" | awk '{print $2}'
 			esac
 			done < ~/.ssh/config
@@ -717,10 +717,10 @@ confpath() {
 	while IFS= read -r line; do
 		# get the Host directives
 		case $line in
-			*"Host "*) h=$(echo "$line" | awk '{print $2}') ;;
+			*[Hh][Oo][Ss][Tt]" "*) h=$(echo "$line" | awk '{print $2}') ;;
 		esac
 		case $line in
-			*IdentityFile*)
+			*[Ii][Dd][Ee][Nn][Tt][Ii][Tt][Yy][Ff][Ii][Ll][Ee]*)
 			if [ "$h" = "$1" ]; then
 				echo "$line" | awk '{print $2}'
 				break
