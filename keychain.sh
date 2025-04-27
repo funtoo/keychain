@@ -1095,7 +1095,12 @@ if wantagent gpg; then
 		set +f			# re-enable globbing
 
 		for k in "$@"; do
-			echo | env LC_ALL="$pinentry_lc_all" "${gpg_prog_name}" --no-options --use-agent --no-tty --sign --local-user "$k" -o- >/dev/null 2>&1 || tryagain=true
+			gpgout="$(echo | env LC_ALL="$pinentry_lc_all" "${gpg_prog_name}" --no-options --use-agent --no-tty --sign --local-user "$k" -o- 2>&1)"
+			ret=$?
+			if [ "$ret" -ne 0 ]; then
+				tryagain=true
+				warn "Error adding gpg key (error code: $ret; output: $gpgout)"
+			fi 
 		done
 		$tryagain || break
 
