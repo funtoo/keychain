@@ -1052,9 +1052,9 @@ if wantagent ssh; then
 			break
 		fi
 		if [ "$sshattempts" = 1 ]; then
-			die "Problem adding; giving up (error code: $ret)"
+			die "Problem adding; giving up (error code: $ret; output: $sshout)"
 		else
-			warn "Problem adding; trying again (error code: $ret)"
+			warn "Problem adding; trying again (error code: $ret; output: $sshout)"
 		fi
 
 		# Update the list of missing keys
