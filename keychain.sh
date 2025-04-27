@@ -681,21 +681,15 @@ cat_ssh_config_keys() {
 parse_mykeys() {
 	while IFS= read -r pm_k; do
 		[ -z "$pm_k" ] && continue
-		if wantagent ssh; then
-			if [ -f "$pm_k" ]; then
-				[ "$1" = ssh ] && echo "$pm_k" ; continue
-			elif [ -f "$HOME/.ssh/$pm_k" ]; then
-				[ "$1" = ssh ] && echo "$HOME/.ssh/$pm_k" ; continue
-			fi
+		if [ -f "$pm_k" ]; then
+			echo "sshk:$pm_k"
+		elif [ -f "$HOME/.ssh/$pm_k" ]; then
+			echo "sshk:$HOME/.ssh/$pm_k"
+		elif [ "$1" != "ssh" ] && "${gpg_prog_name}" --list-secret-keys "$pm_k" >/dev/null 2>&1; then
+			echo "gpgk:$pm_k"
+		else
+			echo "miss:$pm_k"
 		fi
-		# Check for gpg
-		if wantagent gpg; then
-			 if "${gpg_prog_name}" --list-secret-keys "$pm_k" >/dev/null 2>&1; then
-				[ "$1" = gpg ] && echo "$pm_k" ; continue
-			fi
-		fi
-		$ignoreopt || warn "can't find $pm_k; skipping"
-		continue
 	done
 }
 
@@ -942,14 +936,17 @@ if [ -n "$timeout" ]; then
 fi
 
 # Get keys from SSH configuration files if --confhost/--confallhost are specified, as well as command-line:
-sshkeys="$(cat_ssh_config_keys | parse_mykeys ssh)$(echo "$mykeys" | parse_mykeys ssh)"
-gpgkeys="$(echo "$mykeys" | parse_mykeys gpg)"
-# These keys will be processed further by ssh_listmissing and gpg_listmissing...
+all_keys="$(cat_ssh_config_keys | parse_mykeys ssh)$(echo "$mykeys" | parse_mykeys)"
+if ! $ignoreopt; then
+	for key in $(echo "$all_keys" | grep ^miss:); do
+		warn "Can't find key \"${GREEN}$( echo "$key" | cut -c6- )${OFF}\""
+	done
+fi
+sshkeys="$(echo "$all_keys" | sed -n '/^sshk:/s/sshk://p' )"
+gpgkeys="$(echo "$all_keys" | sed -n '/^gpgk:/s/gpgk://p' )"
 
-# Each section of this conditional should handle arguments that are orthogonal to actually
-# starting new agents, which is done in the last "else" section. For example, --query prints
-# agent variables, but doesn't start new agents.
 if $queryopt; then
+	# --query displays current settings, but does not start an agent:
 	catpidf_shell sh | cut -d\; -f1 && exit 0
 else
 	if ! wantagent ssh && ! wantagent gpg; then
