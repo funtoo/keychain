@@ -1,6 +1,16 @@
 # ChangeLog for Keychain
 http://www.funtoo.org/Funtoo:Keychain
 
+## keychain 2.9.0_beta4 (26 Apr 2025)
+
+* Rewrite key parsing code to remove unwanted use of `wantagent gpg` in the code. This may fix previous
+  bugs related to identifying and loading GPG keys.
+* Fix GitHub Issue [#61](https://github.com/funtoo/keychain/issues/61) by ensuring that any error messages
+  generated when adding SSH or GPG keys are printed as warnings to facilitate troubleshooting by users.
+* Manually merge in fish shell examples into `keychain.pod`.
+* Resolve GitHub Issue [#75](https://github.com/funtoo/keychain/issues/75) and ensure that "IdentityFile"
+  allows case variations.
+
 ## keychain 2.9.0_beta3 (25 Apr 2025)
 
 * The previous beta of keychain attempted to use gpg-agent by default instead of ssh-agent. This behavior has been
