@@ -53,7 +53,6 @@ unset mykeys
 keydir="${HOME}/.keychain"
 unset envf
 evalopt=false
-queryopt=false
 confirmopt=false
 absoluteopt=false
 systemdopt=false
