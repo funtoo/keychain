@@ -729,6 +729,24 @@ wantagent() {
 	return 1
 }
 
+gpg_zap() {
+	out="$( echo RELOADAGENT | gpg-connect-agent --no-autostart 2>/dev/null )"
+	if [ "$out" = "OK" ]; then
+		mesg "gpg-agent: All identities removed."
+	else
+		mesg "gpg-agent: Could not remove identities ($out)"
+	fi
+}
+
+ssh_zap() {
+	if sshout=$(ssh-add -D 2>&1); then
+		mesg "ssh-agent: $sshout"
+	else
+		warn "ssh-agent: $sshout"
+	fi
+
+}
+
 #
 # MAIN PROGRAM
 #
@@ -743,6 +761,7 @@ while [ -n "$1" ]; do
 		--debug|-D) debugopt=true ;;
 		--eval) evalopt=true ;;
 		--gpg2) gpg_prog_name="gpg2" ;;
+		--gpg-zap) setaction gpg_zap ;;
 		--help|-h) setaction help ;;
 		--host) shift; hostopt="$1" ;;
 		--ignore-missing) ignoreopt=true ;;
@@ -754,12 +773,14 @@ while [ -n "$1" ]; do
 		--nogui) noguiopt=true ;;
 		--noinherit) allow_inherited=false ;;
 		--nolock) nolockopt=true ;;
-		--query) queryopt=true; quietopt=true ;;
+		--query) setaction query; quietopt=true ;;
 		--quiet|-q) quietopt=true ;;
 		--ssh-allow-gpg) ssh_allow_gpg=true ;;
 		--ssh-spawn-gpg) ssh_spawn_gpg=true; ssh_allow_gpg=true ;;
 		--ssh-agent-socket) shift; ssh_agent_socket="-a $1" ;;
 		--ssh-allow-forwarded) ssh_allow_forwarded=true ;;
+		--ssh-rm|-r) setaction ssh_rm ;;
+		--ssh-zap) setaction ssh_zap ;;
 		--systemd) systemdopt=true ;;
 		--version|-V) setaction version ;;
 		--attempts)
@@ -945,9 +966,25 @@ fi
 sshkeys="$(echo "$all_keys" | sed -n '/^sshk:/s/sshk://p' )"
 gpgkeys="$(echo "$all_keys" | sed -n '/^gpgk:/s/gpgk://p' )"
 
-if $queryopt; then
+if [ "$myaction" = gpg_zap ]; then
+	gpg_zap; qprint; exit 0
+elif [ "$myaction" = ssh_zap ]; then
+	ssh_zap; qprint; exit 0
+elif [ "$myaction" = query ]; then
 	# --query displays current settings, but does not start an agent:
 	catpidf_shell sh | cut -d\; -f1 && exit 0
+elif [ "$myaction" = ssh_rm ]; then
+	if [ -n "$sshkeys" ]; then
+		die "No ssh keys specified to remove."
+	fi
+	for key in $sshkeys; do
+		if sshout=$(ssh-add -d "$key" 2>&1); then
+			mesg "ssh-agent key $key removed."
+		else
+			die "keychain was unable to remove ssh-agent key $key. output: $sshout"
+		fi
+	done
+	qprint; exit 0
 else
 	if ! wantagent ssh && ! wantagent gpg; then
 		die "No keys specified. Nothing to do."
@@ -965,19 +1002,10 @@ else
 	fi
 	if $clearopt; then
 		if wantagent ssh; then
-			if sshout=$(ssh-add -D 2>&1); then
-				mesg "ssh-agent: $sshout"
-			else
-				warn "ssh-agent: $sshout"
-			fi
+			ssh_zap
 		fi
 		if wantagent gpg; then
-			out="$( echo RELOADAGENT | gpg-connect-agent --no-autostart 2>/dev/null )"
-			if [ "$out" = "OK" ]; then
-				mesg "gpg-agent: All identities removed."
-			else
-				mesg "gpg-agent: Could not remove identities ($out)"
-			fi
+			gpg_zap
 		fi
 		trap 'droplock' 2 # done clearing, safe to ctrl-c
 	fi

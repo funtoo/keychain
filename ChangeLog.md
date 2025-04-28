@@ -1,6 +1,9 @@
 # ChangeLog for Keychain
 http://www.funtoo.org/Funtoo:Keychain
 
+* Add `--ssh-rm`, `--ssh-zap`, `--gpg-zap` options for removing/wiping SSH and GPG keys. This addresses
+  GitHub Issue [#153](https://github.com/funtoo/keychain/issues/153).
+
 ## keychain 2.9.0_beta4 (26 Apr 2025)
 
 * Rewrite key parsing code to remove unwanted use of `wantagent gpg` in the code. This may fix previous
