@@ -465,15 +465,17 @@ be available outside of the currently-active SSH session.
 
 =item B<--ssh-allow-gpg>
 
-Would you like to have keychain use an existing gpg-agent rather than
-spawning a new ssh-agent, if one is already running in your environment? This option
-allows you to do so. When this option is specified, keychain will
+Would you like to have keychain use an already-running gpg-agent to
+store your SSH keys, rather than spawning a new ssh-agent? This option
+does just that. When this option is specified, keychain will
 accept an SSH_AUTH_SOCK environment variable in its environment, even
-if it was created by gpg-agent. By default, keychain has a special
-check to filter out any ssh-agent sockets provided by gpg-agent, and
-will refuse to use them. With this option enabled, this restriction is
-turned off. Please note that keychain will not actually I<spawn> a 
-gpg-agent for storing SSH keys if none are available -- if you want that, 
+if it was created by gpg-agent. Modern versions of gpg-agent are also
+able to store SSH keys. By default, keychain has a special
+check to avoid using a gpg-agent that has set the SSH_AUTH_SOCK
+environment variable, and will instead spawn its own ssh-agent. With
+this option enabled, this restriction is turned off. 
+Please note that this option does not actually instruct keychain to I<spawn> a 
+gpg-agent for storing SSH keys if no agent is available -- if you want that, 
 see the B<--ssh-spawn-gpg> option, below.
 
 ALSO NOTE: When a gpg-agent is adopted for ssh-agent duties in this way, the 
