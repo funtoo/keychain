@@ -740,7 +740,6 @@ while [ -n "$1" ]; do
 	case "$1" in
 		--absolute) absoluteopt=true ;;
 		--agents) warn "--agents is deprecated, ignoring." ;;
-		--agent-socket) shift; ssh_agent_socket="-a $1" ;;
 		--confirm) confirmopt=true ;;
 		--debug|-D) debugopt=true ;;
 		--eval) evalopt=true ;;

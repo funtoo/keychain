@@ -1,8 +1,33 @@
 # ChangeLog for Keychain
 http://www.funtoo.org/Funtoo:Keychain
 
+## keychain 2.9.0 (30 Apr 2025)
+
+These release notes contain a summary of all changes, including cumulative
+changes in pre-releases:
+
+* A new release after 8 years, with Daniel Robbins (script creator) returning as maintainer.
+* 60% of the script has been rewritten, and is now compliant with 
+[ShellCheck](https://shellcheck.net).
+* `--agents` and `--inherit` options have been deprecated to improve ease-of-use.
+* `gpg-agent` no longer started by default -- only when a GPG key has been provided on the
+  command-line. GnuPG 2.1+ supported.
+* GnuPG pidfiles with `-gpg` extension are deprecated and no longer used.
+* Better GnuPG integration: `gpg-agent` can be used for SSH key storage. This can be enabled
+  by specifying one of the new `--ssh-allow-gpg` and `--ssh-spawn-gpg` options. Agent information
+  for `gpg-agent`'s SSH socket will be stored in the regular pidfile for compatibility.
 * Add `--ssh-rm`, `--ssh-wipe`, `--gpg-wipe` options for removing/wiping SSH and GPG keys. This addresses
   GitHub Issue [#153](https://github.com/funtoo/keychain/issues/153).
+* `--clear` option is now designed to be used for "initial clearing" of keys only.
+* Many user interface output improvements, to provide additional detail.
+* `--debug` option which can be used to troubleshoot issues with keychain.
+* Manual page significantly improved: New section on invocation, as well as documentation of
+  the startup and agent detection algorithm.
+* Addition of `--ssh-agent-socket` option to manually specify desired path of the ssh-agent socket
+  when starting.
+* Addition of `--confallhosts` to load identity files for all hosts.
+* Various bug fixes and improvements.
+* Script size reduced from 1500 to 1133 lines.
 
 ## keychain 2.9.0_beta4 (26 Apr 2025)
 
