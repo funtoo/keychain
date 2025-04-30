@@ -14,14 +14,7 @@ versinfo() {
 }
 
 version=##VERSION##
-
-if [ "$PATH" ]
-then
-	PATH=$PATH:/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb
-else
-	PATH=/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb
-fi
-
+PATH="${PATH}${PATH:+:}/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb"
 unset pidfile_out
 unset myaction
 havelock=false
@@ -64,7 +57,6 @@ ssh_allow_forwarded=false
 ssh_allow_gpg=false
 ssh_spawn_gpg=false
 debugopt=false
-
 BLUE="[34;01m"
 CYAN="[36;01m"
 CYANN="[36m"
