@@ -269,7 +269,7 @@ findpids() {
 stop_ssh_agents() {
 	mesg "Stopping ssh-agent(s)..."
 	takelock || die
-	[ "$stopwhich" != all ] && eval "$(catpidf sh)" # get SSH_AGENT_PID if defined
+	[ "$stopwhich" != all ] && eval "$(catpidf_shell sh)" # get SSH_AGENT_PID if defined
 	ssh_pids=$(findpids ssh) || die
 	if [ -z "$ssh_pids" ]; then
 		mesg "No ssh-agent(s) found running"
@@ -311,12 +311,6 @@ catpidf_shell() {
 	shift
 	[ ! -f "$cp_pidf" ] && return 1
 	[ -f "$cp_pidf" ] && cat "${cp_pidf}" && echo && return 0
-}
-
-# synopsis: catpidf agents...
-# cat the ssh pidfile for the current shell
-catpidf() {
-	catpidf_shell "$SHELL"
 }
 
 startagent_gpg() {
@@ -728,7 +722,7 @@ wantagent() {
 	return 1
 }
 
-gpg_zap() {
+gpg_wipe() {
 	out="$( echo RELOADAGENT | gpg-connect-agent --no-autostart 2>/dev/null )"
 	if [ "$out" = "OK" ]; then
 		mesg "gpg-agent: All identities removed."
@@ -737,7 +731,7 @@ gpg_zap() {
 	fi
 }
 
-ssh_zap() {
+ssh_wipe() {
 	if sshout=$(ssh-add -D 2>&1); then
 		mesg "ssh-agent: $sshout"
 	else
@@ -750,7 +744,6 @@ ssh_zap() {
 # MAIN PROGRAM
 #
 
-# parse the command-line
 while [ -n "$1" ]; do
 	case "$1" in
 		--absolute) absoluteopt=true ;;
@@ -760,7 +753,7 @@ while [ -n "$1" ]; do
 		--debug|-D) debugopt=true ;;
 		--eval) evalopt=true ;;
 		--gpg2) gpg_prog_name="gpg2" ;;
-		--gpg-zap) setaction gpg_zap ;;
+		--gpg-wipe) setaction gpg_wipe ;;
 		--help|-h) setaction help ;;
 		--host) shift; hostopt="$1" ;;
 		--ignore-missing) ignoreopt=true ;;
@@ -779,7 +772,7 @@ while [ -n "$1" ]; do
 		--ssh-agent-socket) shift; ssh_agent_socket="-a $1" ;;
 		--ssh-allow-forwarded) ssh_allow_forwarded=true ;;
 		--ssh-rm|-r) setaction ssh_rm ;;
-		--ssh-zap) setaction ssh_zap ;;
+		--ssh-wipe) setaction ssh_wipe ;;
 		--systemd) systemdopt=true ;;
 		--version|-V) setaction version ;;
 		--attempts)
@@ -917,8 +910,9 @@ fi
 
 $color || unset BLUE CYAN CYANN GREEN PURP OFF RED
 
-[ "$myaction" = list ] && eval "$(catpidf sh)" && exec ssh-add -l
-[ "$myaction" = list-fp ] && eval "$(catpidf sh)" && exec ssh-add -L
+# TODO: we can't assume pidfile has been created yet? Or not a big deal?
+[ "$myaction" = list ] && eval "$(catpidf_shell sh)" && exec ssh-add -l
+[ "$myaction" = list-fp ] && eval "$(catpidf_shell sh)" && exec ssh-add -L
 
 qprint #initial newline
 mesg "${PURP}keychain ${OFF}${CYANN}${version}${OFF} ~ ${GREEN}http://www.funtoo.org/Funtoo:Keychain${OFF}"
@@ -965,10 +959,10 @@ fi
 sshkeys="$(echo "$all_keys" | sed -n '/^sshk:/s/sshk://p' )"
 gpgkeys="$(echo "$all_keys" | sed -n '/^gpgk:/s/gpgk://p' )"
 
-if [ "$myaction" = gpg_zap ]; then
-	gpg_zap; qprint; exit 0
-elif [ "$myaction" = ssh_zap ]; then
-	ssh_zap; qprint; exit 0
+if [ "$myaction" = gpg_wipe ]; then
+	gpg_wipe; qprint; exit 0
+elif [ "$myaction" = ssh_wipe ]; then
+	ssh_wipe; qprint; exit 0
 elif [ "$myaction" = query ]; then
 	# --query displays current settings, but does not start an agent:
 	catpidf_shell sh | cut -d\; -f1 && exit 0
@@ -1001,10 +995,10 @@ else
 	fi
 	if $clearopt; then
 		if wantagent ssh; then
-			ssh_zap
+			ssh_wipe
 		fi
 		if wantagent gpg; then
-			gpg_zap
+			gpg_wipe
 		fi
 		trap 'droplock' 2 # done clearing, safe to ctrl-c
 	fi

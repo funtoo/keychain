@@ -11,20 +11,28 @@ S<[ --ssh-agent-socket I<path> ] [ --attempts I<num> ]>
 S<[ --dir I<dirname> ] [ --host I<name> ] [ --lockwait I<seconds> ]>
 S<[ --stop I<which> ] [ --timeout I<minutes> ] [ keys... ]>
 
-=head1 DESCRIPTION
+=head1 INTRODUCTION
 
-Keychain is a manager for ssh-agent and is typically run from ~/.bash_profile.
-It allows your shells and cron jobs to easily share a single ssh-agent process,
-and ensure any necessary private keys are loaded and available for use. By
-default, the ssh-agent started by keychain is long-running and will continue to
-run, even after you have logged out from the system.
+B<Keychain> helps you to manage SSH and GPG keys in a convenient and secure
+manner. It acts as a frontend to C<ssh-agent> and C<ssh-add>, but allows you
+to easily have one long running C<ssh-agent> process per system, rather than
+the norm of one C<ssh-agent> per login session. 
+
+This dramatically reduces the number of times you need to enter your
+passphrase. With C<keychain>, you only need to enter a passphrase once every
+time your local machine is rebooted. Keychain also makes it easy for remote
+cron jobs to securely "hook in" to a long running C<ssh-agent> process,
+allowing your scripts to take advantage of key-based logins.
 
 Keychain also supports GnuPG 2.1 and later, and will automatically start
 gpg-agent if any GPG keys are referenced on the command-line, and will ensure
 these credentials are cached in memory and available for use.
 
-Keychain supports most UNIX-like operating systems.
-It works with Bourne-compatible, csh-compatible and fish shells.
+Keychain supports most UNIX-like operating systems. It supports integration
+with Bourne-compatible, csh-compatible and fish shells.
+
+Additional documentation for Keychain can be found on 
+L<the Keychain wiki page/https://www.funtoo.org/Funtoo:Keychain>.
 
 =head1 LIFECYCLE
 
@@ -52,18 +60,19 @@ even when you are logged out. These files are collectively called B<pidfiles>.
 
 The key files specified on the command-line will be searched for in the
 C<~/.ssh/> directory, and keychain will expect to find the private key file
-with the same name, as well as a C<.pub> public key.
+with the same name, as well as a C<.pub> public key. Keychain will also 
+see if any GPG keys are specified, and if so, prompt for any passphrases
+to cache these keys into C<gpg-agent>.
 
-Typically, private key files are specified by filename only, without path, 
+Typically, private SSH key files are specified by filename only, without path, 
 although it is possible to specify an absolute or relative
 path to the private key file as well. Private key files can be symlinks
 to the actual key as long as your system has the C<readlink> command available.
 More advanced features are available for specifying keys as well -- see the
  B<--confhost> and B<--confallhosts> options for more information.
 
-In addition, if a GPG key is specified and found in C<~/.gnupg>, a gpg-agent
-will be started, and similar steps will be taken to ensure that gpg-agent
-has the GPG key loaded and ready for use.
+In addition, for GPG keys specified, similar steps will be taken to ensure 
+that gpg-agent has the GPG key cached in memory and ready for use.
 
 =head1 STREAMLINING AND SIMPLIFICATION
 
@@ -82,7 +91,8 @@ When using gpg-agent for GPG keys, keychain will no longer create a
 C<~/.keychain/${HOSTNAME}-sh-gpg> pidfile. This file is no longer needed
 as the canonical GPG socket inside C<~/.gnupg/> will be used to detect the
 running gpg-agent, which is the modern convention. GnuPG 2.1 and later 
-have stopped using environment variables to find the agent. 
+have stopped using environment variables to find the agent, so we follow
+this upstream change.
 
 =head2 IMPROVED DEBUGGING
 
@@ -90,40 +100,49 @@ A new B<--debug> option is now available which will print additional information
 related to keychain's decisions regarding why and how an agent was found -- or
 not.
 
-=head2 DISPLAY CHANGES
+=head2 NEW (AND DEPRECATED) OPTIONS
 
-When keychain uses gpg-agent for either GnuPG or SSH support, then keychain will display
-the GnuPG socket file in its output, rather than the PID. Since the socket
-file has the C<~/.gnupg> path in it, this communicates to you that gpg-agent,
-not ssh-agent, is active. If you see an integer PID, this means that ssh-agent
-is being used.
+This section provides an overview of new and deprecated command-line options.
+For full details on each option, see the respective option definition under
+L</OPTIONS>.
 
-=head2 SIMPLIFIED OPTIONS
-
-The "--agents" option is now deprecated. Keychain will always ensure an
-ssh-agent is running, or if "--ssh-spawn-gpg" is used, potentially a
-gpg-agent if no valid ssh-agent is available.
+The C<--agents> option is now deprecated. Keychain will always ensure an
+ssh-agent or equivalent is running, or if C<--ssh-spawn-gpg> is used, 
+potentially a gpg-agent for the purpose of storing SSH keys if no running
+ssh-agent is available. To simply use a gpg-agent if one is already running,
+falling back to launching ssh-agent if no agent is available, use the
+C<--ssh-allow-gpg> option. 
 
 Specifying a GPG key on the command-line will instruct keychain to 
 enable gpg-agent functionality automatically. This eliminates an option 
-that you need to specify when invoking keychain, and likely will avoid
-spawning a daemon you may not be using. Specifying the "--agents" option 
-will now display a warning that it's deprecated, but keychain will not
-abort.
+that you need to specify (C<--agents ssh,gpg>) when invoking keychain, 
+and for many will avoid spawning a GPG agent you may not be using. 
 
-The "--inherit" option, which took one of four arguments, has been 
-deprecated. Keychain's default behavior remains that of "local-once",
-and you can influence keychain's behavior via the still-present 
-"--noinherit" option as well as the "--ssh-allow-forwarded" options, 
-which will allow SSH-forwarded authentication sockets to be used by keychain,
-which are disabled by default. If this option is specified, keychain
-will print a warning but will not abort.
+Specifying the C<--agents> option will now display a warning that it's 
+deprecated, but keychain will not abort.
 
-The "--clear" option is still available, but isn't intended to be a 
+The C<--inherit> option, which took one of four arguments, has been 
+deprecated. Keychain's default behavior remains that of preferring to
+use an ssh-agent or equivalent referenced by its pidfile, falling
+back to finding an ssh-agent in its environment. By default, keychain
+will not use a gpg-agent socket for SSH keys unless at least C<--ssh-allow-gpg>
+is specified. Similarly, the use of any forwarded SSH agent connection
+is disabled by default and can be enabled via C<--ssh-allow-forwarded>.
+Again, see the full documentation for each option in the L</OPTIONS>
+section.
+
+You can still influence keychain's behavior via the still-present 
+C<--noinherit> option which will prevent all detection of existing
+SSH agents via the environment.
+
+The C<--clear> option is still available, but isn't intended to be a 
 "standalone" option, meaning that it is used to perform an initial clearing
 of cached keys before loading any specified keys when Keychain is run.
+To perform the sole action of wiping all cached keys, use the C<--ssh-wipe>
+and C<--gpg-wipe> options. To remove an individual cached SSH private
+key or keys, use the C<--ssh-rm> I<keyfile> option.
 
-The "--stop" option will now only stop any running ssh-agent processes,
+The C<--stop> option will now only stop any running ssh-agent processes,
 and still supports three possible options: "mine", "others" and "all".
 It no longer stops gpg-agent processes, which tend to get auto-respawned
 by GPG tools, so killing gpg-agent typically doesn't make a lot of sense.
@@ -132,7 +151,7 @@ by GPG tools, so killing gpg-agent typically doesn't make a lot of sense.
 
 Keychain can now use an existing gpg-agent that has been started in your
 environment to store ssh keys, rather than spawning its own ssh-agent, by
-usig the "--ssh-allow-gpg" option.
+using the C<--ssh-allow-gpg> option.
 
 If you would like keychain to spawn gpg-agent instead of ssh-agent, and
 use it to store SSH keys, specify the "--ssh-spawn-gpg" option.
@@ -149,6 +168,13 @@ in-memory keys. For this reason, consider
 this new feature experimental, and use GitHub issues to report back any 
 anomalies or suggested improvements for gpg-agent integration.
 
+=head2 DISPLAY CHANGES
+
+When keychain uses gpg-agent for either GnuPG or SSH support, then keychain will display
+the GnuPG socket file in its output, rather than the PID. Since the socket
+file has the C<~/.gnupg> path in it, this communicates to you that gpg-agent,
+not ssh-agent, is active. If you see an integer PID, this means that ssh-agent
+is being used.
 =head2 STREAMLINED STARTUP
 
 By default, keychain will always ensure that an ssh-agent should be started.
@@ -199,7 +225,7 @@ There are several important definition related to the algorithm:
    formatted so that they can be "sourced" by shells of various types.
 
 =item 6. Relevant B<command-line options> affecting behavior, which include B<--noinherit>,
-    B<--ssh-allow-gpg>, B<--ssh-use-gpg>, and B<--ssh-allow-forwarded>.
+    B<--ssh-allow-gpg>, B<--ssh-spawn-gpg>, and B<--ssh-allow-forwarded>.
 
 =back
 
@@ -344,10 +370,10 @@ a non-standard place.
 This option changes the default gpg calls to use gpg2 instead to support
 distributions such as Ubuntu which has both gpg and gpg2
 
-=item B<--gpg-zap>
+=item B<--gpg-wipe>
 
 Only perform the single action of wiping gpg-agent's cache of keys/
-passphrases, and then exiting. Also see B<--ssh-zap>.
+passphrases, and then exiting. Also see B<--ssh-wipe>.
 
 =item B<-h --help>
 
@@ -499,10 +525,10 @@ as this option also implies B<--ssh-allow-gpg>.
 Only perform the single action of removing the specified cached keys from the
 running ssh-agent, and then exit.
 
-=item B<--ssh-zap>
+=item B<--ssh-wipe>
 
 Only perform the single action of wiping B<all> cached keys from the running ssh-agent,
-and exit. Also see B<--ssh-rm>, B<--gpg-zap>.
+and exit. Also see B<--ssh-rm>, B<--gpg-wipe>.
 
 =item B<--systemd>
 
@@ -602,4 +628,4 @@ L<ssh-agent(1)>, L<gpg-agent(1)>, L<ssh-add(1)>, L<ssh(1)>
 Keychain was created and is currently maintained by Daniel Robbins. If you need
 to report a bug or request an enhancement, please report it to the GitHub
 project page at L<https://github.com/funtoo/keychain>.  For more information
-about keychain, please visit L<http://www.funtoo.org/Keychain>.
+about keychain, please visit L<http://www.funtoo.org/FuntoO:Keychain>.
