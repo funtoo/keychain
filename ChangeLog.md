@@ -1,6 +1,18 @@
 # ChangeLog for Keychain
 http://www.funtoo.org/Funtoo:Keychain
 
+## keychain 2.9.1 (1 May 2025)
+
+This release fixes a major bug related to the `--eval` option with non-Bourne shells.
+
+* Fix `--eval` option so it works with non-Bourne shells ([#158](https://github.com/funtoo/keychain/issues/158)).
+* Last-minute option change: replace `--ssh-wipe` and `--gpg-wipe` with `--wipe [ssh|gpg|all]`.
+* Deprecate `--attempts` option which doesn't work with gpg-agent pinentry nor modern OpenSSH.
+* More script rewriting -- default to IFS of newline in the script, totally rework SSH and GPG
+  key adding code.
+* Remove undocumented and likely unused `--` option.
+* Script is now at a svelte 1049 lines of code.
+
 ## keychain 2.9.0 (30 Apr 2025)
 
 These release notes contain a summary of all changes, including cumulative

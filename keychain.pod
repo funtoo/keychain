@@ -4,12 +4,12 @@ keychain - Manager for ssh-agent, gpg-agent and private keys. Compatible with PO
 
 =head1 SYNOPSIS
 
-S<keychain [ -hklQqV ]> [ --clear --confhost --confallhosts --debug --gpg2 
---help --ignore-missing --list --noask --nocolor --nogui --noinherit --nolock --quick
---quiet --ssh-allow-forwarded --ssh-rm --ssh-spawn-gpg --systemd --version
-S<[ --ssh-agent-socket I<path> ] S<[ --dir I<dirname> ] [ --host I<name> ] 
-[ --lockwait I<seconds> ]> S<[ --stop I<which> ] [ --timeout I<minutes> ] 
-S<[ --wipe I<ssh|gpg|all> ] [ keys... ]>
+S<keychain [ -hklQqV ] [ --clear --confhost --confallhosts --debug --gpg2> 
+S<--help --ignore-missing --list --noask --nocolor --nogui --noinherit>
+S<--nolock --quick --quiet --ssh-allow-forwarded --ssh-rm --ssh-spawn-gpg>
+S<--systemd --version ] [ --ssh-agent-socket I<path> ] [ --dir I<dirname> ]>
+S<[ --host I<name> ] [ --lockwait I<seconds> ]> [ --stop I<which> ]>
+S<[ --timeout I<minutes> ] [ --wipe I<which> ] [ keys... ]>
 
 =head1 INTRODUCTION
 
@@ -366,7 +366,7 @@ a non-standard place.
 This option changes the default gpg calls to use gpg2 instead to support
 distributions such as Ubuntu which has both gpg and gpg2
 
-=item B<wipe I<ssh|gpg|all>>
+=item B<--wipe> I<which>
 
 Only perform the single action of wiping all agent's cached keys. Specify
 'ssh', 'gpg' or 'all' for SSH keys, GPG keys and all agents respectively.
