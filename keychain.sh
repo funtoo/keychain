@@ -41,7 +41,6 @@ unset stopwhich
 unset timeout
 unset ssh_agent_socket
 unset ssh_timeout
-attempts=1
 unset sshavail
 unset sshkeys
 unset gpgkeys
@@ -752,14 +751,7 @@ while [ -n "$1" ]; do
 		--ssh-wipe) setaction ssh_wipe ;;
 		--systemd) systemdopt=true ;;
 		--version|-V) setaction version ;;
-		--attempts)
-			shift
-			if [ "$1" -gt 0 ] 2>/dev/null; then
-				attempts=$1
-			else
-				die "--attempts requires a numeric argument greater than zero"
-			fi
-			;;
+		--attempts) warn "--attempts is now deprecated." ;;
 		--clear)
 			clearopt=true
 			$quickopt && die "--quick and --clear are not compatible"
@@ -1023,19 +1015,11 @@ load_ssh_keys() {
 		[ -n "$blurb" ] && blurb=" (${blurb})"
 		mesg "ssh-add: Identities added: $sshkeys${blurb}"
 	else
-		# TODO: FIX
-		warn $ret $sshout
+		warn "ssh-add failed: (return code: $ret; output: $sshout)"
 	fi
 	[ -n "$savedisplay" ] && DISPLAY="$savedisplay"
+	return $ret
 }
-
-# # 		if [ "$sshattempts" = 1 ]; then
-# 			die "Problem adding; giving up (error code: $ret; output: $sshout)"
-# 		else
-# 			warn "Problem adding; trying again (error code: $ret; output: $sshout)"
-# 		fi
-# 		sshkeys="$(echo "$sshkeys" | ssh_listmissing)"
-# 		sshattempts=$(( sshattempts -1 ))
 
 load_gpg_keys() {
 	$noguiopt && unset DISPLAY
@@ -1054,8 +1038,7 @@ load_gpg_keys() {
 }
 
 if wantagent ssh; then
-	# TODO: add attempts
-	load_ssh_keys
+	load_ssh_keys || die "Unable to add keys"
 fi
 
 if wantagent gpg; then

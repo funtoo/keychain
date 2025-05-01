@@ -7,9 +7,8 @@ keychain - Manager for ssh-agent, gpg-agent and private keys. Compatible with PO
 S<keychain [ -hklQqV ]> [ --clear --confhost --confallhosts --debug --gpg2 --gpg-zap
 --help --ignore-missing --list --noask --nocolor --nogui --noinherit --nolock --quick
 --quiet --ssh-allow-forwarded --ssh-rm --ssh-spawn-gpg --ssh-zap --systemd --version
-S<[ --ssh-agent-socket I<path> ] [ --attempts I<num> ]>
-S<[ --dir I<dirname> ] [ --host I<name> ] [ --lockwait I<seconds> ]>
-S<[ --stop I<which> ] [ --timeout I<minutes> ] [ keys... ]>
+S<[ --ssh-agent-socket I<path> ] S<[ --dir I<dirname> ] [ --host I<name> ] 
+[ --lockwait I<seconds> ]> S<[ --stop I<which> ] [ --timeout I<minutes> ] [ keys... ]>
 
 =head1 INTRODUCTION
 
@@ -290,10 +289,6 @@ which can result in unncessary prompting for passphrases, and general confusion.
 =head1 OPTIONS
 
 =over
-
-=item B<--attempts> I<num>
-
-Try num times to add keys before giving up.  The default is 1.
 
 =item B<--clear>
 
