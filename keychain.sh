@@ -979,7 +979,7 @@ else
 fi
 
 if $evalopt; then
-	catpidf_shell sh
+	catpidf_shell "$SHELL"
 fi
 
 if $systemdopt; then
