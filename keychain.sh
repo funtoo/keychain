@@ -13,6 +13,9 @@ versinfo() {
 	qprint
 }
 
+NEWLINE="
+"
+IFS="$NEWLINE"
 version=##VERSION##
 PATH="${PATH}${PATH:+:}/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb"
 unset pidfile_out
@@ -77,7 +80,8 @@ if [ -n "$LANG$LC_ALL" ] || locale 2>/dev/null | grep -E -qv '="?(|POSIX|C)"?$' 
 fi
 
 qprint() {
-	$quietopt || echo "$*" >&2
+	# shellcheck disable=SC2048,SC2086
+	$quietopt || echo $* >&2
 }
 
 mesg() {
@@ -85,15 +89,18 @@ mesg() {
 }
 
 warn() {
-	echo " ${RED}* Warning${OFF}: $*" >&2
+	# shellcheck disable=SC2048,SC2086
+	echo " ${RED}* Warning${OFF}: "$* >&2
 }
 
 debug() {
-	$debugopt && echo "${CYAN}debug> $*${OFF}" >&2
+	# shellcheck disable=SC2048,SC2086
+	$debugopt && echo "${CYAN}debug>" $*"${OFF}" >&2
 }
 
 error() {
-	echo " ${RED}* Error${OFF}: $*" >&2
+	# shellcheck disable=SC2048,SC2086
+	echo " ${RED}* Error${OFF}:" $* >&2
 }
 
 die() {
@@ -379,7 +386,7 @@ ssh_envcheck() {
 startagent_ssh() {
 	if $quickopt; then
 		# shellcheck disable=SC2030 # This is fine as sshavail will be called again if needed:
-		if ( unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)" && ssh_envcheck pidfile quiet ) && ( sshavail=$(ssh_l) || { [ $? = 1 ] && [ -z "$mykeys" ]; }; ); then
+		if ( unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)" && ssh_envcheck pidfile quiet ) && ( ssh_l > /dev/null || { [ $? = 1 ] && [ -z "$mykeys" ]; }; ); then
 			mesg "Found existing ssh-agent (quick)"
 			return 0
 		else
@@ -546,7 +553,7 @@ ssh_f() {
 			fi
 			lsf_filename=$(echo "$sf_filename" | sed 's/\.[^\.]*$//').pub
 			if [ ! -f "$lsf_filename" ]; then
-			    warn "Cannot find separate public key for $1."
+			    warn "Cannot find separate public key for :$1:."
 				lsf_filename="$sf_filename"
 			fi
 		fi
@@ -560,27 +567,15 @@ ssh_f() {
 }
 
 # synopsis: gpg_listmissing
-# Uses $gpgkeys
-# Returns a newline-separated list of keys found to be missing.
+# Accepts piped input from stdin. Returns a newline-separated list of keys found to be missing.
 gpg_listmissing() {
 	unset glm_missing
-
 	GPG_TTY=$(tty)
 
-	# Parse $gpgkeys into positional params to preserve spaces in filenames
-	set -f			# disable globbing
-	glm_IFS="$IFS"	# save current IFS
-	IFS="
-"					# set IFS to newline
-	# shellcheck disable=SC2086
-	set -- $gpgkeys
-	IFS="$glm_IFS"	# restore IFS
-	set +f			# re-enable globbing
-
-	for glm_k in "$@"; do
+	while IFS= read -r glm_k; do
+		[ -z "$glm_k" ] && continue
 		# Check if this key is known to the agent.	Don't know another way...
-		if echo | env -i GPG_TTY="$GPG_TTY" PATH="$PATH" GPG_AGENT_INFO="$GPG_AGENT_INFO" \
-				"${gpg_prog_name}" --no-options --use-agent --no-tty --sign --local-user "$glm_k" -o- >/dev/null 2>&1; then
+		if env -i GPG_TTY="$GPG_TTY" PATH="$PATH" GPG_AGENT_INFO="$GPG_AGENT_INFO" "${gpg_prog_name}" --no-autostart --no-options --use-agent --no-tty --sign --local-user "$glm_k" -o- >/dev/null 2>&1 </dev/null; then
 			# already know about this key
 			mesg "Known gpg key: ${CYANN}${glm_k}${OFF}"
 			continue
@@ -594,27 +589,19 @@ $glm_k"
 			fi
 		fi
 	done
-
 	echo "$glm_missing"
 }
 
 # synopsis: ssh_listmissing
-# Uses $sshkeys and $sshavail
-# Returns a newline-separated list of keys found to be missing.
+# Reads stdin for newline-separated list of keyfiles. Returns a newline-separated list of keys found to be missing.
 ssh_listmissing() {
 	unset slm_missing
-
-	# Parse $sshkeys into positional params to preserve spaces in filenames
-	set -f			# disable globbing
-	slm_IFS="$IFS"	# save current IFS
-	IFS="
-"					# set IFS to newline
-	# shellcheck disable=SC2086
-	set -- $sshkeys
-	IFS="$slm_IFS"	# restore IFS
-	set +f			# re-enable globbing
-
-	for slm_k in "$@"; do
+	# Update the list of missing keys
+	sshavail=$(ssh_l)
+	# || die "problem running ssh-add -l"
+	
+	while IFS= read -r slm_k; do
+		[ -z "$slm_k" ] && continue
 		# Fingerprint current user-specified key
 		if ! slm_finger=$(ssh_f "$slm_k"); then
 			warn "Unable to extract fingerprint from keyfile ${slm_k}.pub, skipping"
@@ -644,7 +631,6 @@ $slm_k"
 				;;
 		esac
 	done
-
 	echo "$slm_missing"
 }
 
@@ -664,7 +650,7 @@ cat_ssh_config_keys() {
 }
 
 parse_mykeys() {
-	while IFS= read -r pm_k; do
+	while read -r pm_k; do
 		[ -z "$pm_k" ] && continue
 		if [ -f "$pm_k" ]; then
 			echo "sshk:$pm_k"
@@ -847,8 +833,8 @@ while [ -n "$1" ]; do
 			;;
 		--)
 			shift
-			IFS="
-"
+			# TODO: fix
+			IFS=$TAB
 			mykeys=${mykeys+"$mykeys
 "}"$*"
 			unset IFS
@@ -861,13 +847,11 @@ while [ -n "$1" ]; do
 			exit 1
 			;;
 		*)
-			mykeys=${mykeys+"$mykeys
-"}"$1"
+			mykeys="$1${NEWLINE}${mykeys}"
 			;;
 	esac
 	shift
 done
-
 if [ -z "$hostopt" ]; then
 	if [ -z "$HOSTNAME" ]; then
 		hostopt=$(uname -n 2>/dev/null || echo unknown)
@@ -944,12 +928,11 @@ fi
 all_keys="$(cat_ssh_config_keys | parse_mykeys ssh)$(echo "$mykeys" | parse_mykeys)"
 if ! $ignoreopt; then
 	for key in $(echo "$all_keys" | grep ^miss:); do
-		warn "Can't find key \"${GREEN}$( echo "$key" | cut -c6- )${OFF}\""
+		warn "Can't find key \"${GREEN}$( echo "$key" | cut -c6- )  :$key: ${OFF}\""
 	done
 fi
-sshkeys="$(echo "$all_keys" | sed -n '/^sshk:/s/sshk://p' )"
-gpgkeys="$(echo "$all_keys" | sed -n '/^gpgk:/s/gpgk://p' )"
-
+sshkeys="$(echo "$all_keys" | sed -n '/^sshk:/s/sshk://p')"
+gpgkeys="$(echo "$all_keys" | sed -n '/^gpgk:/s/gpgk://p')"
 if [ "$myaction" = gpg_wipe ]; then
 	gpg_wipe; qprint; exit 0
 elif [ "$myaction" = ssh_wipe ]; then
@@ -1009,125 +992,76 @@ $quickopt && { qprint; exit 0; }
 
 # This is where we load keys as needed:
 
-if wantagent ssh; then
-	sshavail=$(ssh_l) # update sshavail now that we're locked
-	sshkeys="$(ssh_listmissing)" # cache list of missing keys, newline-separated
-	sshattempts=$attempts
+load_ssh_keys() {
+	missing="$(echo "${sshkeys}" | ssh_listmissing)"
 	savedisplay="$DISPLAY"
-
-	# Attempt to add the keys
-	while [ -n "$sshkeys" ]; do
-
-		# --confirm translates to ssh-add -c
-		if $confirmopt; then
-			if $openssh || $sunssh; then
-				ssh_confirm=-c
-			else
-				warn "--confirm only works with OpenSSH"
-			fi
-		fi
-
-		mesg "Adding ${CYANN}$(echo "$sshkeys" | wc -l)${OFF} ssh key(s): $sshkeys"
-
-		# Parse $sshkeys into positional params to preserve spaces in filenames.
-		# This *must* happen after any calls to subroutines because pure Bourne
-		# shell doesn't restore "$@" following a call.	Eeeeek!
-		set -f			# disable globbing
-		old_IFS="$IFS"	# save current IFS
-		IFS="
-"						# set IFS to newline
-		# shellcheck disable=SC2086
-		set -- $sshkeys
-		IFS="$old_IFS"	# restore IFS
-		set +f			# re-enable globbing
-
-		if $noguiopt || [ -z "$SSH_ASKPASS" ] || [ -z "$DISPLAY" ]; then
-			unset DISPLAY		# DISPLAY="" can cause problems
-			unset SSH_ASKPASS	# make sure ssh-add doesn't try SSH_ASKPASS
-			
-			# shellcheck disable=SC2086 # this is intentional:
-			sshout=$(ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1)
-			ret=$?
+	# --confirm translates to ssh-add -c
+	if $confirmopt; then
+		if $openssh || $sunssh; then
+			ssh_confirm=-c
 		else
-			# shellcheck disable=SC2086 # this is intentional:
-			sshout=$(ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1 </dev/null)
-			ret=$?
+			warn "--confirm only works with OpenSSH"
 		fi
-		if [ $ret = 0 ]
-		then
-			blurb=""
-			[ -n "$timeout" ] && blurb="life=${timeout}m"
-			[ -n "$timeout" ] && $confirmopt && blurb="${blurb},"
-			$confirmopt && blurb="${blurb}confirm"
-			[ -n "$blurb" ] && blurb=" (${blurb})"
-			mesg "ssh-add: Identities added: $sshkeys${blurb}"
-			break
-		fi
-		if [ "$sshattempts" = 1 ]; then
-			die "Problem adding; giving up (error code: $ret; output: $sshout)"
-		else
-			warn "Problem adding; trying again (error code: $ret; output: $sshout)"
-		fi
+	fi
+	# shellcheck disable=SC2086 # put $missing into args to access $# and other goodies. IFS is set to newline globally:
+	set -- $missing
+	[ $# -eq 0 ] && return
+	mesg "Adding ${CYANN}$#${OFF} ssh key(s): ${CYANN}$*${OFF}"
 
-		# Update the list of missing keys
-		sshavail=$(ssh_l) || die "problem running ssh-add -l"
-		sshkeys="$(ssh_listmissing)"  # remember, newline-separated
-
-		# Decrement the countdown
-		sshattempts=$(( sshattempts -1 ))
-	done
-
+	if $noguiopt || [ -z "$SSH_ASKPASS" ] || [ -z "$DISPLAY" ]; then
+		unset DISPLAY		# DISPLAY="" can cause problems
+		unset SSH_ASKPASS	# make sure ssh-add doesn't try SSH_ASKPASS
+	fi
+	# shellcheck disable=SC2086 # this is intentional:
+	sshout=$(ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1)
+	ret=$?
+	if [ $ret = 0 ]; then
+		blurb=""
+		[ -n "$timeout" ] && blurb="life=${timeout}m"
+		[ -n "$timeout" ] && $confirmopt && blurb="${blurb},"
+		$confirmopt && blurb="${blurb}confirm"
+		[ -n "$blurb" ] && blurb=" (${blurb})"
+		mesg "ssh-add: Identities added: $sshkeys${blurb}"
+	else
+		# TODO: FIX
+		warn $ret $sshout
+	fi
 	[ -n "$savedisplay" ] && DISPLAY="$savedisplay"
-fi
+}
 
-# Load gpg keys
-if wantagent gpg; then
-	gpgkeys="$(gpg_listmissing)" # cache list of missing keys, newline-separated
-	gpgattempts=$attempts
+# # 		if [ "$sshattempts" = 1 ]; then
+# 			die "Problem adding; giving up (error code: $ret; output: $sshout)"
+# 		else
+# 			warn "Problem adding; trying again (error code: $ret; output: $sshout)"
+# 		fi
+# 		sshkeys="$(echo "$sshkeys" | ssh_listmissing)"
+# 		sshattempts=$(( sshattempts -1 ))
 
+load_gpg_keys() {
 	$noguiopt && unset DISPLAY
 	[ -n "$DISPLAY" ] || unset DISPLAY # DISPLAY="" can cause problems
-	GPG_TTY=$(tty) ; export GPG_TTY # fall back to ncurses pinentry
-
-	# Attempt to add the keys
-	while [ -n "$gpgkeys" ]; do
-		tryagain=false
-
-		mesg "Adding ${BLUE} $(echo "$gpgkeys" | wc -l)${OFF} gpg key(s): $gpgkeys"
-
-		# Parse $gpgkeys into positional params to preserve spaces in filenames.
-		# This *must* happen after any calls to subroutines because pure Bourne
-		# shell doesn't restore "$@" following a call.	Eeeeek!
-		set -f			# disable globbing
-		old_IFS="$IFS"	# save current IFS
-		IFS="
-"						# set IFS to newline
-		set -- "$gpgkeys"
-		IFS="$old_IFS"	# restore IFS
-		set +f			# re-enable globbing
-
-		for k in "$@"; do
-			gpgout="$(echo | env LC_ALL="$pinentry_lc_all" "${gpg_prog_name}" --no-options --use-agent --no-tty --sign --local-user "$k" -o- 2>&1)"
-			ret=$?
-			if [ "$ret" -ne 0 ]; then
-				tryagain=true
-				warn "Error adding gpg key (error code: $ret; output: $gpgout)"
-			fi 
-		done
-		$tryagain || break
-
-		if [ "$gpgattempts" = 1 ]; then
-			die "Problem adding (is pinentry installed?); giving up"
-		else
-			warn "Problem adding; trying again"
+	GPG_TTY=$(tty) ; export GPG_TTY # fall back to ncurses pinentry 
+	for key in "$@"; do
+		[ -z "$key" ] && continue
+		mesg "Adding gpg key: $key"
+		# the 3>&1, etc. is a temp fd to allow us to capture stderr, while throwing away stdout which is encrypted data, and avoid a "null byte on input" bash warning:
+		gpgout="$(env LC_ALL="$pinentry_lc_all" "${gpg_prog_name}" --no-autostart --no-options --use-agent --sign --local-user "$key" -o- 3>&1 1>/dev/null 2>&3 </dev/null)"
+		ret=$?
+		if [ $ret -ne 0 ]; then
+			warn "Error adding gpg key (error code: $ret; output: $gpgout)"; return 1
 		fi
+	done 
+}
 
-		# Update the list of missing keys
-		gpgkeys="$(gpg_listmissing)"  # remember, newline-separated
+if wantagent ssh; then
+	# TODO: add attempts
+	load_ssh_keys
+fi
 
-		# Decrement the countdown
-		gpgattempts=$(( gpgattempts - 1 ))
-	done
+if wantagent gpg; then
+	gpgkeys=$(echo "${gpgkeys}" | gpg_listmissing)
+	# shellcheck disable=SC2086
+	load_gpg_keys $gpgkeys
 fi
 
 qprint	# trailing newline
