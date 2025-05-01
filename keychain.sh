@@ -1059,9 +1059,8 @@ if wantagent ssh; then
 fi
 
 if wantagent gpg; then
-	gpgkeys=$(echo "${gpgkeys}" | gpg_listmissing)
-	# shellcheck disable=SC2086
-	load_gpg_keys $gpgkeys
+	# shellcheck disable=SC2046
+	load_gpg_keys $(echo "${gpgkeys}" | gpg_listmissing)
 fi
 
 qprint	# trailing newline
