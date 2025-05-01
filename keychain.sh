@@ -729,7 +729,6 @@ while [ -n "$1" ]; do
 		--debug|-D) debugopt=true ;;
 		--eval) evalopt=true ;;
 		--gpg2) gpg_prog_name="gpg2" ;;
-		--gpg-wipe) setaction gpg_wipe ;;
 		--help|-h) setaction help ;;
 		--host) shift; hostopt="$1" ;;
 		--ignore-missing) ignoreopt=true ;;
@@ -748,7 +747,6 @@ while [ -n "$1" ]; do
 		--ssh-agent-socket) shift; ssh_agent_socket="-a $1" ;;
 		--ssh-allow-forwarded) ssh_allow_forwarded=true ;;
 		--ssh-rm|-r) setaction ssh_rm ;;
-		--ssh-wipe) setaction ssh_wipe ;;
 		--systemd) systemdopt=true ;;
 		--version|-V) setaction version ;;
 		--attempts) warn "--attempts is now deprecated." ;;
@@ -822,6 +820,15 @@ while [ -n "$1" ]; do
 			else
 				die "--timeout requires a numeric argument greater than zero"
 			fi
+			;;
+		--wipe)
+			shift
+			case $1 in
+				gpg) setaction gpg_wipe ;;
+				ssh) setaction ssh_wipe ;;
+				all) setaction all_wipe ;;
+				*) die "Please specify ssh, gpg or all for --wipe action"
+			esac
 			;;
 		-*)
 			zero=$(basename "$0")
@@ -920,6 +927,8 @@ if [ "$myaction" = gpg_wipe ]; then
 	gpg_wipe; qprint; exit 0
 elif [ "$myaction" = ssh_wipe ]; then
 	ssh_wipe; qprint; exit 0
+elif [ "$myaction" = all_wipe ]; then
+	ssh_wipe; gpg_wipe; qprint; exit 0
 elif [ "$myaction" = query ]; then
 	# --query displays current settings, but does not start an agent:
 	catpidf_shell sh | cut -d\; -f1 && exit 0

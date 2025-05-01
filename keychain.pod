@@ -4,11 +4,12 @@ keychain - Manager for ssh-agent, gpg-agent and private keys. Compatible with PO
 
 =head1 SYNOPSIS
 
-S<keychain [ -hklQqV ]> [ --clear --confhost --confallhosts --debug --gpg2 --gpg-zap
+S<keychain [ -hklQqV ]> [ --clear --confhost --confallhosts --debug --gpg2 
 --help --ignore-missing --list --noask --nocolor --nogui --noinherit --nolock --quick
---quiet --ssh-allow-forwarded --ssh-rm --ssh-spawn-gpg --ssh-zap --systemd --version
+--quiet --ssh-allow-forwarded --ssh-rm --ssh-spawn-gpg --systemd --version
 S<[ --ssh-agent-socket I<path> ] S<[ --dir I<dirname> ] [ --host I<name> ] 
-[ --lockwait I<seconds> ]> S<[ --stop I<which> ] [ --timeout I<minutes> ] [ keys... ]>
+[ --lockwait I<seconds> ]> S<[ --stop I<which> ] [ --timeout I<minutes> ] 
+S<[ --wipe I<ssh|gpg|all> ] [ keys... ]>
 
 =head1 INTRODUCTION
 
@@ -137,8 +138,8 @@ SSH agents via the environment.
 The C<--clear> option is still available, but isn't intended to be a 
 "standalone" option, meaning that it is used to perform an initial clearing
 of cached keys before loading any specified keys when Keychain is run.
-To perform the sole action of wiping all cached keys, use the C<--ssh-wipe>
-and C<--gpg-wipe> options. To remove an individual cached SSH private
+To perform the sole action of wiping all cached keys, use the C<--wipe>
+action. To remove an individual cached SSH private
 key or keys, use the C<--ssh-rm> I<keyfile> option.
 
 The C<--stop> option will now only stop any running ssh-agent processes,
@@ -365,10 +366,11 @@ a non-standard place.
 This option changes the default gpg calls to use gpg2 instead to support
 distributions such as Ubuntu which has both gpg and gpg2
 
-=item B<--gpg-wipe>
+=item B<wipe I<ssh|gpg|all>>
 
-Only perform the single action of wiping gpg-agent's cache of keys/
-passphrases, and then exiting. Also see B<--ssh-wipe>.
+Only perform the single action of wiping all agent's cached keys. Specify
+'ssh', 'gpg' or 'all' for SSH keys, GPG keys and all agents respectively.
+Also see the C<--ssh-rm> action and the C<--clear> option.
 
 =item B<-h --help>
 
@@ -436,7 +438,7 @@ programs, so only ssh-agent will be used for SSH support, etc.
 
 =item B<-k --stop> I<which>
 
-Kill currently running ssh-agent processes, wipe pidfiles, and exit.
+Kill currently running ssh-agent processes and exit.
 
 Note that previous versions of keychain (2.8.5 and earlier) allowed
 killing of gpg-agent as well. This functionality was removed as
@@ -519,11 +521,6 @@ as this option also implies B<--ssh-allow-gpg>.
 
 Only perform the single action of removing the specified cached keys from the
 running ssh-agent, and then exit.
-
-=item B<--ssh-wipe>
-
-Only perform the single action of wiping B<all> cached keys from the running ssh-agent,
-and exit. Also see B<--ssh-rm>, B<--gpg-wipe>.
 
 =item B<--systemd>
 
