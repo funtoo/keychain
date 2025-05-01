@@ -823,15 +823,6 @@ while [ -n "$1" ]; do
 				die "--timeout requires a numeric argument greater than zero"
 			fi
 			;;
-		--)
-			shift
-			# TODO: fix
-			IFS=$TAB
-			mykeys=${mykeys+"$mykeys
-"}"$*"
-			unset IFS
-			break
-			;;
 		-*)
 			zero=$(basename "$0")
 			echo "$zero: unknown option $1" >&2
