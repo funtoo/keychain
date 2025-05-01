@@ -918,7 +918,7 @@ fi
 all_keys="$(cat_ssh_config_keys | parse_mykeys ssh)$(echo "$mykeys" | parse_mykeys)"
 if ! $ignoreopt; then
 	for key in $(echo "$all_keys" | grep ^miss:); do
-		warn "Can't find key \"${GREEN}$( echo "$key" | cut -c6- )  :$key: ${OFF}\""
+		warn "Can't find key \"${GREEN}$( echo "$key" | cut -c6- )${OFF}\""
 	done
 fi
 sshkeys="$(echo "$all_keys" | sed -n '/^sshk:/s/sshk://p')"
