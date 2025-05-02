@@ -1,6 +1,10 @@
 # ChangeLog for Keychain
 http://www.funtoo.org/Funtoo:Keychain
 
+* Deprecate `--confhost` option and replace with new `--extended` option.
+* Rework code related to host-based key processing. Use `ssh -G` to officially extract
+  host-based keys.
+
 ## keychain 2.9.1 (1 May 2025)
 
 This release fixes a major bug related to the `--eval` option with non-Bourne shells.

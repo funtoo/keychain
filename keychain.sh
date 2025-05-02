@@ -22,6 +22,8 @@ unset pidfile_out
 unset myaction
 havelock=false
 unset hostopt
+extended=false
+confallhosts=false
 ignoreopt=false
 noaskopt=false
 noguiopt=false
@@ -29,9 +31,6 @@ nolockopt=false
 lockwait=5
 openssh=unknown
 sunssh=unknown
-confhost=unknown
-sshconfig=false
-confallhosts=false
 quickopt=false
 quietopt=false
 clearopt=false
@@ -44,7 +43,7 @@ unset ssh_timeout
 unset sshavail
 unset sshkeys
 unset gpgkeys
-unset mykeys
+unset cmdline_keys
 keydir="${HOME}/.keychain"
 unset envf
 evalopt=false
@@ -59,7 +58,6 @@ ssh_allow_forwarded=false
 ssh_allow_gpg=false
 ssh_spawn_gpg=false
 debugopt=false
-BLUE="[34;01m"
 CYAN="[36;01m"
 CYANN="[36m"
 GREEN="[32;01m"
@@ -552,7 +550,7 @@ ssh_f() {
 			fi
 			lsf_filename=$(echo "$sf_filename" | sed 's/\.[^\.]*$//').pub
 			if [ ! -f "$lsf_filename" ]; then
-			    warn "Cannot find separate public key for :$1:."
+				warn "Cannot find separate public key for $1."
 				lsf_filename="$sf_filename"
 			fi
 		fi
@@ -633,34 +631,107 @@ $slm_k"
 	echo "$slm_missing"
 }
 
-cat_ssh_config_keys() {
-	if $sshconfig; then
-		if $confallhosts; then
-			while IFS= read -r line; do
-			case $line in
-				*[Ii][Dd][Ee][Nn][Tt][Ii][Tt][Yy][Ff][Ii][Ll][Ee]*)
-				echo "$line" | awk '{print $2}'
-			esac
-			done < ~/.ssh/config
-		else
-			confpath "$confhost"
-		fi
+# Synopsis: Plow through ~/.ssh/config and grab all IdentityFile lines, and convert
+# them to "sshk:<filename>" if they exist or "miss:<filename>" otherwise.
+all_host_identities() {
+	if [ ! -e ~/.ssh/config ]; then
+		warn "No ~/.ssh/config -- can't extract host identities" && return
 	fi
+	while IFS= read -r line; do
+		case $line in
+			*[Ii][Dd][Ee][Nn][Tt][Ii][Tt][Yy][Ff][Ii][Ll][Ee]*)
+				keyf="$(echo "$line" | awk '{print $2}')"
+				if [ -f "$keyf" ]; then
+					echo "sshk:${keyf}"
+				else
+					echo "miss:${keyf}"
+				fi
+		esac
+	done < ~/.ssh/config
 }
 
-parse_mykeys() {
+# Synopsis: this is the default logic for categorizing command-line keys. If a file is
+# specified and is found in ~/.ssh, or just exists, it's a SSH key. If gpg recognizes it,
+# then it's a GPG key. Otherwise, it's a missing key.
+cmdline_keys_to_extkey() {
 	while read -r pm_k; do
 		[ -z "$pm_k" ] && continue
 		if [ -f "$pm_k" ]; then
 			echo "sshk:$pm_k"
 		elif [ -f "$HOME/.ssh/$pm_k" ]; then
 			echo "sshk:$HOME/.ssh/$pm_k"
-		elif [ "$1" != "ssh" ] && "${gpg_prog_name}" --list-secret-keys "$pm_k" >/dev/null 2>&1; then
+		elif "${gpg_prog_name}" --list-secret-keys "$pm_k" >/dev/null 2>&1; then
 			echo "gpgk:$pm_k"
 		else
 			echo "miss:$pm_k"
 		fi
 	done
+}
+
+# Synopsis: sees if specified stdin $keyf exists; converts to "sshk:" or "miss:" lines
+keyf_expand() {
+	while read -r keyf; do
+		if [ -f "$keyf" ]; then
+			echo "sshk:$keyf"
+		else
+			echo "miss:$keyf"
+		fi
+	done
+}
+
+# Synopsis: We allow sshk:id_rsa from the command-line, with no path, but this needs
+# to be expanded to the actual filename internally -- or "miss:". Logic is a bit different
+# so we can't use cmdline_keys_to_extkey() code.
+sshk_fixup() {
+	while read -r extkey; do
+		key_pref="$(echo "$extkey" | cut -b1-5)"
+		if [ "$key_pref" != "sshk:" ]; then
+			echo "$extkey"
+		else
+			pm_k="$(echo "$extkey" | cut -b6-)"
+			if [ -f "$pm_k" ]; then
+				echo "sshk:$pm_k"
+			elif [ -f "$HOME/.ssh/$pm_k" ]; then
+				echo "sshk:$HOME/.ssh/$pm_k"
+			else
+				echo "miss:$pm_k"
+			fi
+		fi
+	done
+}
+
+# Synopsis: performs final processing on extended keys. Currently converts each "host:"
+# extkeys to (possibly many) "sshk:" or "miss:" lines. Also validates all keys for basic
+# syntax.
+extkey_expand() {
+	while read -r extkey; do
+		[ -z "$extkey" ] && continue
+		key_pref="$(echo "$extkey" | cut -b1-5)"
+		if [ "$key_pref" = "host:" ]; then
+			ssh -nG "$(echo "$extkey" | cut -b6-)" 2>/dev/null | grep -e ^identityfile | awk '{print $2}' | keyf_expand
+		elif [ "$key_pref" = "sshk:" ] || [ "$key_pref" = "gpgk:" ] || [ "$key_pref" = "miss:" ]; then
+			echo "$extkey"
+		else
+			warn "Unrecognized extended key \"$extkey\". Should have a sshk:, gpgk: or host: prefix."
+		fi
+	done
+}
+
+# Synopsis: gets all extended keys. SSH keys are in "sshk:<filename>" format. GPG fingerprints 
+# are in "gpgk:<fp>" format. Any SSH keys that cannot be found are expanded to "miss:<filename>,
+# which is used for warnings later. If --extended is specified, we expect "sshk:foo" format on
+# the command-line. Otherwise, we use cmdline_keys_to_extkey() to convert the standard command-
+# line arguments into a format that keychain internals expect.
+
+get_all_extkeys() {
+	if $confallhosts; then
+		all_host_identities
+	fi
+	if ! $extended; then
+		echo "$cmdline_keys" | cmdline_keys_to_extkey | extkey_expand
+	else
+		echo "$cmdline_keys" | sshk_fixup | extkey_expand
+	fi
 }
 
 # synopsis: setaction
@@ -671,26 +742,6 @@ setaction() {
 	else
 		myaction="$1"
 	fi
-}
-
-# synopsis: confpath
-# Return private key path if found in ~/.ssh/config SSH configuration file.
-# Input: the name of the host we would like to connect to.
-confpath() {
-	h=""
-	while IFS= read -r line; do
-		# get the Host directives
-		case $line in
-			*[Hh][Oo][Ss][Tt]" "*) h=$(echo "$line" | awk '{print $2}') ;;
-		esac
-		case $line in
-			*[Ii][Dd][Ee][Nn][Tt][Ii][Tt][Yy][Ff][Ii][Ll][Ee]*)
-			if [ "$h" = "$1" ]; then
-				echo "$line" | awk '{print $2}'
-				break
-			fi
-		esac
-	done < ~/.ssh/config
 }
 
 wantagent() {
@@ -717,17 +768,16 @@ ssh_wipe() {
 
 }
 
-#
-# MAIN PROGRAM
-#
-
 while [ -n "$1" ]; do
 	case "$1" in
 		--absolute) absoluteopt=true ;;
 		--agents) warn "--agents is deprecated, ignoring." ;;
+		--confhost) die "--confhost is deprecated; use \"${CYANN}--extended host:<hostname>${OFF}\" instead." ;;
+		--confallhosts) confallhosts=true ;; 
 		--confirm) confirmopt=true ;;
 		--debug|-D) debugopt=true ;;
 		--eval) evalopt=true ;;
+		--extended|--ext|-e) extended=true ;;
 		--gpg2) gpg_prog_name="gpg2" ;;
 		--help|-h) setaction help ;;
 		--host) shift; hostopt="$1" ;;
@@ -753,24 +803,6 @@ while [ -n "$1" ]; do
 		--clear)
 			clearopt=true
 			$quickopt && die "--quick and --clear are not compatible"
-			;;
-		--confallhosts|-C)
-			if [ -e ~/.ssh/config ]; then
-				sshconfig=true
-				confallhosts=true
-			else
-				# shellcheck disable=SC2088
-				warn "~/.ssh/config not found; --confallhosts/-C option ignored."
-			fi
-			;;
-		--confhost|-c)
-			if [ -e ~/.ssh/config ]; then
-				sshconfig=true
-				confhost="$2"
-			else
-				# shellcheck disable=SC2088
-				warn "~/.ssh/config not found; --confhost/-c option ignored."
-			fi
 			;;
 		--dir)
 			shift
@@ -837,7 +869,7 @@ while [ -n "$1" ]; do
 			exit 1
 			;;
 		*)
-			mykeys="$1${NEWLINE}${mykeys}"
+			cmdline_keys="$1${NEWLINE}${cmdline_keys}"
 			;;
 	esac
 	shift
@@ -871,8 +903,6 @@ if [ -n "$OFF" ]; then
 	tty <&2 >/dev/null 2>&1 || color=false
 fi
 
-#disable color if necessary, right before our initial newline
-
 $color || unset BLUE CYAN CYANN GREEN PURP OFF RED
 
 # TODO: we can't assume pidfile has been created yet? Or not a big deal?
@@ -885,20 +915,19 @@ mesg "${PURP}keychain ${OFF}${CYANN}${version}${OFF} ~ ${GREEN}http://www.funtoo
 [ "$myaction" = version ] && { versinfo; exit 0; }
 [ "$myaction" = help ] && { versinfo; helpinfo; exit 0; }
 
-# Set up traps
 # Don't use signal names because they don't work on Cygwin.
 if $clearopt; then
-	trap '' 2	# disallow ^C until we've had a chance to --clear
-	trap 'droplock; exit 1' 1 15	# drop the lock on signal
-	trap 'droplock;' 0		# drop the lock on exit
+	trap '' 2 # disallow ^C until we've had a chance to --clear
+	trap 'droplock; exit 1' 1 15 # drop the lock on signal
+	trap 'droplock;' 0 # drop the lock on exit
 else
 	# Don't use signal names because they don't work on Cygwin.
 	trap 'droplock; exit 1' 1 2 15	# drop the lock on signal
-	trap 'droplock;' 0		# drop the lock on exit
+	trap 'droplock;' 0 # drop the lock on exit
 fi
 
-testssh							# sets $openssh, $sunssh and tweaks $ssh_spawn_gpg
-verifykeydir					# sets up $keydir
+testssh # sets $openssh, $sunssh and tweaks $ssh_spawn_gpg
+verifykeydir # sets up $keydir
 me=$(id -un) || die "Who are you?  id -un doesn't know..."
 
 # --stop: kill the existing ssh-agent(s) (not gpg-agent) and quit
@@ -914,8 +943,7 @@ if [ -n "$timeout" ]; then
 	ssh_timeout="-t $ssh_timeout"
 fi
 
-# Get keys from SSH configuration files if --confhost/--confallhost are specified, as well as command-line:
-all_keys="$(cat_ssh_config_keys | parse_mykeys ssh)$(echo "$mykeys" | parse_mykeys)"
+all_keys="$(get_all_extkeys | sort -u)"
 if ! $ignoreopt; then
 	for key in $(echo "$all_keys" | grep ^miss:); do
 		warn "Can't find key \"${GREEN}$( echo "$key" | cut -c6- )${OFF}\""

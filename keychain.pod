@@ -4,12 +4,12 @@ keychain - Manager for ssh-agent, gpg-agent and private keys. Compatible with PO
 
 =head1 SYNOPSIS
 
-S<keychain [ -hklQqV ] [ --clear --confhost --confallhosts --debug --gpg2> 
-S<--help --ignore-missing --list --noask --nocolor --nogui --noinherit>
-S<--nolock --quick --quiet --ssh-allow-forwarded --ssh-rm --ssh-spawn-gpg>
-S<--systemd --version ] [ --ssh-agent-socket I<path> ] [ --dir I<dirname> ]>
-S<[ --host I<name> ] [ --lockwait I<seconds> ]> [ --stop I<which> ]>
-S<[ --timeout I<minutes> ] [ --wipe I<which> ] [ keys... ]>
+S<keychain [ -hklQqV ] [ --clear --confhost --confallhosts --debug>
+S<--extended --gpg2 --help --ignore-missing --list --noask --nocolor --nogui>
+S<--noinherit --nolock --quick --quiet --ssh-allow-forwarded --ssh-rm>
+S<--ssh-spawn-gpg --systemd --version ] [ --ssh-agent-socket I<path> ]>
+S<[ --dir I<dirname> ] [ --host I<name> ] [ --lockwait I<seconds> ]>
+S<[ --stop I<which> ] [ --timeout I<minutes> ] [ --wipe I<which> ] [ keys... ]>
 
 =head1 INTRODUCTION
 
@@ -69,7 +69,7 @@ although it is possible to specify an absolute or relative
 path to the private key file as well. Private key files can be symlinks
 to the actual key as long as your system has the C<readlink> command available.
 More advanced features are available for specifying keys as well -- see the
- B<--confhost> and B<--confallhosts> options for more information.
+ B<--extended> and B<--confallhosts> options for more information.
 
 In addition, for GPG keys specified, similar steps will be taken to ensure 
 that gpg-agent has the GPG key cached in memory and ready for use.
@@ -105,6 +105,22 @@ not.
 This section provides an overview of new and deprecated command-line options.
 For full details on each option, see the respective option definition under
 L</OPTIONS>.
+
+=head3 Keychain 2.9.2
+
+The C<--confhost> option has been deprecated. Instead of C<--confhost hostname>,
+use C<--extended host:hostname>. This extended format allows multiple keys of
+multiple types (SSH, GPG and SSH-from-hostname) to be specified on the 
+command-line together. This is also fully compatible with C<--confallhosts>,
+and keychain now de-duplicates the list of keys to be loaded.
+
+=head3 Keychain 2.9.1
+
+The short-lived C<--ssh-wipe> and C<--gpg-wipe> options that appeared only in
+version 2.9.0 were replaced with C<--wipe I<which>> to work similarly to 
+the C<--stop> option, and allows you to specify "ssh", "gpg" or "all".
+
+=head3 Keychain 2.9.0
 
 The C<--agents> option is now deprecated. Keychain will always ensure an
 ssh-agent or equivalent is running, or if C<--ssh-spawn-gpg> is used, 
@@ -291,6 +307,12 @@ which can result in unncessary prompting for passphrases, and general confusion.
 
 =over
 
+=item B<--absolute>
+
+Any arguments to "--dir" are interpreted to be absolute. The default
+behavior is to append "/.keychain" to the argument for backwards
+compatibility.
+
 =item B<--clear>
 
 When specified, this option adds an initial step prior to adding any keys
@@ -300,6 +322,18 @@ keys are loaded, and that keychain should assume that you are an intruder
 until proven otherwise and force all interactive logins to specify valid
 passphrases.  This option increases security and  still allows your 
 cron jobs to use your ssh keys when you're logged out.
+
+=item B<--confallhosts>
+
+In addition to any keys specified on the command-line, this option will
+tell keychain to scour C<~/.ssh/config> for all private keys referenced
+in all C<IdentityFile> lines, and load all keys for all hosts.
+
+=item B<--confirm>
+
+Keys are subject to interactive confirmation by the SSH_ASKPASS
+program before being used for authentication.  See the -c option for
+ssh-add(1).
 
 =item B<--debug>
 
@@ -311,46 +345,9 @@ due to no B<--ssh-allow-gpg> option, or when it is rejected because it
 appears to be from a forwarded SSH connection, and B<--ssh-allow-forwarded>
 was not supplied.
 
-=item B<--confhost>
-
-By default, keychain will look for key pairs in the ~/.ssh/ directory.
-The --confhost option will inform keychain to look in ~/.ssh/config
-for IdentityFile settings defined for the mentioned host (in I<keys>), 
-and use these paths to locate keys.
-
-=item B<--confallhosts>
-
-By default, keychain will look for key pairs in the ~/.ssh/ directory.
-The --confallhosts option will inform keychain to look in ~/.ssh/config
-for IdentityFile settings defined for all hosts, and use these
-paths to locate keys to load.
-
-=item B<--confirm>
-
-Keys are subject to interactive confirmation by the SSH_ASKPASS
-program before being used for authentication.  See the -c option for
-ssh-add(1).
-
-=item B<--absolute>
-
-Any arguments to "--dir" are interpreted to be absolute. The default
-behavior is to append "/.keychain" to the argument for backwards
-compatibility.
-
 =item B<--dir> I<dirname>
 
 Keychain will use dirname rather than $HOME/.keychain
-
-=item B<--query>
-
-Keychain will print lines in KEY=value format representing the values
-which are set by the agents.
-
-=item B<--eval>
-
-Keychain will print lines to be evaluated in the shell on stdout.  It
-respects the SHELL environment variable to determine if Bourne shell
-or C shell output is expected.
 
 =item B<--env> I<filename>
 
@@ -361,18 +358,34 @@ alternatively ~/.keychain/env.  The purpose of this file is to
 override settings such as PATH, in case ssh is stored in
 a non-standard place.
 
+=item B<--eval>
+
+Keychain will print lines to be evaluated in the shell on stdout.  It
+respects the SHELL environment variable to determine if Bourne shell
+or C shell output is expected.
+
+=item B<--extended>
+
+This enables extended command-line key processing with more features,
+and is a replacement for the old C<--confhost> option. When specified,
+each key specified on the command-line must have a prefix to explictly.
+categorize it. SSH keys must have a prefix of "sshk:" immediately 
+followed by the path or key name (the part after the "sshk:" is processed
+just like a SSH key is without the C<--extended> option). GPG keys must
+be in the format "gpgk:" immediately followed by the 8 or 16-character
+fingerprint. If "host:<hostname>" is specified, then Keychain will 
+extract the SSH configuration for the specified hostname, grab all 
+identityfile options (private keys) specified, and these keys will be
+included in the set of keys to be loaded by keychain. This allows
+multiple keys of multiple types, including SSH-keys-by-host, to be
+specified together, which wasn't possible with C<--confhost>.
+
 =item B<--gpg2>
 
 This option changes the default gpg calls to use gpg2 instead to support
 distributions such as Ubuntu which has both gpg and gpg2
 
-=item B<--wipe> I<which>
-
-Only perform the single action of wiping all agent's cached keys. Specify
-'ssh', 'gpg' or 'all' for SSH keys, GPG keys and all agents respectively.
-Also see the C<--ssh-rm> action and the C<--clear> option.
-
-=item B<-h --help>
+=item B<--help -h>
 
 Show help that looks remarkably like this man-page. As of 2.6.10,
 help is sent to stdout so it can be easily piped to a pager.
@@ -429,14 +442,26 @@ gpg-agent processes. Also see L<AGENT DETECTION AND STARTUP ALGORITHM>.
 Don't attempt to use a lockfile while manipulating files, pids and
 keys.
 
-=item B<--nosub>
+=item B<--query>
 
-By default, keychain will use gpg-agent in place of ssh-agent if
-gpg-agent is available and supports this functionality. This option
-will disable this and any future potential substitution of original
-programs, so only ssh-agent will be used for SSH support, etc.
+Keychain will print lines in KEY=value format representing the values
+which are set by the agents.
 
-=item B<-k --stop> I<which>
+=item B<--quick -Q>
+
+If an ssh-agent process is running then use it.  Don't verify the list
+of keys, other than making sure it's non-empty.  This option avoids
+locking when possible so that multiple terminals can be opened
+simultaneously without waiting on each other. See the 
+L</THE QUICK SHORT-CIRCUIT> section for more information regarding
+how this fits into the overall startup algorithm.
+
+=item B<--quiet -q>
+
+Only print messages in case of warning, error or required interactivity. As of
+version 2.6.10, this also suppresses "Identities added" messages for ssh-agent.
+
+=item B<--stop -k> I<which>
 
 Kill currently running ssh-agent processes and exit.
 
@@ -517,7 +542,7 @@ a new ssh-agent, it will go ahead and spawn a gpg-agent in its place,
 and use it instead. Also see notes for the B<--ssh-allow-gpg> option,
 as this option also implies B<--ssh-allow-gpg>.
 
-=item B<-r --ssh-rm> I<keys>
+=item B<--ssh-rm -r> I<keys>
 
 Only perform the single action of removing the specified cached keys from the
 running ssh-agent, and then exit.
@@ -525,20 +550,6 @@ running ssh-agent, and then exit.
 =item B<--systemd>
 
 Inject environment variables into the systemd --user session.
-
-=item B<-Q --quick>
-
-If an ssh-agent process is running then use it.  Don't verify the list
-of keys, other than making sure it's non-empty.  This option avoids
-locking when possible so that multiple terminals can be opened
-simultaneously without waiting on each other. See the 
-L</THE QUICK SHORT-CIRCUIT> section for more information regarding
-how this fits into the overall startup algorithm.
-
-=item B<-q --quiet>
-
-Only print messages in case of warning, error or required interactivity. As of
-version 2.6.10, this also suppresses "Identities added" messages for ssh-agent.
 
 =item B<--timeout> I<minutes>
 
@@ -555,9 +566,15 @@ keychain or not. More advanced users can use one invocation of keychain to set
 the default timeout, and optionally set different timeouts for keys added by
 using a subsequent invocation of keychain.
 
-=item B<-V --version>
+=item B<--version -V>
 
 Show version information.
+
+=item B<--wipe> I<which>
+
+Only perform the single action of wiping all agent's cached keys. Specify
+'ssh', 'gpg' or 'all' for SSH keys, GPG keys and all agents respectively.
+Also see the C<--ssh-rm> action and the C<--clear> option.
 
 =back
 
