@@ -1,9 +1,27 @@
 # ChangeLog for Keychain
 http://www.funtoo.org/Funtoo:Keychain
 
+## keychain 2.9.2 (2 May 2025)
+
+This is primarily a bug fix release, but also introduces the new `--extended`
+option -- see below:
+
+* Deprecate `--confhost` option and replace with `--extended` option. The old
+  `--confhost myhost` would now be `--extended host:myhost`. This also allows
+  specifying SSH keys (`sshk:` prefix), GPG keys ( `gpgk:` prefix) and hosts
+  (`host:` prefix) together without confusion.
+* Well, I became intimately familiar with `IFS` the hard way. Fix 2.9.1 bug
+  [#159](https://github.com/funtoo/keychain/issues/159) by reworking IFS settings and
+  adding proper documentation to the right places. This fixes the `--timeout` option
+  and also now allows `--stop` to work properly which was broken.
+* Improve `--agents` deprecation warning.
+* Have keychain properly adopt a currently-running gpg-agent providing ssh-agent
+  functionality when `--ssh-use-gpg` is specified.
+* Explicitly clean up known-bad pidfiles during processing.
 * Deprecate `--confhost` option and replace with new `--extended` option.
-* Rework code related to host-based key processing. Use `ssh -G` to officially extract
+* Improve host-based key processing by using `ssh -G` to officially extract
   host-based keys.
+* Make `Makefile` BSD-compatible.
 
 ## keychain 2.9.1 (1 May 2025)
 
