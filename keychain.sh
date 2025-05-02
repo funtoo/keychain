@@ -15,7 +15,6 @@ versinfo() {
 
 NEWLINE="
 "
-IFS="$NEWLINE"
 version=##VERSION##
 PATH="${PATH}${PATH:+:}/usr/bin:/bin:/sbin:/usr/sbin:/usr/ucb"
 unset pidfile_out
@@ -304,8 +303,7 @@ catpidf_shell() {
 		*csh)		 cp_pidf="$cshpidf" ;;
 		*)			 cp_pidf="$pidf" ;;
 	esac
-	shift
-	[ ! -f "$cp_pidf" ] && return 1
+	[ ! -f "$cp_pidf" ] && debug "pidfile doesn't exist" && return 1
 	[ -f "$cp_pidf" ] && cat "${cp_pidf}" && echo && return 0
 }
 
@@ -315,8 +313,9 @@ startagent_gpg() {
 	else
 		gpg_started=true
 	fi
-	if gpg_agent_sock="$( echo "GETINFO socket_name" | gpg-connect-agent --no-autostart 2>/dev/null | head -n1 | sed -n 's/^D //;1p' )" && [ -S "$gpg_agent_sock" ]; then
+	if gpg_agent_sock="$( echo "GETINFO socket_name" | gpg-connect-agent --no-autostart | head -n1 | sed -n 's/^D //;1p' )" && [ -S "$gpg_agent_sock" ]; then
 		mesg "Using existing gpg-agent: ${CYANN}$gpg_agent_sock${OFF}"
+		pidfile_out="SSH_AUTH_SOCK=\"$gpg_agent_sock\"; export SSH_AUTH_SOCK" # make sure we adopt it
 	else
 		gpg_opts="--daemon"
 		[ -n "${timeout}" ] && gpg_opts="$gpg_opts --default-cache-ttl $(( timeout * 60 )) --max-cache-ttl $(( timeout * 60 ))"
@@ -352,7 +351,7 @@ ssh_envcheck() {
 
 		# There are some cases where we can accept a socket without an associated SSH_AGENT_PID:
 
-		if gpg_socket="$( echo "GETINFO ssh_socket_name" | gpg-connect-agent --no-autostart 2>/dev/null | head -n1 | sed -n 's/^D //;1p' )"; then
+		if gpg_socket="$(echo "GETINFO ssh_socket_name" | gpg-connect-agent --no-autostart 2>/dev/null | head -n1 | sed -n 's/^D //;1p' )"; then
 			if [ "$gpg_socket" = "$SSH_AUTH_SOCK" ]; then
 				if $ssh_allow_gpg; then
 					mesg "Using ssh-agent ($1): ${CYANN}$gpg_socket${OFF} (GnuPG)" && return 0
@@ -405,6 +404,7 @@ SSH_AGENT_PID=$SSH_AGENT_PID; export SSH_AGENT_PID"
 			fi
 		fi
 	else  # spawn, we must...
+		rm -f "${pidf}" "${cshpidf}" "${fishpidf}" 2>/dev/null # pidfile is either non-existant or invalid
 		if $ssh_spawn_gpg; then
 			startagent_gpg ssh # this function will set pidfile_out itself
 			return $?
@@ -589,14 +589,9 @@ $glm_k"
 	echo "$glm_missing"
 }
 
-# synopsis: ssh_listmissing
-# Reads stdin for newline-separated list of keyfiles. Returns a newline-separated list of keys found to be missing.
 ssh_listmissing() {
 	unset slm_missing
-	# Update the list of missing keys
 	sshavail=$(ssh_l)
-	# || die "problem running ssh-add -l"
-	
 	while IFS= read -r slm_k; do
 		[ -z "$slm_k" ] && continue
 		# Fingerprint current user-specified key
@@ -609,8 +604,6 @@ ssh_listmissing() {
 			warn "Unable to extract exactly one key fingerprint from keyfile ${slm_k}.pub, got $slm_wordcount instead, skipping"
 			continue
 		fi
-
-		# Check if it needs to be added
 		# shellcheck disable=SC2031
 		case " $sshavail " in
 			*" $slm_finger "*)
@@ -734,8 +727,6 @@ get_all_extkeys() {
 	fi
 }
 
-# synopsis: setaction
-# Sets $myaction or dies if $myaction is already set
 setaction() {
 	if [ -n "$myaction" ]; then
 		die "you can't specify --$myaction and $1 at the same time"
@@ -1010,12 +1001,9 @@ fi
 $noaskopt && { qprint; exit 0; }
 $quickopt && { qprint; exit 0; }
 
-# This is where we load keys as needed:
-
 load_ssh_keys() {
 	missing="$(echo "${sshkeys}" | ssh_listmissing)"
 	savedisplay="$DISPLAY"
-	# --confirm translates to ssh-add -c
 	if $confirmopt; then
 		if $openssh || $sunssh; then
 			ssh_confirm=-c
@@ -1023,16 +1011,20 @@ load_ssh_keys() {
 			warn "--confirm only works with OpenSSH"
 		fi
 	fi
-	# shellcheck disable=SC2086 # put $missing into args to access $# and other goodies. IFS is set to newline globally:
+	# Put $missing into args to access $# and other goodies. Since $missing is a line-delimited
+	# list of files with (potentially) spaces, we must do an IFS hack to get each file in
+	# $1, $2, $3, etc. For Bourne-shell compatibility, we don't have another good option:
+	IFS_BAK="$IFS"; IFS="$NEWLINE"
+	# shellcheck disable=SC2086
 	set -- $missing
+	IFS="$IFS_BAK"
 	[ $# -eq 0 ] && return
 	mesg "Adding ${CYANN}$#${OFF} ssh key(s): ${CYANN}$*${OFF}"
-
 	if $noguiopt || [ -z "$SSH_ASKPASS" ] || [ -z "$DISPLAY" ]; then
 		unset DISPLAY		# DISPLAY="" can cause problems
 		unset SSH_ASKPASS	# make sure ssh-add doesn't try SSH_ASKPASS
 	fi
-	# shellcheck disable=SC2086 # this is intentional:
+	# shellcheck disable=SC2086
 	sshout=$(ssh-add ${ssh_timeout} ${ssh_confirm} "$@" 2>&1)
 	ret=$?
 	if [ $ret = 0 ]; then
