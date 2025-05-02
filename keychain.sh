@@ -762,7 +762,7 @@ ssh_wipe() {
 while [ -n "$1" ]; do
 	case "$1" in
 		--absolute) absoluteopt=true ;;
-		--agents) warn "--agents is deprecated, ignoring." ;;
+		--agents) shift; warn "--agents is deprecated, ignoring." ;;
 		--confhost) die "--confhost is deprecated; use \"${CYANN}--extended host:<hostname>${OFF}\" instead." ;;
 		--confallhosts) confallhosts=true ;; 
 		--confirm) confirmopt=true ;;
