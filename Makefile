@@ -1,6 +1,6 @@
-V:=$(shell cat VERSION)
-D:=$(shell date +'%d %b %Y')
-Y:=$(shell date +'%Y')
+V!=cat VERSION
+D!=date +'%d %b %Y'
+Y!=date +'%Y'
 RPMDIR=`rpmbuild -E '%_rpmdir'`
 SRPMDIR=`rpmbuild -E '%_srcrpmdir'`
 TARBALL_CONTENTS=keychain README.md ChangeLog COPYING.txt keychain.pod keychain.1 \
