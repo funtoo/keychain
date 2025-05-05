@@ -1,10 +1,14 @@
-V!=cat VERSION
-D!=date +'%d %b %Y'
-Y!=date +'%Y'
-RPMDIR=`rpmbuild -E '%_rpmdir'`
-SRPMDIR=`rpmbuild -E '%_srcrpmdir'`
-TARBALL_CONTENTS=keychain README.md ChangeLog COPYING.txt keychain.pod keychain.1 \
-				 keychain.spec
+# For BSD, AIX, Solaris:
+V:sh = cat VERSION
+D:sh = date +'%d %b %Y'
+Y:sh = date +'%Y'
+
+# for GNU Make:
+V ?= $(shell cat VERSION)
+D ?= $(shell date +'%d %b %Y')
+Y ?= $(shell date +'%Y')
+
+TARBALL_CONTENTS=keychain README.md ChangeLog.md COPYING.txt MAINTAINERS.txt keychain.pod keychain.1 keychain.spec
 
 all: keychain.1 keychain keychain.spec
 
@@ -14,7 +18,7 @@ tmpclean:
 
 .PHONY : clean
 clean: tmpclean
-	rm -rf keychain.1 keychain keychain.spec 
+	rm -rf keychain.1 keychain keychain.spec
 
 keychain.spec: keychain.spec.in keychain.sh
 	sed 's/KEYCHAIN_VERSION/$V/' keychain.spec.in > keychain.spec
@@ -55,26 +59,8 @@ keychain.txt: keychain.pod
 	pod2text keychain.pod keychain.txt
 
 keychain-$V.tar.gz: $(TARBALL_CONTENTS)
-	@case $V in *-test*) \
-		echo "**** Version is $V, please remove -test"; \
-		exit 1 ;; \
-	esac
-	@if ! grep -qF '* keychain $V ' ChangeLog; then \
-		echo "**** Need to update the ChangeLog for version $V"; \
-		exit 1; \
-	fi
 	mkdir keychain-$V
 	cp $(TARBALL_CONTENTS) keychain-$V
-	/bin/tar cjvf keychain-$V.tar.bz2 keychain-$V
+	/bin/tar czvf keychain-$V.tar.gz keychain-$V
 	rm -rf keychain-$V
-	ls -l keychain-$V.tar.bz2
-
-# Building noarch.rpm builds src.rpm at the same time.  I haven't
-# found an elegant way yet to prevent parallel builds from messing
-# this up, so all deps in the Makefile refer only to noarch.rpm
-keychain-$V-1.noarch.rpm-unsigned: keychain-$V.tar.gz
-	rpmbuild -ta keychain-$V.tar.bz2
-	mv $(RPMDIR)/noarch/keychain-$V-1.noarch.rpm \
-		$(SRPMDIR)/keychain-$V-1.src.rpm .
-keychain-$V-1.noarch.rpm: keychain-$V-1.noarch.rpm-unsigned
-	rpm --addsign keychain-$V-1.noarch.rpm keychain-$V-1.src.rpm
+	ls -l keychain-$V.tar.gz
