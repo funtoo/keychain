@@ -17,7 +17,7 @@ allowing your scripts to take advantage of key-based logins.
 at the same time as SSH keys.
 
 **Additional documentation for Keychain can be found on [the Keychain
-wiki page](http://www.funtoo.org/Funtoo:Keychain).**
+wiki page](https://www.funtoo.org/Funtoo:Keychain).**
 
 
 IMPORTANT - GitHub Contributors
