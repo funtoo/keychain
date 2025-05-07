@@ -1,5 +1,5 @@
 # ChangeLog for Keychain
-http://www.funtoo.org/Funtoo:Keychain
+https://www.funtoo.org/Funtoo:Keychain
 
 ## keychain 2.9.2 (2 May 2025)
 

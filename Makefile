@@ -25,7 +25,7 @@ keychain.spec: keychain.spec.in keychain.sh
 
 keychain.1: keychain.pod keychain.sh
 	pod2man --name=keychain --release=$V \
-		--center='http://www.funtoo.org' \
+		--center='https://www.funtoo.org' \
 		keychain.pod keychain.1
 	sed -i.orig -e "s/^'br/.br/" keychain.1
 
