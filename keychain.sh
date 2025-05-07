@@ -901,7 +901,7 @@ $color || unset BLUE CYAN CYANN GREEN PURP OFF RED
 [ "$myaction" = list-fp ] && eval "$(catpidf_shell sh)" && exec ssh-add -L
 
 qprint #initial newline
-mesg "${PURP}keychain ${OFF}${CYANN}${version}${OFF} ~ ${GREEN}http://www.funtoo.org/Funtoo:Keychain${OFF}"
+mesg "${PURP}keychain ${OFF}${CYANN}${version}${OFF} ~ ${GREEN}https://www.funtoo.org/Funtoo:Keychain${OFF}"
 
 [ "$myaction" = version ] && { versinfo; exit 0; }
 [ "$myaction" = help ] && { versinfo; helpinfo; exit 0; }

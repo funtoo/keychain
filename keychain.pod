@@ -637,4 +637,4 @@ L<ssh-agent(1)>, L<gpg-agent(1)>, L<ssh-add(1)>, L<ssh(1)>
 Keychain was created and is currently maintained by Daniel Robbins. If you need
 to report a bug or request an enhancement, please report it to the GitHub
 project page at L<https://github.com/funtoo/keychain>.  For more information
-about keychain, please visit L<http://www.funtoo.org/FuntoO:Keychain>.
+about keychain, please visit L<https://www.funtoo.org/FuntoO:Keychain>.
