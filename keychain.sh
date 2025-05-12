@@ -994,7 +994,8 @@ if $evalopt; then
 fi
 
 if $systemdopt; then
-	systemctl --user set-environment "$( catpidf_shell sh | cut -d\; -f1 )"
+	# shellcheck disable=SC2046
+	systemctl --user set-environment $( catpidf_shell sh | cut -d\; -f1 )
 fi
 
 # --noask: "don't ask for keys", so we're all done
