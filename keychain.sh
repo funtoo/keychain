@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/bash
+set -o pipefail
 
 versinfo() {
 	qprint
@@ -950,7 +951,7 @@ elif [ "$myaction" = all_wipe ]; then
 	ssh_wipe; gpg_wipe; qprint; exit 0
 elif [ "$myaction" = query ]; then
 	# --query displays current settings, but does not start an agent:
-	catpidf_shell sh | cut -d\; -f1 && exit 0
+	catpidf_shell sh | cut -d\; -f1; exit
 elif [ "$myaction" = ssh_rm ]; then
 	if [ -n "$sshkeys" ]; then
 		die "No ssh keys specified to remove."
