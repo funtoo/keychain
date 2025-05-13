@@ -368,7 +368,6 @@ ssh_envcheck() {
 			unset SSH_AUTH_SOCK && debug "Ignoring SSH_AUTH_SOCK -- this is a forwarded socket" && return 1
 		fi
 	else
-
 		# We have valid SSH_AGENT_PID, so we accept the socket too:
 		mesg "Existing ssh-agent ($1): ${CYANN}$SSH_AGENT_PID${OFF}" && return 0
 	fi
@@ -381,8 +380,8 @@ ssh_envcheck() {
 
 startagent_ssh() {
 	if $quickopt; then
-		# shellcheck disable=SC2030 # This is fine as sshavail will be called again if needed:
-		if ( unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)" && ssh_envcheck pidfile quiet ) && ( ssh_l > /dev/null || { [ $? = 1 ] && [ -z "$mykeys" ]; }; ); then
+		# below, we have ( ssh_l ) in its own sub-subshell so it can utilize the settings of eval "$(catpidf_shell sh)":
+		if ( unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)" && ssh_envcheck pidfile quiet && ( ssh_l > /dev/null || { [ $? = 1 ] && [ -z "$mykeys" ]; }; ) ); then
 			mesg "Found existing ssh-agent (quick)"
 			return 0
 		else
