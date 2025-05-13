@@ -993,7 +993,7 @@ if $evalopt; then
 fi
 
 if $systemdopt; then
-	systemctl --user set-environment "$( catpidf_shell sh | cut -d\; -f1 )"
+	eval "$(catpidf_shell sh | sed -n "/^SSH/{s/\;.*\;/'/;s/^/systemctl --user set-environment '/;p}" )"
 fi
 
 # --noask: "don't ask for keys", so we're all done
