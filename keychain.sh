@@ -328,14 +328,16 @@ startagent_gpg() {
 }
 
 ssh_envcheck() {
-	envcheck_echo=true # if false, don't print out any warnings as we are doing a pre-check...
-	[ "$2" = "quiet" ] && envcheck_echo=false
-	
+	if [ -n "$2" ]; then
+		envcheck_warn=$2; envcheck_mesg=$2
+	else
+		envcheck_warn="warn"; envcheck_mesg="mesg"
+	fi
 	# Initial short-circuits for known abort cases:
 	
 	[ -z "$SSH_AUTH_SOCK" ] && return 1
 	if [ ! -S "$SSH_AUTH_SOCK" ]; then
-		$envcheck_echo && warn "SSH_AUTH_SOCK in $1 is invalid; ignoring it"
+		$envcheck_warn "SSH_AUTH_SOCK in $1 is invalid; ignoring it"
 		unset SSH_AUTH_SOCK && return 1
 	fi
 
@@ -354,7 +356,7 @@ ssh_envcheck() {
 		if gpg_socket="$(echo "GETINFO ssh_socket_name" | gpg-connect-agent --no-autostart 2>/dev/null | head -n1 | sed -n 's/^D //;1p' )"; then
 			if [ "$gpg_socket" = "$SSH_AUTH_SOCK" ]; then
 				if $ssh_allow_gpg; then
-					mesg "Using ssh-agent ($1): ${CYANN}$gpg_socket${OFF} (GnuPG)" && return 0
+					$envcheck_mesg "Using ssh-agent ($1): ${CYANN}$gpg_socket${OFF} (GnuPG)" && return 0
 				else
 					unset SSH_AUTH_SOCK && debug "Ignoring SSH_AUTH_SOCK -- this is the GnuPG-supplied socket" && return 1
 				fi
@@ -363,13 +365,13 @@ ssh_envcheck() {
 
 		if $ssh_allow_forwarded; then
 			SSH_AGENT_PID="forwarded"
-			mesg "Using ${GREEN}forwarded${OFF} ssh-agent: ${GREEN}$SSH_AUTH_SOCK${OFF}" && return 0
+			$envcheck_mesg "Using ${GREEN}forwarded${OFF} ssh-agent: ${GREEN}$SSH_AUTH_SOCK${OFF}" && return 0
 		else
 			unset SSH_AUTH_SOCK && debug "Ignoring SSH_AUTH_SOCK -- this is a forwarded socket" && return 1
 		fi
 	else
 		# We have valid SSH_AGENT_PID, so we accept the socket too:
-		mesg "Existing ssh-agent ($1): ${CYANN}$SSH_AGENT_PID${OFF}" && return 0
+		$envcheck_mesg "Existing ssh-agent ($1): ${CYANN}$SSH_AGENT_PID${OFF}" && return 0
 	fi
 }
 
@@ -380,17 +382,21 @@ ssh_envcheck() {
 
 startagent_ssh() {
 	if $quickopt; then
-		# below, we have ( ssh_l ) in its own sub-subshell so it can utilize the settings of eval "$(catpidf_shell sh)":
-		if ( unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)" && ssh_envcheck pidfile quiet && ( ssh_l > /dev/null || { [ $? = 1 ] && [ -z "$mykeys" ]; }; ) ); then
-			mesg "Found existing ssh-agent (quick)"
+		if ( unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)" && ssh_envcheck quick-test1 debug && ssh_l > /dev/null ); then
+			mesg "Found existing populated ssh-agent (quick)"
 			return 0
 		else
-			warn "Quick start unsuccessful -- doing regular start..."
+			if ( eval "$(catpidf_shell sh)" && ssh_envcheck quick-test2 debug ); then
+				warn "Quick start unsuccessful -- no keys loaded..."
+			else
+				warn "Quick start unsuccessful -- no agent found..."
+			fi
+			quickopt=false
 		fi
 	fi
 	takelock || die
 	# See if our pidfile is valid without wiping env:
-	if ( unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)" && ssh_envcheck pidfile quiet ); then
+	if ( unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)" && ssh_envcheck pidfile debug ); then
 		# Our pidfile is valid! :) We can simply use it:
 		unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)"
 	elif $allow_inherited && ssh_envcheck env; then
