@@ -990,13 +990,11 @@ if $evalopt; then
 	catpidf_shell "$SHELL"
 fi
 
-if $systemdopt; then
-	eval "$(catpidf_shell sh | sed -n "/^SSH_/{s/\;.*/'/;s/^/'/;p}" | tr '\n' ' ' | sed 's/^/systemctl --user set-environment /' )"
-fi
-
+$systemdopt && systemctl --user set-environment "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" "SSH_AGENT_PID=$SSH_AGENT_PID"
 # --noask: "don't ask for keys", so we're all done
 $noaskopt && { qprint; exit 0; }
 $quickopt && { qprint; exit 0; }
+
 load_ssh_keys() {
 	missing="$(echo "${sshkeys}" | ssh_listmissing)"
 	savedisplay="$DISPLAY"
