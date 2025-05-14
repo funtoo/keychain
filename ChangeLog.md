@@ -1,6 +1,30 @@
 # ChangeLog for Keychain
 https://www.funtoo.org/Funtoo:Keychain
 
+## keychain 2.9.3 (14 May 2025)
+
+This is a security and bug fix release.
+
+* Address a security issue where the use of the `--dir` and `--absolute` options
+  can be used to instruct keychain to write pidfiles into insecure areas, and 
+  with bad default umasks could allow others to modify your pidfiles. In the 
+  worst case, pidfiles could be writeable which could allow a local user redirect
+  you to a malicious ssh-agent and try to capture your passphrase.
+  
+  This hardening should make it difficult for a user to configure their keychain
+  in a way that would allow this to happen.
+
+  The hardening changes include:
+
+  * Setting a global restrictive `umask` in the script.
+  * Remove pidfiles before piping data to them to ensure they are created with
+    restrictive permissions from the `umask`.
+  * Check the keychain pidfile directory to ensure it is owned by the current 
+    user, and only the current user can access it (mode 700).
+  * Check any existing pidfiles, even if we do not write to them, to make sure
+    they are owned by the current user, and only the current user can access
+    them.
+
 ## keychain 2.9.2 (2 May 2025)
 
 This is primarily a bug fix release, but also introduces the new `--extended`

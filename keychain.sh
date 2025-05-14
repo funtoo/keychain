@@ -893,6 +893,8 @@ for keyf in "$pidf" "$cshpidf" "$fishpidf"; do
 		# shellcheck disable=SC2012
 		go_modes="$(ls -ld "${keyf}" | awk '{print $1}' | cut -c5- )"
 		[ "$go_modes" != "------" ] && die "Some pidfiles have lax permissions. Use ${CYAN}chmod -R go-rwx '${keydir}'${OFF} to fix."
+		# shellcheck disable=SC2012
+		keyf_owner="$(ls -ld "${keyf}" | awk '{print $3}')" && [ "$keyf_owner" != "$me" ] && die "${keyf} is owned by ${keyf_owner}, not ${me}. Please fix."
 	fi
 done
 
