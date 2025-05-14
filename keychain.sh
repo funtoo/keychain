@@ -113,6 +113,8 @@ INSERT_POD_OUTPUT_HERE
 EOHELP
 }
 
+me=$(id -un) || die "Who are you?  id -un doesn't know..."
+
 # synopsis: testssh
 # Figure out which ssh is in use, set the global boolean $openssh and $sunssh
 testssh() {
@@ -144,6 +146,11 @@ verifykeydir() {
 	elif [ ! -d "${keydir}" ]; then
 		mkdir "${keydir}" || die "can't create ${keydir}"
 	fi
+	# shellcheck disable=SC2012 # The "stat" command is not in POSIX, but "ls" output is. So for compliance, do this:
+	dir_owner="$(ls -ld "${keydir}" | awk '{print $3}')"
+	[ "$dir_owner" != "$me" ] && die "${keydir} is owned by ${dir_owner}, not ${me}. Please fix."
+	# shellcheck disable=SC2012 
+	[ "$(ls -ld "${keydir}" | awk '{print $1}')" != "drwx------" ] && die Keychain dir has lax permissions. Use "${CYAN}chmod go-rwx '${keydir}'${OFF} to fix."
 	if ! :> "$pidf.foo"; then
 		die "can't write inside $pidf"
 	else
@@ -923,7 +930,6 @@ fi
 
 testssh # sets $openssh, $sunssh and tweaks $ssh_spawn_gpg
 verifykeydir # sets up $keydir
-me=$(id -un) || die "Who are you?  id -un doesn't know..."
 
 # --stop: kill the existing ssh-agent(s) (not gpg-agent) and quit
 [ "$myaction" = stop ] && stop_ssh_agents
