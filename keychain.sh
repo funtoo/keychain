@@ -425,6 +425,7 @@ SSH_AGENT_PID=$SSH_AGENT_PID; export SSH_AGENT_PID"
 write_pidfile() {
 	if [ -n "$pidfile_out" ]; then
 		pidfile_out=$(echo "$pidfile_out" | grep -v 'Agent pid')
+		rm -f "$pidf" "$cshpidf" "$fishpidf" # Remove first, so we can recreate with our umask
 		case "$pidfile_out" in
 			setenv*)
 				echo "$pidfile_out" >"$cshpidf"
