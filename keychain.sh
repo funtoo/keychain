@@ -77,7 +77,7 @@ fi
 
 qprint() {
 	# shellcheck disable=SC2048,SC2086
-	$quietopt || echo $* >&2
+	$quietopt || echo $* >&2; return 0
 }
 
 mesg() {
@@ -91,7 +91,7 @@ warn() {
 
 debug() {
 	# shellcheck disable=SC2048,SC2086
-	$debugopt && echo "${CYAN}debug>" $*"${OFF}" >&2
+	$debugopt && echo "${CYAN}debug>" $*"${OFF}" >&2; return 0
 }
 
 error() {
@@ -303,8 +303,11 @@ catpidf_shell() {
 		*csh)		 cp_pidf="$cshpidf" ;;
 		*)			 cp_pidf="$pidf" ;;
 	esac
-	[ ! -f "$cp_pidf" ] && debug "pidfile doesn't exist" && return 1
-	[ -f "$cp_pidf" ] && cat "${cp_pidf}" && echo && return 0
+	if [ ! -f "$cp_pidf" ]; then
+		debug "pidfile doesn't exist"; return 1
+	else
+		cat "${cp_pidf}"; echo; return 0
+	fi
 }
 
 startagent_gpg() {
@@ -328,16 +331,10 @@ startagent_gpg() {
 }
 
 ssh_envcheck() {
-	if [ -n "$2" ]; then
-		envcheck_warn=$2; envcheck_mesg=$2
-	else
-		envcheck_warn="warn"; envcheck_mesg="mesg"
-	fi
 	# Initial short-circuits for known abort cases:
-	
 	[ -z "$SSH_AUTH_SOCK" ] && return 1
 	if [ ! -S "$SSH_AUTH_SOCK" ]; then
-		$envcheck_warn "SSH_AUTH_SOCK in $1 is invalid; ignoring it"
+		warn "SSH_AUTH_SOCK in $1 is invalid; ignoring it"
 		unset SSH_AUTH_SOCK && return 1
 	fi
 
@@ -356,7 +353,7 @@ ssh_envcheck() {
 		if gpg_socket="$(echo "GETINFO ssh_socket_name" | gpg-connect-agent --no-autostart 2>/dev/null | head -n1 | sed -n 's/^D //;1p' )"; then
 			if [ "$gpg_socket" = "$SSH_AUTH_SOCK" ]; then
 				if $ssh_allow_gpg; then
-					$envcheck_mesg "Using ssh-agent ($1): ${CYANN}$gpg_socket${OFF} (GnuPG)" && return 0
+					mesg "Using ssh-agent ($1): ${CYANN}$gpg_socket${OFF} (GnuPG)" && return 0
 				else
 					unset SSH_AUTH_SOCK && debug "Ignoring SSH_AUTH_SOCK -- this is the GnuPG-supplied socket" && return 1
 				fi
@@ -365,13 +362,13 @@ ssh_envcheck() {
 
 		if $ssh_allow_forwarded; then
 			SSH_AGENT_PID="forwarded"
-			$envcheck_mesg "Using ${GREEN}forwarded${OFF} ssh-agent: ${GREEN}$SSH_AUTH_SOCK${OFF}" && return 0
+			mesg "Using ${GREEN}forwarded${OFF} ssh-agent: ${GREEN}$SSH_AUTH_SOCK${OFF}" && return 0
 		else
 			unset SSH_AUTH_SOCK && debug "Ignoring SSH_AUTH_SOCK -- this is a forwarded socket" && return 1
 		fi
 	else
 		# We have valid SSH_AGENT_PID, so we accept the socket too:
-		$envcheck_mesg "Existing ssh-agent ($1): ${CYANN}$SSH_AGENT_PID${OFF}" && return 0
+		mesg "Existing ssh-agent ($1): ${CYANN}$SSH_AGENT_PID${OFF}" && return 0
 	fi
 }
 
@@ -382,23 +379,23 @@ ssh_envcheck() {
 
 startagent_ssh() {
 	if $quickopt; then
-		if ( unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)" && ssh_envcheck quick-test1 debug && ssh_l > /dev/null ); then
+		if ( unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)" && ssh_envcheck quick && ssh_l > /dev/null ); then
 			mesg "Found existing populated ssh-agent (quick)"
 			return 0
 		else
-			if ( eval "$(catpidf_shell sh)" && ssh_envcheck quick-test2 debug ); then
+			quickopt=false
+			if ( eval "$(catpidf_shell sh)" && ssh_envcheck quick-fail ); then
 				warn "Quick start unsuccessful -- no keys loaded..."
 			else
 				warn "Quick start unsuccessful -- no agent found..."
 			fi
-			quickopt=false
 		fi
 	fi
 	takelock || die
 	# See if our pidfile is valid without wiping env:
-	if ( unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)" && ssh_envcheck pidfile debug ); then
+	if ( unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)" && ssh_envcheck pidfile ); then
 		# Our pidfile is valid! :) We can simply use it:
-		unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)"
+		debug "pidfile is valid" && unset SSH_AGENT_PID SSH_AUTH_SOCK && eval "$(catpidf_shell sh)"
 	elif $allow_inherited && ssh_envcheck env; then
 		# If our env is OK, then let's grab it for our pidfile, as long as we don't have a forwarded ssh connection:
 		if [ "$SSH_AGENT_PID" != forwarded ]; then
@@ -515,7 +512,6 @@ ssh_l() {
 				;;
 		esac
 		return $sl_retval
-
 	else
 		# Error codes:
 		#	0  success - however might say "The authorization agent has no keys."
@@ -742,7 +738,6 @@ setaction() {
 
 wantagent() {
 	[ "$1" = "gpg" ] && [ -n "$gpgkeys" ] && return 0
-	[ "$1" = "ssh" ] && return 0
 	return 1
 }
 
@@ -973,13 +968,8 @@ elif [ "$myaction" = ssh_rm ]; then
 	done
 	qprint; exit 0
 else
-	if ! wantagent ssh && ! wantagent gpg; then
-		die "No keys specified. Nothing to do."
-	fi
-	if wantagent ssh; then
-		# This will start gpg-agent as an ssh-agent if such functionality is enabled (default)
-		startagent_ssh || warn "Unable to start an ssh-agent (error code: $?)"
-	fi
+	# This will start gpg-agent as an ssh-agent if such functionality is enabled (default)
+	startagent_ssh || warn "Unable to start an ssh-agent (error code: $?)"
 	[ -n "$pidfile_out" ] && write_pidfile && eval "$pidfile_out" > /dev/null
 	if ! $gpg_started && wantagent gpg; then
 		# If we also want gpg, and it hasn't been started yet, start it also. We don't need to
@@ -988,9 +978,7 @@ else
 		startagent_gpg || warn "Unable to start gpg-agent (error code: $?)"
 	fi
 	if $clearopt; then
-		if wantagent ssh; then
-			ssh_wipe
-		fi
+		ssh_wipe
 		if wantagent gpg; then
 			gpg_wipe
 		fi
@@ -1009,7 +997,6 @@ fi
 # --noask: "don't ask for keys", so we're all done
 $noaskopt && { qprint; exit 0; }
 $quickopt && { qprint; exit 0; }
-
 load_ssh_keys() {
 	missing="$(echo "${sshkeys}" | ssh_listmissing)"
 	savedisplay="$DISPLAY"
@@ -1066,9 +1053,7 @@ load_gpg_keys() {
 	done 
 }
 
-if wantagent ssh; then
-	load_ssh_keys || die "Unable to add keys"
-fi
+load_ssh_keys || die "Unable to add keys"
 
 if wantagent gpg; then
 	# shellcheck disable=SC2046
