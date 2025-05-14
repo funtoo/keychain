@@ -309,9 +309,13 @@ which can result in unncessary prompting for passphrases, and general confusion.
 
 =item B<--absolute>
 
-Any arguments to "--dir" are interpreted to be absolute. The default
-behavior is to append "/.keychain" to the argument for backwards
-compatibility.
+This option can be used with the B<--dir> option, if you would like to specify a
+non-default directory to store pidfiles (defaults to C<~/.keychain>). When this
+option is used, the script does not automatically append C</.keychain> to the
+path, allowing you to use any arbitrary directory name for the storing of pidfiles.
+Please note that Keychain 2.9.3 adds some extra security checks related to
+directory and file permissions -- you must have exclusive ownership of any
+directory that keychain uses to store pidfiles, or keychain will abort.
 
 =item B<--clear>
 
@@ -347,7 +351,11 @@ was not supplied.
 
 =item B<--dir> I<dirname>
 
-Keychain will use dirname rather than $HOME/.keychain
+This option allows you to use another directory besides C<$HOME/.keychain>.
+for the storing of pidfiles. Please note that Keychain 2.9.3 adds some 
+extra security checks related to directory and file permissions -- you
+must have exclusive ownership of any directory that keychain uses to store
+pidfiles, or the script will abort. Also see the B<--absolute> option.
 
 =item B<--env> I<filename>
 
