@@ -150,7 +150,7 @@ verifykeydir() {
 	dir_owner="$(ls -ld "${keydir}" | awk '{print $3}')"
 	[ "$dir_owner" != "$me" ] && die "${keydir} is owned by ${dir_owner}, not ${me}. Please fix."
 	# shellcheck disable=SC2012 
-	[ "$(ls -ld "${keydir}" | awk '{print $1}')" != "drwx------" ] && die Keychain dir has lax permissions. Use "${CYAN}chmod go-rwx '${keydir}'${OFF} to fix."
+	[ "$(ls -ld "${keydir}" | awk '{print $1}')" != "drwx------" ] && die Keychain dir has lax permissions. Use "${CYAN}chmod -R go-rwx '${keydir}'${OFF} to fix."
 	if ! :> "$pidf.foo"; then
 		die "can't write inside $pidf"
 	else
@@ -888,6 +888,13 @@ pidf="${keydir}/${hostopt}-sh"
 cshpidf="${keydir}/${hostopt}-csh"
 fishpidf="${keydir}/${hostopt}-fish"
 lockf="${keydir}/${hostopt}-lockf"
+for keyf in "$pidf" "$cshpidf" "$fishpidf"; do
+	if [ -f "$keyf" ]; then
+		# shellcheck disable=SC2012
+		go_modes="$(ls -ld "${keyf}" | awk '{print $1}' | cut -c5- )"
+		[ "$go_modes" != "------" ] && die "Some pidfiles have lax permissions. Use ${CYAN}chmod -R go-rwx '${keydir}'${OFF} to fix."
+	fi
+done
 
 # Read the env snippet (especially for things like PATH, but could modify basically anything)
 if [ -z "$envf" ]; then
