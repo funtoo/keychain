@@ -13,6 +13,7 @@ versinfo() {
 	qprint
 }
 
+umask 0077
 NEWLINE="
 "
 version=##VERSION##
@@ -141,10 +142,9 @@ verifykeydir() {
 		die "${keydir} is a file (it should be a directory)"
 	# Solaris 9 doesn't have -e; using -d....
 	elif [ ! -d "${keydir}" ]; then
-		( umask 0077 && mkdir "${keydir}"; ) || die "can't create ${keydir}"
+		mkdir "${keydir}" || die "can't create ${keydir}"
 	fi
-	# Can we write to the keydir? - The ( ) subshell is intentional! We don't want to change the umask globally!
-	if ! ( umask 0177 && :> "$pidf.foo" ); then
+	if ! :> "$pidf.foo"; then
 		die "can't write inside $pidf"
 	else
 		rm -f "$pidf.foo"
@@ -334,7 +334,7 @@ ssh_envcheck() {
 	# Initial short-circuits for known abort cases:
 	[ -z "$SSH_AUTH_SOCK" ] && return 1
 	if [ ! -S "$SSH_AUTH_SOCK" ]; then
-		warn "SSH_AUTH_SOCK in $1 is invalid; ignoring it"
+		$quickopt || warn "SSH_AUTH_SOCK in $1 is invalid; ignoring it"
 		unset SSH_AUTH_SOCK && return 1
 	fi
 
@@ -353,7 +353,8 @@ ssh_envcheck() {
 		if gpg_socket="$(echo "GETINFO ssh_socket_name" | gpg-connect-agent --no-autostart 2>/dev/null | head -n1 | sed -n 's/^D //;1p' )"; then
 			if [ "$gpg_socket" = "$SSH_AUTH_SOCK" ]; then
 				if $ssh_allow_gpg; then
-					mesg "Using ssh-agent ($1): ${CYANN}$gpg_socket${OFF} (GnuPG)" && return 0
+					$quickopt || mesg "Using ssh-agent ($1): ${CYANN}$gpg_socket${OFF} (GnuPG)"
+					return 0
 				else
 					unset SSH_AUTH_SOCK && debug "Ignoring SSH_AUTH_SOCK -- this is the GnuPG-supplied socket" && return 1
 				fi
@@ -362,13 +363,15 @@ ssh_envcheck() {
 
 		if $ssh_allow_forwarded; then
 			SSH_AGENT_PID="forwarded"
-			mesg "Using ${GREEN}forwarded${OFF} ssh-agent: ${GREEN}$SSH_AUTH_SOCK${OFF}" && return 0
+			$quickopt || mesg "Using ${GREEN}forwarded${OFF} ssh-agent: ${GREEN}$SSH_AUTH_SOCK${OFF}"
+			return 0
 		else
 			unset SSH_AUTH_SOCK && debug "Ignoring SSH_AUTH_SOCK -- this is a forwarded socket" && return 1
 		fi
 	else
 		# We have valid SSH_AGENT_PID, so we accept the socket too:
-		mesg "Existing ssh-agent ($1): ${CYANN}$SSH_AGENT_PID${OFF}" && return 0
+		$quickopt || mesg "Existing ssh-agent ($1): ${CYANN}$SSH_AGENT_PID${OFF}"
+		return 0
 	fi
 }
 
@@ -383,12 +386,12 @@ startagent_ssh() {
 			mesg "Found existing populated ssh-agent (quick)"
 			return 0
 		else
-			quickopt=false
-			if ( eval "$(catpidf_shell sh)" && ssh_envcheck quick-fail ); then
+			if ( eval "$(catpidf_shell sh)" && ssh_envcheck quick ); then
 				warn "Quick start unsuccessful -- no keys loaded..."
 			else
 				warn "Quick start unsuccessful -- no agent found..."
 			fi
+			quickopt=false
 		fi
 	fi
 	takelock || die
