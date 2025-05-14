@@ -993,8 +993,9 @@ if $evalopt; then
 	catpidf_shell "$SHELL"
 fi
 
-$systemdopt && systemctl --user set-environment "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" "SSH_AGENT_PID=$SSH_AGENT_PID"
-# --noask: "don't ask for keys", so we're all done
+$systemdopt && systemctl --user set-environment "SSH_AUTH_SOCK=$SSH_AUTH_SOCK"
+$systemdopt && [ -n "$SSH_AGENT_PID" ] && systemctl --user set-environment "SSH_AGENT_PID=$SSH_AGENT_PID"
+# These options don't need to load keys, so terminate early:
 $noaskopt && { qprint; exit 0; }
 $quickopt && { qprint; exit 0; }
 
