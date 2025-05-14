@@ -63,6 +63,7 @@ CYANN="[36m"
 GREEN="[32;01m"
 RED="[31;01m"
 PURP="[35;01m"
+YEL="[33;01m"
 OFF="[0m"
 
 # GNU awk and sed have regex issues in a multibyte environment.  If any locale
@@ -81,13 +82,18 @@ qprint() {
 	$quietopt || echo $* >&2; return 0
 }
 
-mesg() {
+mesg() { # general information; suppressed with --quiet
 	qprint " ${GREEN}*${OFF} $*"
 }
 
-warn() {
+warn() { # important warning; not suppressed with --quiet
 	# shellcheck disable=SC2048,SC2086
 	echo " ${RED}* Warning${OFF}: "$* >&2
+}
+
+note() { # important notice; suppressed with --quiet
+	# shellcheck disable=SC2048,SC2086
+	qprint " ${YEL}* Note${OFF}: "$* >&2
 }
 
 debug() {
@@ -341,7 +347,7 @@ ssh_envcheck() {
 	# Initial short-circuits for known abort cases:
 	[ -z "$SSH_AUTH_SOCK" ] && return 1
 	if [ ! -S "$SSH_AUTH_SOCK" ]; then
-		( $quickopt || $quietopt ) || warn "SSH_AUTH_SOCK in $1 is invalid; ignoring it"
+		$quickopt || note "SSH_AUTH_SOCK in $1 is invalid; ignoring it"
 		unset SSH_AUTH_SOCK && return 1
 	fi
 
@@ -394,9 +400,9 @@ startagent_ssh() {
 			return 0
 		else
 			if ( eval "$(catpidf_shell sh)" && ssh_envcheck quick ); then
-				$quietopt || warn "Quick start unsuccessful -- no keys loaded..."
+				note "Quick start unsuccessful -- no keys loaded..."
 			else
-				$quietopt || warn "Quick start unsuccessful -- no agent found..."
+				note "Quick start unsuccessful -- no agent found..."
 			fi
 			quickopt=false
 		fi
@@ -562,7 +568,7 @@ ssh_f() {
 			fi
 			lsf_filename=$(echo "$sf_filename" | sed 's/\.[^\.]*$//').pub
 			if [ ! -f "$lsf_filename" ]; then
-				warn "Cannot find separate public key for $1."
+				note "Cannot find separate public key for $1."
 				lsf_filename="$sf_filename"
 			fi
 		fi
@@ -966,7 +972,7 @@ if [ "$myaction" = gpg_wipe ]; then
 elif [ "$myaction" = ssh_wipe ]; then
 	ssh_wipe; qprint; exit 0
 elif [ "$myaction" = all_wipe ]; then
-	ssh_wipe; gpg_wipe; qprint; exit 0
+	ssh_wipe; wantagent gpg && gpg_wipe; qprint; exit 0
 elif [ "$myaction" = query ]; then
 	# --query displays current settings, but does not start an agent:
 	if catpidf_shell sh > /dev/null; then
