@@ -3,27 +3,50 @@ https://www.funtoo.org/Funtoo:Keychain
 
 ## keychain 2.9.3 (14 May 2025)
 
-This is a security and bug fix release.
+This is a security and bug fix release. Many thanks to those who have reported
+issues to GitHub, send in pull requests, and tested out fixes. 2.9.3 includes
+the following updates:
 
-* Address a security issue where the use of the `--dir` and `--absolute` options
-  can be used to instruct keychain to write pidfiles into insecure areas, and 
-  with bad default umasks could allow others to modify your pidfiles. In the 
-  worst case, pidfiles could be writeable which could allow a local user redirect
-  you to a malicious ssh-agent and try to capture your passphrase.
+* The `--quick` option logic had several bugs which have been resolved. Thanks
+  to Filipe Fernandes (@ffernand) for reporting the issue and for assistance
+  testing fixes. ([#167](https://github.com/funtoo/keychain/issues/167))
+
+* Fix keychain `--query` exit code when no pidfile exists.
+  ([#171](https://github.com/funtoo/keychain/issues/171))
+
+* `--systemd` option should now be fixed.
+  ([[#168](https://github.com/funtoo/keychain/issues/168)])
+
+* Harden keychain so the use of the `--dir` and `--absolute` options cannot be
+  used to instruct keychain to write pidfiles into insecure areas.
+  ([#174](https://github.com/funtoo/keychain/issues/174))
   
-  This hardening should make it difficult for a user to configure their keychain
-  in a way that would allow this to happen.
+  Prior to this release, it was possible to use these options in combination
+  with bad (empty) default umask to write pidfiles into a public area on disk
+  where they were writable by other users. In the worst case, this could allow
+  arbitrary execution of the contents of the malicious pidfile by keychain.
+  
+  This hardening now makes it difficult for a user to configure their keychain
+  in a way that would allow this to happen. Note that if you are not using the
+  `--dir` or `--absolute` options, keychain will use the `$HOME/.keychain` 
+  directory by default, which is typically under the full control of the 
+  current user and thus not exploitable. 
 
   The hardening changes include:
 
   * Setting a global restrictive `umask` in the script.
-  * Remove pidfiles before piping data to them to ensure they are created with
-    restrictive permissions from the `umask`.
+  * Remove pidfiles before redirecting data to them to ensure they are created
+    with restrictive permissions from the `umask`.
   * Check the keychain pidfile directory to ensure it is owned by the current 
-    user, and only the current user can access it (mode 700).
-  * Check any existing pidfiles, even if we do not write to them, to make sure
-    they are owned by the current user, and only the current user can access
-    them.
+    user, and only the current user can access it (mode 700). If not, abort
+    with an informative error message.
+  * Check any existing pidfiles prior to use to make sure they are owned by the
+    current user, and only the current user can access them. If not, abort with
+    an informative error message.
+
+  Thanks to Eisuke Kawashima (@e-kwsm) for reporting this issue, the `--systemd`
+  issue, as well as for the `--query` fix.
+
 
 ## keychain 2.9.2 (2 May 2025)
 
