@@ -341,7 +341,7 @@ ssh_envcheck() {
 	# Initial short-circuits for known abort cases:
 	[ -z "$SSH_AUTH_SOCK" ] && return 1
 	if [ ! -S "$SSH_AUTH_SOCK" ]; then
-		$quickopt || warn "SSH_AUTH_SOCK in $1 is invalid; ignoring it"
+		( $quickopt || $quietopt ) || warn "SSH_AUTH_SOCK in $1 is invalid; ignoring it"
 		unset SSH_AUTH_SOCK && return 1
 	fi
 
@@ -394,9 +394,9 @@ startagent_ssh() {
 			return 0
 		else
 			if ( eval "$(catpidf_shell sh)" && ssh_envcheck quick ); then
-				warn "Quick start unsuccessful -- no keys loaded..."
+				$quietopt || warn "Quick start unsuccessful -- no keys loaded..."
 			else
-				warn "Quick start unsuccessful -- no agent found..."
+				$quietopt || warn "Quick start unsuccessful -- no agent found..."
 			fi
 			quickopt=false
 		fi
