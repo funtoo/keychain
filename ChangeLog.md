@@ -1,6 +1,20 @@
 # ChangeLog for Keychain
 https://www.funtoo.org/Funtoo:Keychain
 
+## keychain 2.9.4 (14 May 2025)
+
+This is a minor bugfix release.
+
+* Fix minor regression which allowed some warnings to display with `--quiet`.
+([#175](https://github.com/funtoo/keychain/issues/175))
+
+* "Cannot find separate public key" turned into a `note()` rather than `warn()`,
+  along with several other non-critical notices. `note()` can be suppressed with
+  `--quiet`, unlike `warn()`. ([#157](https://github.com/funtoo/keychain/issues/157))
+
+* Minor improvement when wiping GnuPG keys with `--wipe` option so keychain output
+  is more understandable when gpg-agent is not running.
+
 ## keychain 2.9.3 (14 May 2025)
 
 This is a security and bug fix release. Many thanks to those who have reported

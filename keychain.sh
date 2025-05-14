@@ -763,7 +763,7 @@ gpg_wipe() {
 	if [ "$out" = "OK" ]; then
 		mesg "gpg-agent: All identities removed."
 	else
-		mesg "gpg-agent: Could not remove identities ($out)"
+		mesg "gpg-agent: Could not remove identities; possibly not running. (output: $out)"
 	fi
 }
 
@@ -972,7 +972,7 @@ if [ "$myaction" = gpg_wipe ]; then
 elif [ "$myaction" = ssh_wipe ]; then
 	ssh_wipe; qprint; exit 0
 elif [ "$myaction" = all_wipe ]; then
-	ssh_wipe; wantagent gpg && gpg_wipe; qprint; exit 0
+	ssh_wipe; gpg_wipe; qprint; exit 0
 elif [ "$myaction" = query ]; then
 	# --query displays current settings, but does not start an agent:
 	if catpidf_shell sh > /dev/null; then
