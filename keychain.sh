@@ -79,7 +79,7 @@ fi
 
 qprint() {
 	# shellcheck disable=SC2048,SC2086
-	$quietopt || echo $* >&2; return 0
+	$quietopt || echo "$@" >&2; return 0
 }
 
 mesg() { # general information; suppressed with --quiet
@@ -98,7 +98,7 @@ note() { # important notice; suppressed with --quiet
 
 debug() {
 	# shellcheck disable=SC2048,SC2086
-	$debugopt && echo "${CYAN}debug>" $*"${OFF}" >&2; return 0
+	$debugopt && echo " ${CYAN}debug>" $*"${OFF}" >&2; return 0
 }
 
 error() {
@@ -154,9 +154,9 @@ verifykeydir() {
 	fi
 	# shellcheck disable=SC2012 # The "stat" command is not in POSIX, but "ls" output is. So for compliance, do this:
 	dir_owner="$(ls -ld "${keydir}" | awk '{print $3}')"
-	[ "$dir_owner" != "$me" ] && die "${keydir} is owned by ${dir_owner}, not ${me}. Please fix."
-	# shellcheck disable=SC2012 
-	[ "$(ls -ld "${keydir}" | awk '{print $1}')" != "drwx------" ] && die Keychain dir has lax permissions. Use "${CYAN}chmod -R go-rwx '${keydir}'${OFF} to fix."
+	[ "$dir_owner" != "$me" ] && warn "${keydir} is owned by ${dir_owner}, not ${me}. Please fix."
+	# shellcheck disable=SC2012 # POSIX defines the first 9 chars of ls -l:
+	[ "$(ls -ld "${keydir}" | cut -c5-10)" != "------" ] && warn "Keychain dir has lax permissions. Use ${CYAN}chmod -R go-rwx '${keydir}'${OFF} to fix."
 	if ! :> "$pidf.foo"; then
 		die "can't write inside $pidf"
 	else
@@ -896,11 +896,11 @@ fishpidf="${keydir}/${hostopt}-fish"
 lockf="${keydir}/${hostopt}-lockf"
 for keyf in "$pidf" "$cshpidf" "$fishpidf"; do
 	if [ -f "$keyf" ]; then
+		# shellcheck disable=SC2012 # POSIX defines the first 9 chars of ls -l:
+		go_modes="$(ls -ld "${keyf}" | cut -c5-10 )"
+		[ "$go_modes" != "------" ] && warn "Some pidfiles have lax permissions. Use ${CYAN}chmod -R go-rwx '${keydir}'${OFF} to fix."
 		# shellcheck disable=SC2012
-		go_modes="$(ls -ld "${keyf}" | awk '{print $1}' | cut -c5- )"
-		[ "$go_modes" != "------" ] && die "Some pidfiles have lax permissions. Use ${CYAN}chmod -R go-rwx '${keydir}'${OFF} to fix."
-		# shellcheck disable=SC2012
-		keyf_owner="$(ls -ld "${keyf}" | awk '{print $3}')" && [ "$keyf_owner" != "$me" ] && die "${keyf} is owned by ${keyf_owner}, not ${me}. Please fix."
+		keyf_owner="$(ls -ld "${keyf}" | awk '{print $3}')" && [ "$keyf_owner" != "$me" ] && warn "${keyf} is owned by ${keyf_owner}, not ${me}. Please fix."
 	fi
 done
 
