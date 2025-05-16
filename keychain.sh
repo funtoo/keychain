@@ -347,7 +347,7 @@ ssh_envcheck() {
 	# Initial short-circuits for known abort cases:
 	[ -z "$SSH_AUTH_SOCK" ] && return 1
 	if [ ! -S "$SSH_AUTH_SOCK" ]; then
-		$quickopt || note "SSH_AUTH_SOCK in $1 is invalid; ignoring it"
+		debug "SSH_AUTH_SOCK in $1 is invalid; ignoring it"
 		unset SSH_AUTH_SOCK && return 1
 	fi
 
