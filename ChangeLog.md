@@ -1,6 +1,21 @@
 # ChangeLog for Keychain
 https://www.funtoo.org/Funtoo:Keychain
 
+## keychain 2.9.5 (16 May 2025)
+
+This is a bugfix release.
+
+* Hardening checks were failing on Android and some MacOS environments. Make them
+  more compatible and lower to warnings instead of aborting the script, until
+  they have been tested in more environments.
+  ([#177](https://github.com/funtoo/keychain/issues/177))
+
+* Fixed issues with indentation of `note()`, `warn()`, `mesg()`.
+
+* Convert `SSH_AUTH_SOCK in pidfile is invalid; ignoring it` into a debug message,
+  as this is normal when rebooting your system so is not really useful to show 
+  typically. ([#176](https://github.com/funtoo/keychain/issues/176))
+
 ## keychain 2.9.4 (14 May 2025)
 
 This is a minor bugfix release.
