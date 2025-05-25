@@ -6,8 +6,8 @@ keychain - Manager for ssh-agent, gpg-agent and private keys. Compatible with PO
 
 S<keychain [ -hklQqV ] [ --clear --confhost --confallhosts --debug>
 S<--extended --gpg2 --help --ignore-missing --list --noask --nocolor --nogui>
-S<--noinherit --nolock --quick --quiet --ssh-allow-forwarded --ssh-rm>
-S<--ssh-spawn-gpg --systemd --version ] [ --ssh-agent-socket I<path> ]>
+S<--noinherit --nolock --quick --quiet --ssh-allow-forwarded --ssh-allow-gpg>
+S<--ssh-rm --ssh-spawn-gpg --systemd --version ] [ --ssh-agent-socket I<path> ]>
 S<[ --dir I<dirname> ] [ --host I<name> ] [ --lockwait I<seconds> ]>
 S<[ --stop I<which> ] [ --timeout I<minutes> ] [ --wipe I<which> ] [ keys... ]>
 
@@ -15,7 +15,7 @@ S<[ --stop I<which> ] [ --timeout I<minutes> ] [ --wipe I<which> ] [ keys... ]>
 
 B<Keychain> helps you to manage SSH and GPG keys in a convenient and secure
 manner. It acts as a frontend to C<ssh-agent> and C<ssh-add>, but allows you
-to easily have one long running C<ssh-agent> process per system, rather than
+to easily have one long-running C<ssh-agent> process per system, rather than
 the norm of one C<ssh-agent> per login session.
 
 This dramatically reduces the number of times you need to enter your
